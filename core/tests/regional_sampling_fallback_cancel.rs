@@ -5,7 +5,8 @@
 //! regional tree (`regional_sampling_tree_cancel.rs`), and only a guided
 //! Shadows/Highlights keeps the full-frame fallback, which runs
 //! `flattened_cut_with_job` under the sampling job, `checkpoints_only` — the
-//! plate still reports no progress.
+//! fallback still reports no progress (the tile loop reports once per tile
+//! since 13B-9b).
 //!
 //! Default tests (load-independent, 13A-5b-iii-b-1): the tiled plate equals
 //! `dr_doc_flattened` byte for byte for every newly admitted form AND succeeds
@@ -624,9 +625,11 @@ fn a_cancel_parked_inside_the_tile_loop_returns_nothing() {
         total >= 2 * u64::from(H),
         "the tile loop polled only {total} times: its composites are not under the job"
     );
+    // The loop reports once per tile at stage 1 (13B-9b), so the park lies
+    // inside the plate's band, short of its end.
     let p = cancelled_parked_at(
         total / 2,
-        &|progress, _| progress == 0.0,
+        &|progress, stage| stage == 1 && (0.0..1.0).contains(&progress),
         plate(&tiled_case('i')),
     );
     eprintln!(
@@ -658,7 +661,9 @@ fn calibrated(build: &dyn Fn() -> DrDocument) -> Duration {
 /// One measured probe line. `run` names the run whose fixture `build` makes,
 /// so the line is read against that run's record only: the fallback's
 /// fixture is 13A-5c-2b's (`n` rasters in an isolated group under a guided
-/// Shadows/Highlights), not 13A-5c-2a's bare group.
+/// Shadows/Highlights), not 13A-5c-2a's bare group. `reported` is the run's
+/// progress verdict at the park: the fallback reports nothing, the tile loop
+/// once per tile at stage 1 (13B-9b).
 fn bench(
     run: &str,
     what: &str,
@@ -666,6 +671,7 @@ fn bench(
     bound_name: &str,
     rows: f64,
     build: &dyn Fn(usize) -> DrDocument,
+    reported: &dyn Fn(f64, u32) -> bool,
 ) {
     let t1 = calibrated(&|| build(1));
     let t6 = calibrated(&|| build(N));
@@ -674,7 +680,7 @@ fn bench(
     let p = probe(
         &|_, _, n| n >= half,
         Trigger::After(1),
-        &|progress, _| progress == 0.0,
+        reported,
         plate(&build(N)),
     );
     let bound = RETURN_FLOOR_S + c;
@@ -704,6 +710,7 @@ fn a_concurrently_cancelled_fallback_returns_within_one_chain_row() {
         "c_row",
         f64::from(BH),
         &|n| guided_over(&bench_group(n)),
+        &|progress, _| progress == 0.0,
     );
 }
 
@@ -718,5 +725,6 @@ fn a_concurrently_cancelled_tile_loop_returns_within_one_tile_row() {
         "c_tile_row",
         f64::from(BH) * columns,
         &bench_masked,
+        &|progress, stage| stage == 1 && (0.0..1.0).contains(&progress),
     );
 }

@@ -8,17 +8,69 @@
 //! `all` and `current_and_below` still render the whole plate and keep its
 //! rect. Both are admitted and reserved as the whole plate is
 //! (`retouch_source_plan`), so the request's admission does not change.
+//!
+//! A Spot Heal or Content-Aware Fill reads its [`SynthesisSource`] (13B-9b):
+//! with `sample: current` the source layer IN PLACE at its offset
+//! (`precision_inpaint::SynthesisPlate` answers its gaps with the canvas
+//! plate's blank), so no plate is built, admitted or reserved and
+//! `retouch_plan` charges none; `all` and `current_and_below` (and the
+//! full-frame seam) render the canvas plate as before.
 use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionRun, PrecisionStorage,
     BOOKKEEPING_BYTES,
 };
+use crate::precision_inpaint::SynthesisPlate;
+use crate::precision_retouch::{RetouchEdit, RetouchOp};
 use crate::retouch_sampling::RetouchSampling;
 use crate::retouch_transform::CanvasRect;
 use crate::style_composite::Cut;
 
+/// What a Spot Heal or Content-Aware Fill samples (module doc): the
+/// `sample: current` source layer read in place at its canvas offset, or a
+/// rendered canvas plate.
+pub(crate) enum SynthesisSource<'a> {
+    InPlace(&'a PrecisionImage, (i32, i32)),
+    Rendered(PrecisionImage),
+}
+
+impl SynthesisSource<'_> {
+    /// The plate the synthesis reads; a rendered plate stands at (0, 0).
+    pub(crate) fn plate(&self) -> SynthesisPlate<'_> {
+        match self {
+            Self::InPlace(image, offset) => SynthesisPlate::Precision(image, *offset),
+            Self::Rendered(plate) => SynthesisPlate::Precision(plate, (0, 0)),
+        }
+    }
+}
+
 impl PrecisionDocument {
+    /// The source a Spot Heal or Content-Aware Fill reads (module doc);
+    /// `None` for any other op. `InPlace` when
+    /// `edit.reads_plate_in_place()` (through `current_source`: nothing is
+    /// built, admitted or reserved), else `Rendered`, the plate
+    /// `retouch_source_with_context` renders, unchanged.
+    pub(crate) fn synthesis_source(
+        &self,
+        edit: &RetouchEdit,
+        limit: u64,
+        other: u64,
+        job: JobContext<'_>,
+    ) -> Result<Option<SynthesisSource<'_>>, String> {
+        if !matches!(edit.op, RetouchOp::SpotHeal | RetouchOp::ContentAwareFill) {
+            return Ok(None);
+        }
+        let index = edit.source_layer.unwrap_or(edit.layer);
+        if edit.reads_plate_in_place() {
+            let (image, offset) = self.current_source(index)?;
+            return Ok(Some(SynthesisSource::InPlace(image, offset)));
+        }
+        let (mode, ignore) = (edit.mode()?, edit.ignore_adjustments);
+        let plate = self.retouch_source_with_context(index, mode, ignore, limit, other, job)?;
+        Ok(Some(SynthesisSource::Rendered(plate)))
+    }
+
     pub fn retouch_source_plan(&self, index: usize, mode: RetouchSampling) -> Result<u64, String> {
         self.layer_source(index)
             .ok_or("retouch requires a raster source layer")?;

@@ -29,9 +29,10 @@
 //! materialization (13A-5a / 13A-5b-i / 13A-5b-ii-a/b), and the tile loop
 //! polls at the head of every tile and of every tile ROW, the encode once
 //! per row — so a cancel inside the loop returns within one tile row of ROOT
-//! samples through the WHOLE tree (≤ 1024 samples, `c_tree_row`). The plate
-//! reports no progress (13A-5c-2a's decision): every report lands at the
-//! range's start.
+//! samples through the WHOLE tree (≤ 1024 samples, `c_tree_row`). Progress
+//! (13B-9b): the poll at each tile's head is a report, `k / tiles` at stage 1
+//! across the caller's band (the same one checkpoint); the admission, the
+//! resolve and the compositor env stay `checkpoints_only()`.
 //!
 //! `Tree` (13A-5c-2b): groups and layer styles go through the byte REGIONAL tree —
 //! `regional_cut_plate` admits once over the canvas with the cut (`regional_admission`), resolves
@@ -119,9 +120,13 @@ impl DrDocument {
             )?
         };
         let mut out = RgbaImage::new(width, height);
+        // One report per tile, `k` tiles done of `tiles` (module doc).
+        let tiles = u64::from(width.div_ceil(TILE_WIDTH)) * u64::from(height.div_ceil(TILE_HEIGHT));
+        let mut k = 0u64;
         for y in (0..height).step_by(TILE_HEIGHT as usize) {
             for x in (0..width).step_by(TILE_WIDTH as usize) {
-                control.check()?;
+                control.report(k as f64 / tiles as f64, 1)?;
+                k += 1;
                 let w = (width - x).min(TILE_WIDTH);
                 let h = (height - y).min(TILE_HEIGHT);
                 let mut acc = vec![[0f32; 4]; w as usize * h as usize];

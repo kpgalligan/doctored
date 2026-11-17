@@ -804,7 +804,8 @@ fn inpaint(
             fill.sample,
             fill.ignore_adjustments,
             inpaint_scratch_bound(doc, starts, 0, 0, 0),
-            control,
+            // The plate's per-tile reports, between 0.03 and 0.06.
+            control.range(0.03, 0.06),
         )?
         else {
             return Ok(None);

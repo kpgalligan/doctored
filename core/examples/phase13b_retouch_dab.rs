@@ -11,10 +11,12 @@
 //! 13B-9a a `sample: current` Clone or Heal reads and transforms its bound
 //! only (`precision_retouch_apply`'s module doc): at 6000×4000 the 16-bit
 //! Clone peaks at 1,215,530 and the Heal at 1,221,994, the float Clone at
-//! 2,424,106 and the Heal at 2,437,034, the answer's new tiles included. What
-//! stays canvas-proportional: a selection's coverage domain (2 bytes a
-//! pixel), the `all` / `current_and_below` plate's own render (24 bytes a
-//! pixel) and Spot Heal's plate (16).
+//! 2,424,106 and the Heal at 2,437,034, the answer's new tiles included.
+//! Since 13B-9b a `sample: current` Spot Heal reads its source layer in place
+//! and plans its hole over its bounds: the 48×48 dab peaks at 1,160,946 at
+//! 6000×4000 (384,022,322 before). What stays canvas-proportional: a
+//! selection's coverage domain (2 bytes a pixel) and the `all` /
+//! `current_and_below` plate's own render (24 bytes a pixel).
 //!
 //! `cd core && cargo run --release --example phase13b_retouch_dab`
 

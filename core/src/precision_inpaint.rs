@@ -1,7 +1,11 @@
 //! Native-depth synthesis using the shipped component planner and PatchMatch
 //! pyramid/search/vote. Float RGB remains in native u16 code units through the
 //! membrane solve; the destination quantizes exactly once. The source is an
-//! immutable, document-profile canvas plate supplied by the retouch dispatcher.
+//! immutable, document-profile [`SynthesisPlate`] supplied by the retouch
+//! dispatcher: a rendered canvas plate at (0, 0), or (13B-9b) a `sample:
+//! current` source layer read in place at its offset, whose gaps answer the
+//! canvas plate's blank. [`plan`] builds its hole plane and walks its
+//! components over the request's bounds (its `domain`), not the canvas.
 //! This module knows nothing about layer creation or source-mode composition.
 //!
 //! # Admission
@@ -175,7 +179,7 @@ use crate::heal_writeback::HealSample;
 use crate::inpaint_plan::ComponentPlan;
 use crate::job_control::JobContext;
 use crate::patchmatch::Plane;
-use crate::precision_image::{pixel_count, PrecisionImage, PrecisionRun};
+use crate::precision_image::{pixel_count, PrecisionImage, PrecisionRun, PrecisionStorage};
 use crate::spot_heal_type::SpotHealType;
 
 const BOOKKEEPING: u64 = 8 * 1024 * 1024;
@@ -192,6 +196,10 @@ const WINDOW_BYTES: u64 = 72;
 
 pub(crate) struct InpaintPlan {
     canvas: (u32, u32),
+    /// The canvas rect `(x, y, w, h)` the hole plane and the component walk
+    /// cover: the request's bounds, or the canvas under the full-frame seam.
+    domain: (u32, u32, u32, u32),
+    /// Row-major over `domain` only; [`InpaintPlan::is_hole`] reads it.
     hole: Vec<bool>,
     components: Vec<Component>,
     windows: Vec<ComponentPlan>,
@@ -224,31 +232,29 @@ fn window_bytes(channels: usize) -> u64 {
 /// document's ink plate, whose four ink codes are the colour channels.
 #[derive(Clone, Copy)]
 pub(crate) enum SynthesisPlate<'a> {
-    Precision(&'a PrecisionImage),
-    Cmyk(&'a CmykImage),
+    /// An RGB image at canvas `offset`: the rendered plate at (0, 0), or the Current source layer.
+    Precision(&'a PrecisionImage, (i32, i32)),
+    Cmyk(&'a CmykImage, (i32, i32)),
 }
 
 impl SynthesisPlate<'_> {
-    pub(crate) fn dimensions(&self) -> (u32, u32) {
-        match self {
-            Self::Precision(image) => image.dimensions(),
-            Self::Cmyk(image) => image.dimensions(),
-        }
-    }
-
     /// The colour channels a pixel carries: 3, or 4 inks.
     pub(crate) fn channels(&self) -> usize {
         match self {
-            Self::Precision(_) => 3,
-            Self::Cmyk(_) => 4,
+            Self::Precision(..) => 3,
+            Self::Cmyk(..) => 4,
         }
     }
 
-    /// Calls `f(x, colour, solid)` for every sample of row `y`, columns
-    /// `x0..x1`, in the solve's code units: a u16 run's codes, an f32 run
-    /// through `retouch_encoding::encode`, a CMYK run's ink codes; `solid`
-    /// is the half-alpha data rule (alpha ≥ 32768, or ≥ 0.5 in f32). `C` must
-    /// be [`Self::channels`] (`apply` checks it first).
+    /// Calls `f(x, colour, solid)` for EVERY canvas column `x0..x1` of
+    /// canvas row `y`, in ascending order, in the solve's code units: a u16
+    /// run's codes, an f32 run through `retouch_encoding::encode`, a CMYK
+    /// run's ink codes; `solid` is the half-alpha data rule (alpha ≥ 32768,
+    /// or ≥ 0.5 in f32). A column off the image (a gap of an in-place source
+    /// layer) answers the canvas plate's blank — the transparent sample a
+    /// rendered Current plate holds there (`[0; 4]`, `PAPER`): colour 0 for a
+    /// u16 or CMYK image, `encode(0.0)` for f32, and not solid. `C` must be
+    /// [`Self::channels`] (`apply` checks it first).
     fn read_row<const C: usize>(
         &self,
         y: u32,
@@ -256,34 +262,68 @@ impl SynthesisPlate<'_> {
         x1: usize,
         mut f: impl FnMut(usize, [f32; C], bool),
     ) {
+        let ((w, h), (ox, oy)) = match self {
+            Self::Precision(image, offset) => (image.dimensions(), *offset),
+            Self::Cmyk(image, offset) => (image.dimensions(), *offset),
+        };
+        let blank = match self {
+            Self::Precision(image, _) if image.storage() == PrecisionStorage::Rgba32Float => {
+                crate::retouch_encoding::encode(0.0)
+            }
+            _ => 0.0,
+        };
+        // The image's canvas columns under `x0..x1`: `a..b`, empty off its rows.
+        let ly = i64::from(y) - i64::from(oy);
+        let (a, b) = if (0..i64::from(h)).contains(&ly) {
+            let (lo, hi) = (x0 as i64, x1 as i64);
+            let a = i64::from(ox).clamp(lo, hi);
+            (
+                a as usize,
+                (i64::from(ox) + i64::from(w)).clamp(a, hi) as usize,
+            )
+        } else {
+            (x1, x1)
+        };
+        for x in x0..a {
+            f(x, [blank; C], false);
+        }
+        let (l0, l1) = (
+            (a as i64 - i64::from(ox)) as u32,
+            (b as i64 - i64::from(ox)) as u32,
+        );
+        let at = |sx: u32, k: usize| (i64::from(sx) + i64::from(ox)) as usize + k;
         match self {
-            Self::Precision(image) => {
-                for (sx, run) in image.row_segments(y, x0 as u32, x1 as u32) {
+            Self::Precision(image, _) if a < b => {
+                for (sx, run) in image.row_segments(ly as u32, l0, l1) {
                     match run {
                         PrecisionRun::Rgba16(run) => {
                             for (k, px) in run.iter().enumerate() {
                                 let colour = std::array::from_fn(|c| f32::from(px[c]));
-                                f(sx as usize + k, colour, px[3] >= 32768);
+                                f(at(sx, k), colour, px[3] >= 32768);
                             }
                         }
                         PrecisionRun::Rgba32(run) => {
                             for (k, px) in run.iter().enumerate() {
                                 let colour =
                                     std::array::from_fn(|c| crate::retouch_encoding::encode(px[c]));
-                                f(sx as usize + k, colour, px[3] >= 0.5);
+                                f(at(sx, k), colour, px[3] >= 0.5);
                             }
                         }
                     }
                 }
             }
-            Self::Cmyk(image) => {
-                for (sx, run) in image.row_segments(y, x0 as u32, x1 as u32) {
+            Self::Cmyk(image, _) if a < b => {
+                for (sx, run) in image.row_segments(ly as u32, l0, l1) {
                     for (k, s) in run.iter().enumerate() {
                         let colour = std::array::from_fn(|c| f32::from(s[c]));
-                        f(sx as usize + k, colour, s[4] >= 32768);
+                        f(at(sx, k), colour, s[4] >= 32768);
                     }
                 }
             }
+            _ => {}
+        }
+        for x in b..x1 {
+            f(x, [blank; C], false);
         }
     }
 }
@@ -384,10 +424,15 @@ pub(crate) fn estimate(
 
 /// Exact component/ring plan; all costs are decided before the first synthesis
 /// pass. base_scratch is caller storage already alive alongside these buffers;
-/// `channels` and `kind` are [`estimate`]'s.
+/// `channels` and `kind` are [`estimate`]'s. `domain` is the canvas rect
+/// `(x, y, w, h)` the coverage is confined to (the caller has refused
+/// coverage outside it): the hole plane and the component walk cover it
+/// only, and a cell outside it is uncovered, so the walk finds the canvas
+/// walk's components in its order, translated back to canvas indices.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn plan(
     canvas: (u32, u32),
+    domain: (u32, u32, u32, u32),
     coverage: &[u16],
     ring: u32,
     soft_write: bool,
@@ -398,14 +443,22 @@ pub(crate) fn plan(
 ) -> Result<InpaintPlan, String> {
     job.check()?;
     let n = pixel_count(canvas.0, canvas.1)?;
-    if coverage.len() != n || ring > 512 {
+    let (dx, dy, dw, dh) = domain;
+    if coverage.len() != n
+        || ring > 512
+        || u64::from(dx) + u64::from(dw) > u64::from(canvas.0)
+        || u64::from(dy) + u64::from(dh) > u64::from(canvas.1)
+    {
         return Err("high-depth synthesis coverage or ring is invalid".into());
     }
+    let (cw, dw, dh) = (canvas.0 as usize, dw as usize, dh as usize);
+    // The canvas index of domain index `i`.
+    let at = |i: usize| (i / dw + dy as usize) * cw + i % dw + dx as usize;
     let threshold = if soft_write { 1 } else { 32768 };
     let mut covered = 0u64;
-    for (i, c) in coverage.iter().enumerate() {
+    for i in 0..dw * dh {
         job.every(i)?;
-        covered += u64::from(*c >= threshold);
+        covered += u64::from(coverage[at(i)] >= threshold);
     }
     // The component records the admission priced: one per covered pixel up
     // to `INPAINT_SEARCH_PIXELS` (`estimate`'s clamp). The covered count
@@ -414,19 +467,24 @@ pub(crate) fn plan(
     let records = covered.min(INPAINT_SEARCH_PIXELS);
     let preliminary = base_scratch.saturating_add(scratch(n as u64, records, 0, channels));
     job.reserve(preliminary)?;
-    let hole: Vec<bool> = coverage.iter().map(|c| *c >= threshold).collect();
+    let hole: Vec<bool> = (0..dw * dh).map(|i| coverage[at(i)] >= threshold).collect();
     let caller = if soft_write {
         Caller::Fill
     } else {
         Caller::SpotHeal
     };
-    let starts =
-        crate::doc_heal::component_count_bound(&hole, canvas.0 as usize, canvas.1 as usize, job)?;
+    let starts = crate::doc_heal::component_count_bound(&hole, dw, dh, job)?;
     if starts > INPAINT_SEARCH_PIXELS {
         return Err(parts_cap_message(caller, starts));
     }
-    let components =
-        crate::doc_heal::components_with_context(&hole, canvas.0 as usize, canvas.1 as usize, job)?;
+    let mut components = crate::doc_heal::components_with_context(&hole, dw, dh, job)?;
+    for component in &mut components {
+        for p in &mut component.pixels {
+            *p = at(*p as usize) as u32;
+        }
+        let (x0, y0, x1, y1) = component.bounds;
+        component.bounds = (x0 + dx, y0 + dy, x1 + dx, y1 + dy);
+    }
     let windows = crate::inpaint_plan::plan(
         &components,
         (canvas.0 as usize, canvas.1 as usize),
@@ -449,6 +507,7 @@ pub(crate) fn plan(
     job.reserve(scratch_bytes)?;
     Ok(InpaintPlan {
         canvas,
+        domain,
         hole,
         components,
         windows,
@@ -460,6 +519,14 @@ pub(crate) fn plan(
 }
 
 impl InpaintPlan {
+    /// Whether canvas pixel `(x, y)` is in the hole; `false` outside the
+    /// plan's domain.
+    fn is_hole(&self, x: usize, y: usize) -> bool {
+        let (dx, dy, dw, dh) = self.domain;
+        let (lx, ly) = (x.wrapping_sub(dx as usize), y.wrapping_sub(dy as usize));
+        lx < dw as usize && ly < dh as usize && self.hole[ly * dw as usize + lx]
+    }
+
     /// The union of every component window, canvas space, exclusive ends
     /// (the canvas rect [`apply`] reads and writes the destination in);
     /// `None` when there are no windows.
@@ -548,10 +615,10 @@ pub(crate) fn apply<T: HealSample, const C: usize>(
     job: JobContext<'_>,
 ) -> Result<bool, String> {
     job.check()?;
-    if source.dimensions() != plan.canvas
-        || source.channels() != C
-        || coverage.len() != plan.hole.len()
-        || eligibility.is_some_and(|e| e.len() != plan.hole.len())
+    let n = plan.canvas.0 as usize * plan.canvas.1 as usize;
+    if source.channels() != C
+        || coverage.len() != n
+        || eligibility.is_some_and(|e| e.len() != n)
         || pixels.len() as u64 != u64::from(dimensions.0) * u64::from(dimensions.1) * (C as u64 + 1)
         || !strength.is_finite()
         || !(0.0..=1.0).contains(&strength)
@@ -592,7 +659,7 @@ pub(crate) fn apply<T: HealSample, const C: usize>(
                 let (i, ci) = at(x);
                 rgb[i * C..i * C + C].copy_from_slice(&colour);
                 // Same normalized half-alpha source policy as byte synthesis.
-                data[i] = solid && !plan.hole[ci];
+                data[i] = solid && !plan.is_hole(x, row as usize);
                 if texture {
                     solid_plane[i] = solid;
                 }

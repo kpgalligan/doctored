@@ -4,7 +4,8 @@
 //! descriptor's retouch plans.
 //!
 //! * Current is the source layer's own ink on paper at α 0 (deliberately raw,
-//!   as `retouch_sampling` states it for RGB).
+//!   as `retouch_sampling` states it for RGB); a `sample: current` Spot Heal
+//!   or Content-Aware Fill reads it in place (`cmyk_current_source`, 13B-9b).
 //! * Current & Below and All are the ONE row compositor (`cmyk_stack`, through
 //!   `cmyk_frame_image`) over the canvas on a copy of the document cut by
 //!   `retouch_sampling`'s membership rule (`retouch_cut16`, whose
@@ -79,6 +80,21 @@ impl PrecisionDocument {
             })
     }
 
+    /// The Current source: record `index`'s ink and its canvas offset (a
+    /// `sample: current` Spot Heal or Content-Aware Fill reads it in place).
+    pub(crate) fn cmyk_current_source(
+        &self,
+        index: usize,
+    ) -> Result<(&CmykImage, (i32, i32)), String> {
+        let record = self
+            .layer(index)
+            .ok_or("retouch source layer is out of range")?;
+        let image = record
+            .cmyk_source()
+            .ok_or("retouch requires a raster source layer")?;
+        Ok((image, record.offset()))
+    }
+
     /// The sampling plate of `mode` for record `index` (module doc), canvas
     /// sized, straight ink.
     pub(crate) fn cmyk_retouch_plate(
@@ -90,14 +106,8 @@ impl PrecisionDocument {
     ) -> Result<CmykImage, String> {
         let (w, h) = self.dimensions();
         if mode == RetouchSampling::Current {
-            let record = self
-                .layer(index)
-                .ok_or("retouch source layer is out of range")?;
-            let image = record
-                .cmyk_source()
-                .ok_or("retouch requires a raster source layer")?;
+            let (image, (ox, oy)) = self.cmyk_current_source(index)?;
             let (iw, ih) = image.dimensions();
-            let (ox, oy) = record.offset();
             return CmykImage::from_rows_with_job(
                 w,
                 h,

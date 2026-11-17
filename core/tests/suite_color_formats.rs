@@ -191,6 +191,8 @@ mod cmyk_styles;
 mod cmyk_styles_stack;
 #[path = "cmyk_styles_stacked.rs"]
 mod cmyk_styles_stacked;
+#[path = "cmyk_synthesis_in_place.rs"]
+mod cmyk_synthesis_in_place;
 #[path = "cmyk_tiff_samples.rs"]
 mod cmyk_tiff_samples;
 #[path = "cmyk_tone_tools.rs"]

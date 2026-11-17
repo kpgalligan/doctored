@@ -10,7 +10,7 @@ The settled record of Phase 13B's shipped runs, moved from [phase-13b-tiled-stat
 
 ## Runs
 
-The 34 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
+The 35 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
 
 | Run | Commit | Implemented (2026) |
 |---|---|---|
@@ -48,6 +48,7 @@ The 34 shipped runs (`Owns` / `Exit` cells and split lineage: archived original;
 | 13B-5 | `31d4e145`…`1d3c2356` | 11-15 |
 | 13B-6 | `e0a5a628` | 11-15 |
 | 13B-9a | the commit that adds this row | 11-16 |
+| 13B-9b | the commit that adds this row | 11-17 |
 
 ## 13B-1 contract
 
@@ -218,6 +219,10 @@ What one edit retains, read from `list_history.retained_bytes` (the union of eve
 ## 13B-9a contract
 
 A typed Clone or Heal (16-bit and 32-bit float, every sampling mode, every destination) is rect-first: the bound comes from the coverage alone (`RetouchKernel::sampled_frames`: the `coverage > 0` bbox, a Heal's grown by 1, clamped to the canvas), the source is read as the taps of one canvas rect (`retouch_taps16` / `retouch_taps32`; `retouch_transform::tap_rect`) and transformed over the bound only (`transform_rect*`, which walk the bound's rows whole from column 0 through `resample_rows_into`, so each kept sample is the whole-canvas transform's to the bit). `RetouchKernel::Sampled` carries its frame (`SampledPlate`); Heal runs in the frame's coordinates. The full-frame seam is `RetouchEdit::full_frame` (`#[doc(hidden)]`, not JSON), the oracle of `core/tests/precision_retouch_rect.rs`; `core/tests/rect_read_memory.rs` bounds a 100×100 dab below 2 bytes a canvas pixel. `all` / `current_and_below` still render the whole plate, and `retouch_plan` and the plate's admission are unchanged.
+
+## 13B-9b contract
+
+A typed `sample: current` Spot Heal or Content-Aware Fill (16-bit, float, CMYK) reads its source layer in place (`SynthesisPlate` carries the image and its offset; a gap reads the blank) and its plan charges no plate; the hole and component planes cover the request's bounds. Oracle: `RetouchEdit::full_frame` (`precision_synthesis_in_place.rs`, `cmyk_synthesis_in_place.rs`); `rect_read_memory.rs` bounds a 48×48 dab below 1 byte a canvas pixel. The byte plate reports per tile (Tiles, Tree) in its caller's band.
 
 ## Decisions
 

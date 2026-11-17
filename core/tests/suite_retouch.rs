@@ -140,6 +140,8 @@ mod retouch_ffi;
 mod retouch_output;
 #[path = "retouch_output_scratch.rs"]
 mod retouch_output_scratch;
+#[path = "retouch_plate_progress.rs"]
+mod retouch_plate_progress;
 #[path = "retouch_protect_tones.rs"]
 mod retouch_protect_tones;
 #[path = "retouch_sampling.rs"]

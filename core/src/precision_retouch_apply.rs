@@ -35,7 +35,11 @@
 //! windows because every covered pixel and its padded window lie inside the frame. Every kept
 //! sample is the whole-canvas transform's to the bit; `RetouchEdit::full_frame` (a test seam) makes
 //! the frame and the taps the canvas, the path before 13B-9a. `prepare` keeps Spot Heal,
-//! Content-Aware Fill and red-eye, whose plate is still the whole canvas.
+//! Content-Aware Fill and red-eye.
+//!
+//! Since 13B-9b a Spot Heal or Content-Aware Fill plans over `RetouchEdit::synthesis_domain` (the
+//! request's bounds; the canvas under `full_frame`) and reads its `SynthesisPlate`: with `sample:
+//! current` the source layer in place at its offset, otherwise the rendered canvas plate.
 
 use crate::blend::BlendMode;
 use crate::heal_writeback::HealSample;
@@ -43,7 +47,8 @@ use crate::job_control::JobContext;
 use crate::lab_blend::kind_in;
 use crate::layer_rect::coverage_rect16;
 use crate::precision_document::PrecisionDocument;
-use crate::precision_image::{reserved_vec, PrecisionImage};
+use crate::precision_image::reserved_vec;
+use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{blend_preserving, canvas_index, store};
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
 use crate::retouch_transform::CanvasRect;
@@ -175,6 +180,7 @@ impl<P> RetouchKernel<P> {
         .0;
         let synthesis = crate::precision_inpaint::plan(
             doc.dimensions(),
+            edit.synthesis_domain(doc)?,
             coverage,
             edit.ring,
             edit.op == RetouchOp::ContentAwareFill,
@@ -299,7 +305,7 @@ impl RetouchKernel {
         &self,
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        source: Option<&PrecisionImage>,
+        source: Option<SynthesisPlate<'_>>,
         coverage: &[u16],
         selection: Option<&[u16]>,
         pixels: &mut [[u16; 4]],
@@ -380,9 +386,7 @@ impl RetouchKernel {
                 }
                 crate::precision_inpaint::apply::<_, 3>(
                     synthesis,
-                    crate::precision_inpaint::SynthesisPlate::Precision(
-                        source.ok_or("missing spot source")?,
-                    ),
+                    source.ok_or("missing spot source")?,
                     coverage,
                     eligibility.as_deref(),
                     edit.opacity,

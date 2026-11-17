@@ -87,7 +87,8 @@ Shadows/Highlights: the CMYK apply plan plus the guide plane's term) and
 `retouch-clone-16`, `retouch-heal-16` (the two-pass plan: the RGB pass's own
 plan twice, 34 B a destination pixel, the plate and its passes and
 `DISPLAY_BYTES_PER_PIXEL` over the canvas), `spot-heal-16` (the RGB synthesis
-plan at four channels plus the plate), `dodge-16`, `smudge-16` and
+plan at four channels; its `sample: current` heal reads the source layer in
+place, so no plate since 13B-9b), `dodge-16`, `smudge-16` and
 `history-brush-16` (`cmyk_retouch_brush`'s two-pass plans) and `equalize-16`
 (the CMYK adjustment apply's terms plus the table), each read from
 `get_precision` before the measured call, and `equalize-rgb16` /

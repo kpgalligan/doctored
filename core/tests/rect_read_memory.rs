@@ -14,12 +14,25 @@
 //! - `dr_doc_layer_mask_thumbnail` of a group's canvas-sized mask at
 //!   `max_side` 64 stays below `N/2`.
 //!
+//! 13B-9b's bound, declared before measuring, on a 4000 × 3000 canvas (`SN`
+//! = 12,000,000 pixels): a 48 × 48 `sample: current` Spot Heal
+//! (`content_aware`, `proximity_match`) or Content-Aware Fill through
+//! `dr_precision_doc_edit`, at 16 bits, 32-bit float and CMYK, stays below
+//! `SN` bytes, one byte a canvas pixel. A canvas plate (8 or 16 B a pixel,
+//! 10 on ink) breaks it, and so does a hole plane and component walk over the
+//! canvas rather than the request's bounds (one byte a canvas pixel each).
+//!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
 //! `serial()`.
 
+#[path = "common/cmyk_fixture.rs"]
+mod cmyk_fixture;
+mod common;
 #[path = "common/float_fixture.rs"]
 mod float_fixture;
+#[path = "common/icc_lut_builders.rs"]
+mod icc_lut_builders;
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::ffi::{CStr, CString};
@@ -30,6 +43,7 @@ use std::sync::{Mutex, MutexGuard};
 use doctored_core::doc::{DrDocument, GrayRaster};
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi::{dr_image_free, dr_image_height, dr_image_width, dr_string_free};
+use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_doc::{dr_doc_adding_layer_mask, dr_doc_free, dr_doc_layer_mask_thumbnail};
 use doctored_core::ffi_fill_align::{dr_doc_fill_align_box, dr_precision_doc_fill_align_box};
 use doctored_core::ffi_group::dr_doc_group_layers;
@@ -368,4 +382,138 @@ fn a_group_mask_thumbnail_places_rows_without_a_plane_copy() {
         "group thumbnail: the peak {peak} reaches {}",
         N / 2
     );
+}
+
+// ------------------------------------------------------ synthesis dabs --
+
+/// The synthesis canvas (module doc).
+const SW: u32 = 4000;
+const SH: u32 = 3000;
+/// Its pixels: the bound in bytes.
+const SN: usize = SW as usize * SH as usize;
+/// The 48 × 48 hole.
+const HOLE: (u32, u32, u32, u32) = (1400, 900, 48, 48);
+
+/// An opaque 16-bit layer of the synthesis canvas, varied in every channel.
+fn synthesis16() -> PrecisionDocument {
+    let pixels = (0..SW * SH)
+        .map(|i| {
+            let (x, y) = (i % SW, i / SW);
+            [
+                ((x * 2711 + y * 911) % 65536) as u16,
+                ((x * 523 + y * 3301) % 65536) as u16,
+                (((x ^ y) * 1999) % 65536) as u16,
+                65535,
+            ]
+        })
+        .collect();
+    let image = PrecisionImage::from_rgba16(SW, SH, pixels, IccProfile::srgb(), None)
+        .expect("a layer image");
+    PrecisionDocument::from_parts(
+        SW,
+        SH,
+        IccProfile::srgb(),
+        Metadata::default(),
+        Resolution::default(),
+        vec![Layer::raster("L", image, (0, 0), 1.0, true).expect("a layer")],
+    )
+    .expect("a document")
+}
+
+/// [`synthesis16`] in the synthetic press profile.
+fn synthesis_cmyk() -> PrecisionDocument {
+    let rgb = synthesis16();
+    let profile = cmyk_fixture::press_profile("Press Test");
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_convert_to_cmyk(
+            &rgb,
+            profile.as_ptr(),
+            profile.len(),
+            c"{}".as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "to CMYK: {}", take(error));
+    *unsafe { Box::from_raw(out) }
+}
+
+/// Full coverage over [`HOLE`] on the synthesis canvas.
+fn hole_coverage() -> Vec<u16> {
+    let (x, y, w, h) = HOLE;
+    (0..SN)
+        .map(|i| {
+            let (px, py) = ((i % SW as usize) as u32, (i / SW as usize) as u32);
+            if px >= x && px < x + w && py >= y && py < y + h {
+                u16::MAX
+            } else {
+                0
+            }
+        })
+        .collect()
+}
+
+/// Every synthesis request's peak on `doc` (each printed), then the bound.
+fn assert_synthesis_below_bound(depth: &str, doc: &PrecisionDocument) {
+    let samples = hole_coverage();
+    let (x, y, w, h) = HOLE;
+    let rect = json!({"layer":0,"sample":"current","x":x,"y":y,"width":w,"height":h,"seed":7});
+    let with = |extra: Value| {
+        let mut request = rect.clone();
+        for (k, v) in extra.as_object().unwrap() {
+            request[k] = v.clone();
+        }
+        request
+    };
+    let requests = [
+        (
+            "spot_heal content_aware",
+            with(json!({"op":"spot_heal","type":"content_aware"})),
+        ),
+        (
+            "spot_heal proximity_match",
+            with(json!({"op":"spot_heal","type":"proximity_match"})),
+        ),
+        (
+            "content_aware_fill",
+            with(json!({"op":"content_aware_fill"})),
+        ),
+    ];
+    let peaks: Vec<(&str, usize)> = requests
+        .iter()
+        .map(|(label, request)| (*label, dab_peak(doc, request, &samples)))
+        .collect();
+    for (label, peak) in &peaks {
+        println!("{depth} {label} 48x48 at {SW}x{SH}: peak {peak}");
+    }
+    for (label, peak) in peaks {
+        assert!(peak < SN, "{depth} {label}: the peak {peak} reaches {SN}");
+    }
+}
+
+#[test]
+fn a_16_bit_current_synthesis_peaks_below_one_byte_a_canvas_pixel() {
+    let _serial = serial();
+    assert_synthesis_below_bound("16-bit", &synthesis16());
+}
+
+#[test]
+fn a_float_current_synthesis_peaks_below_one_byte_a_canvas_pixel() {
+    let _serial = serial();
+    let doc = synthesis16()
+        .promote_to_float(LIMIT, 0, None)
+        .expect("a float document");
+    assert!(doc.is_float());
+    assert_synthesis_below_bound("float", &doc);
+}
+
+#[test]
+fn a_cmyk_current_synthesis_peaks_below_one_byte_a_canvas_pixel() {
+    let _serial = serial();
+    let doc = synthesis_cmyk();
+    assert!(doc.is_cmyk());
+    assert_synthesis_below_bound("cmyk", &doc);
 }

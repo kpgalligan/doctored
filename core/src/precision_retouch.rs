@@ -17,8 +17,10 @@ use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionRun, PrecisionStorage,
     BOOKKEEPING_BYTES,
 };
+use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{canvas_index, PaintPlan};
 use crate::precision_retouch_apply::RetouchKernel;
+use crate::precision_retouch_source::SynthesisSource;
 use crate::retouch_sampling::RetouchSampling;
 use serde::Deserialize;
 
@@ -114,8 +116,11 @@ pub struct RetouchEdit {
     pub fill_transparent: bool,
     /// The full-frame seam (tests only, never read from JSON): a Clone or
     /// Heal transforms the whole canvas from the whole plate, the path
-    /// before 13B-9a's rect (`precision_retouch_apply`'s module doc), as the
-    /// oracle the rect path is tested against.
+    /// before 13B-9a's rect (`precision_retouch_apply`'s module doc), and a
+    /// `sample: current` Spot Heal or Content-Aware Fill renders the canvas
+    /// plate and plans its hole over the canvas, the path before 13B-9b's
+    /// in-place read ([`RetouchEdit::reads_plate_in_place`]), as the oracles
+    /// the rect and in-place paths are tested against.
     #[serde(skip)]
     #[doc(hidden)]
     pub full_frame: bool,
@@ -246,6 +251,22 @@ impl RetouchEdit {
         }
         Ok((self.x as u32, self.y as u32, self.width, self.height))
     }
+    /// SpotHeal|ContentAwareFill, mode() == Ok(Current), !full_frame.
+    pub(crate) fn reads_plate_in_place(&self) -> bool {
+        matches!(self.op, RetouchOp::SpotHeal | RetouchOp::ContentAwareFill)
+            && matches!(self.mode(), Ok(RetouchSampling::Current))
+            && !self.full_frame
+    }
+    /// self.bounds(doc), or (0, 0, w, h) under full_frame.
+    pub(crate) fn synthesis_domain(
+        &self,
+        doc: &PrecisionDocument,
+    ) -> Result<(u32, u32, u32, u32), String> {
+        if self.full_frame {
+            return Ok((0, 0, doc.width, doc.height));
+        }
+        self.bounds(doc)
+    }
 }
 impl PrecisionDocument {
     pub fn retouch_plan(&self, edit: &RetouchEdit) -> Result<PaintPlan, String> {
@@ -302,7 +323,12 @@ impl PrecisionDocument {
             }
         }
         if edit.op != RetouchOp::RedEye {
-            scratch += self.retouch_source_plan(edit.source_layer.unwrap_or(edit.layer), mode)?;
+            // Validated always; charged unless the synthesis reads the source
+            // layer in place, with no plate (13B-9b).
+            let plate = self.retouch_source_plan(edit.source_layer.unwrap_or(edit.layer), mode)?;
+            if !edit.reads_plate_in_place() {
+                scratch += plate;
+            }
         }
         if edit.output == RetouchOutput::NewLayer {
             self.retouch_output_refusal(edit.layer)?;
@@ -596,17 +622,13 @@ impl PrecisionDocument {
         let taps = frames
             .map(|f| plates.retouch_taps16(index, mode, ignore, f.2, limit, other, plate_job))
             .transpose()?;
-        let source = if edit.op != RetouchOp::RedEye && !sampled {
-            Some(plates.retouch_source_with_context(index, mode, ignore, limit, other, plate_job)?)
-        } else {
-            None
-        };
+        let source = plates.synthesis_source(edit, limit, other, plate_job)?;
         job.reserve(plan.scratch_bytes)?;
         // A plate render reaching its own end is only preparation of this
         // operation. Preserve room for synthesis and atomic publication.
         let edit_job = job.range(0.2, 0.98);
         edit_job.report(0.0, 2)?;
-        let src = source.as_ref();
+        let src = source.as_ref().map(SynthesisSource::plate);
         let kernel = match frames.zip(taps) {
             Some((frames, taps)) => RetouchKernel::sampled(self, edit, &taps, frames, edit_job)?,
             None => RetouchKernel::prepare(self, edit, coverage, plan.scratch_bytes, edit_job)?,
@@ -753,7 +775,7 @@ impl PrecisionDocument {
         &self,
         edit: &RetouchEdit,
         kernel: &RetouchKernel,
-        (source, coverage, selection): (Option<&PrecisionImage>, &[u16], Option<&[u16]>),
+        (source, coverage, selection): (Option<SynthesisPlate<'_>>, &[u16], Option<&[u16]>),
         target: &PrecisionDocumentLayer,
         [job, edit_job]: [JobContext<'_>; 2],
     ) -> Result<Option<Self>, String> {

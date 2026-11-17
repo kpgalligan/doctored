@@ -221,6 +221,8 @@ mod precision_straighten;
 mod precision_structure;
 #[path = "precision_structure_ops.rs"]
 mod precision_structure_ops;
+#[path = "precision_synthesis_in_place.rs"]
+mod precision_synthesis_in_place;
 #[path = "precision_threshold_blending.rs"]
 mod precision_threshold_blending;
 #[path = "precision_tone_accuracy.rs"]

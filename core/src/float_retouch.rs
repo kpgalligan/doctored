@@ -51,7 +51,10 @@
 //! `retouch_plan` charges a float document `2·(n·(40|44) + output·16)` for
 //! the pixel buffers (the master's figure at f32 width), plus `output·16` for
 //! the W plane of a heal, spot heal or fill; the heal, synthesis and plate
-//! terms are the master's (the plate at 16 bytes a pixel).
+//! terms are the master's (the plate at 16 bytes a pixel). Since 13B-9b a
+//! `sample: current` spot heal or fill reads its source layer in place, so
+//! RS32 and RF32 below drop the plate's `16n + 4 MiB` and plan 3,559,730,688
+//! (`make t F=selected_color_planes_24mp A=--nocapture`); E was not re-measured.
 //!
 //! Measured in Release, one case per process, `MallocLargeCache=0`, a
 //! baseline twin and three runs (`examples/float_retouch_admission.rs`), on a
@@ -89,9 +92,11 @@ use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLay
 use crate::precision_image::{
     pixel_count, reserved_vec, PrecisionImage, PrecisionRun, PrecisionStorage,
 };
+use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{blend_preserving, canvas_index};
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
 use crate::precision_retouch_apply::{RetouchKernel, SampledPlate};
+use crate::precision_retouch_source::SynthesisSource;
 use crate::retouch_encoding::{decode_changed, encode, encode_plane};
 use crate::retouch_sampling::RetouchSampling;
 use crate::retouch_transform::CanvasRect;
@@ -179,7 +184,7 @@ impl RetouchKernel<f32> {
         &self,
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        source: Option<&PrecisionImage>,
+        source: Option<SynthesisPlate<'_>>,
         coverage: &[u16],
         selection: Option<&[u16]>,
         pixels: &mut [[f32; 4]],
@@ -259,9 +264,7 @@ impl RetouchKernel<f32> {
                 let mut work = encode_plane(pixels)?;
                 crate::precision_inpaint::apply::<_, 3>(
                     synthesis,
-                    crate::precision_inpaint::SynthesisPlate::Precision(
-                        source.ok_or("missing spot source")?,
-                    ),
+                    source.ok_or("missing spot source")?,
                     coverage,
                     eligibility.as_deref(),
                     edit.opacity,
@@ -354,15 +357,11 @@ impl PrecisionDocument {
         let taps = frames
             .map(|f| plates.retouch_taps32(index, mode, ignore, f.2, limit, other, plate_job))
             .transpose()?;
-        let source = if edit.op != RetouchOp::RedEye && !sampled {
-            Some(plates.retouch_source_with_context(index, mode, ignore, limit, other, plate_job)?)
-        } else {
-            None
-        };
+        let source = plates.synthesis_source(edit, limit, other, plate_job)?;
         job.reserve(scratch_bytes)?;
         let edit_job = job.range(0.2, 0.98);
         edit_job.report(0.0, 2)?;
-        let src = source.as_ref();
+        let src = source.as_ref().map(SynthesisSource::plate);
         let kernel = match frames.zip(taps) {
             Some((frames, taps)) => {
                 RetouchKernel::sampled_float(self, edit, &taps, frames, edit_job)?

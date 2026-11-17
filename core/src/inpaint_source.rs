@@ -51,8 +51,26 @@
 //! description-context parse's peak (0 under a modelled profile); the tree's
 //! preparation already holds it.
 //!
-//! **Cancellation — the declared bounds.** Every arm runs under
-//! `control.checkpoints_only()`, so the plate still reports no progress.
+//! **The predicate pass (13B-9b, 13A's items 14 and 15).** The predicate pass
+//! runs inside `base + context_scratch`, reserved before it; under a
+//! matrix/TRC profile that is 0 and each parse is the one
+//! `composite_layer_into` makes on every projection of the layer, one at a
+//! time (the largest stored table, a 33³ Color Lookup's 575,073-byte meta,
+//! peaked at 1,438,893 bytes in the 13B-9 spike). No arm reserves less
+//! afterwards. A retained Color Lookup row shares the LUT memo's table
+//! (`CubeLut::table` is an `Arc`), a 13B-6 `cache_registry` member under
+//! working limit / 8, so the tree adds no copy; a smaller meta's parsed
+//! tables sit inside the ×256 `parse_scratch` the tree's preparation
+//! reserves.
+//!
+//! **Progress (13B-9b, 13A's item 16).** The Tiles and Tree tile loops report
+//! `k / tiles` at stage 1 at the head of tile `k` (one checkpoint, as the
+//! check it replaced), inside the band the caller hands the plate; the
+//! compositor envs stay `checkpoints_only()`, and the FullFrame arm
+//! (`flattened_cut_with_job`) reports nothing.
+//!
+//! **Cancellation — the declared bounds.** Every arm's compositor runs under
+//! `control.checkpoints_only()`.
 //! Tiled: `T_f + c_tile_row` — a cancel returns within one row of ONE layer's
 //! tile composite (≤ 1024 samples), since the tile loop, the context parse and
 //! every compositor row poll the job (unchanged). Tree: `T_f + c_tree_row` —
@@ -64,8 +82,7 @@
 //! running chain primitive (`regional.rs`'s model; the per-row polls of
 //! 13A-5b-ii-a/b through `flattened_cut_with_job`, whose context parse, mask
 //! blur, group chain and encode all poll the job; unchanged). The predicate
-//! pass itself: `T_f + c_parse` (13A-5c-1's model, one meta parse); the
-//! `from_meta` transient stays uncharged (13A-5c-3's row).
+//! pass itself: `T_f + c_parse` (13A-5c-1's model, one meta parse).
 //!
 //! THE sampling-plate builder, shared by every retouch gesture (clone, heal, spot heal, patch,
 //! content-aware fill) and by the 16-bit promotion, over THREE arms chosen by `plate_arm` (one pass
@@ -234,6 +251,7 @@ pub(crate) fn plate_scratch_bound(doc: &DrDocument) -> Result<u64, String> {
 /// row, per tile row through the regional tree, per row inside the full-frame
 /// fallback and per bounded row copy, so a
 /// plate on a large document is as cancellable as the solve that follows it.
+/// The Tiles and Tree arms report once per tile across `control`'s band.
 ///
 /// `Ok(None)` only for [`RetouchSampling::Current`] on an index that names no
 /// raster layer — a domain refusal, as everywhere else in this area.
@@ -252,6 +270,11 @@ pub(crate) fn sampling_source(
     }
     let excluded = doc.retouch_cut(idx, mode, ignore_adjustments);
     let cut = cut_of(excluded.as_ref());
+    // The description-context parse's peak (0 under a modelled profile),
+    // reserved before the predicate pass parses any metadata (module doc).
+    let context = context_scratch(&doc.layers, &doc.profile)
+        .ok_or("layer metadata exceeds the native slot limit")?;
+    control.reserve(base.saturating_add(context))?;
     let arm = plate_arm(&doc.layers, cut, (doc.width, doc.height), control)?;
     if let PlateArm::Tree = arm {
         return doc
@@ -259,9 +282,6 @@ pub(crate) fn sampling_source(
             .map(Some);
     }
     let tiled = matches!(arm, PlateArm::Tiles);
-    // The description-context parse's peak (0 under a modelled profile).
-    let context = context_scratch(&doc.layers, &doc.profile)
-        .ok_or("layer metadata exceeds the native slot limit")?;
     // A cut only ever REMOVES contributors, so the uncut estimate stays a
     // sound upper bound for the cut render; measuring it over the cut set
     // would reserve less, never more.
@@ -296,11 +316,15 @@ pub(crate) fn sampling_source(
         ..doc.composite_env(None, transfer)
     };
     let budget = doc_group::RenderBudget::default();
+    // One report per tile, `k` tiles done of `tiles` (module doc).
+    let tiles = u64::from(doc.width.div_ceil(1024)) * u64::from(doc.height.div_ceil(64));
+    let mut k = 0u64;
     //64K accumulator pixels =1MiB, plus at most a clipped unit's working copy.
     // x/y both bounded so panoramic single-row documents retain the same bound.
     for y in (0..doc.height).step_by(64) {
         for x in (0..doc.width).step_by(1024) {
-            control.check()?;
+            control.report(k as f64 / tiles as f64, 1)?;
+            k += 1;
             let w = (doc.width - x).min(1024);
             let h = (doc.height - y).min(64);
             let mut acc = vec![[0f32; 4]; w as usize * h as usize];

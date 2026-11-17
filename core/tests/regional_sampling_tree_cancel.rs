@@ -568,9 +568,11 @@ fn a_cancel_parked_inside_the_tree_tile_loop_returns_nothing() {
         "the tree plate polled only {total} times: the tile loop is not under the job"
     );
     let limit = route_limit(&doc);
+    // The loop reports once per tile at stage 1 (13B-9b), so the park lies
+    // inside the plate's band, short of its end.
     let p = cancelled_parked_at(
         total / 2,
-        &|progress, _| progress == 0.0,
+        &|progress, stage| stage == 1 && (0.0..1.0).contains(&progress),
         plate_limited(&doc, limit),
     );
     eprintln!(
@@ -676,7 +678,7 @@ fn bench_tree(build: &dyn Fn(usize) -> DrDocument) {
     let p = probe(
         &|_, _, n| n >= half,
         Trigger::After(1),
-        &|progress, _| progress == 0.0,
+        &|progress, stage| stage == 1 && (0.0..1.0).contains(&progress),
         plate(&build(N)),
     );
     let bound = RETURN_FLOOR_S + c;

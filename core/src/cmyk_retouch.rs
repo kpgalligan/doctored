@@ -18,8 +18,9 @@
 //!   by `cmyk_passes`.
 //! * **Spot Heal and Content-Aware Fill** (native four-ink synthesis): the
 //!   shared PatchMatch search, vote and membrane at C = 4 on the ink codes
-//!   (`precision_inpaint::apply::<_, 4>` over a `SynthesisPlate::Cmyk`);
-//!   alpha follows the RGB writeback.
+//!   (`precision_inpaint::apply::<_, 4>` over a `SynthesisPlate::Cmyk`: the
+//!   rendered plate, or with `sample: current` the source layer read in
+//!   place at its offset, 13B-9b); alpha follows the RGB writeback.
 //! * **Output**: `output:"new_layer"` writes onto blank paper (clone) or the
 //!   Current & Below plate (the heal family), then the RGB cleanup rule —
 //!   coverage below 32768 (1 for Content-Aware Fill), or an unchanged
@@ -28,7 +29,8 @@
 //!   with paper at α 0 to `retouch_transform::expanded_extent` first.
 //!
 //! The plan restates the RGB arm's on ink: the plate (canvas × 10, plus the
-//! composite's figure in Current & Below and All), the host's display
+//! composite's figure in Current & Below and All; none for a `sample:
+//! current` Spot Heal or Content-Aware Fill, which builds none), the host's display
 //! preparation (canvas × `DISPLAY_BYTES_PER_PIXEL`) and bookkeeping; a
 //! two-pass op adds the RGB plan of one pass twice (each already charges its
 //! stroke planes and destination), the destination's passes (px × 34) and
@@ -52,6 +54,7 @@ use crate::job_control::JobContext;
 use crate::layer_rect::{canvas_rect_on_plane, plane_rect_offset};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{pixel_count, PrecisionImage, BOOKKEEPING_BYTES};
+use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::PaintPlan;
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
 use crate::retouch_sampling::RetouchSampling;
@@ -143,8 +146,10 @@ impl PrecisionDocument {
         // charged only by the synthesis arm below: each two-pass RGB plan
         // already charges its own (`precision_retouch`'s buffers term), so
         // charging them here too counted them three times.
-        let mut scratch =
-            n * DISPLAY_BYTES_PER_PIXEL + 8 * BOOKKEEPING_BYTES + self.cmyk_plate_scratch(mode)?;
+        let mut scratch = n * DISPLAY_BYTES_PER_PIXEL + 8 * BOOKKEEPING_BYTES;
+        if !edit.reads_plate_in_place() {
+            scratch += self.cmyk_plate_scratch(mode)?;
+        }
         if edit.output == RetouchOutput::NewLayer {
             self.retouch_output_refusal(edit.layer)?;
             self.preflight_raster_addition(self.dimensions(), edit.output_name())?;
@@ -269,23 +274,40 @@ impl PrecisionDocument {
             }
             RetouchOutput::Layer => padded(image, target_offset, (dimensions, offset), job)?,
         };
-        let plate = plates.cmyk_retouch_plate(
-            edit.source_layer.unwrap_or(edit.layer),
-            edit.mode()?,
-            edit.ignore_adjustments,
-            job.range(0.08, 0.2),
-        )?;
+        // A `sample: current` synthesis reads its source layer in place, so no
+        // plate is built for it (13B-9b); Clone and Heal always build one.
+        let source = edit.source_layer.unwrap_or(edit.layer);
+        let rendered = if edit.reads_plate_in_place() {
+            None
+        } else {
+            Some(plates.cmyk_retouch_plate(
+                source,
+                edit.mode()?,
+                edit.ignore_adjustments,
+                job.range(0.08, 0.2),
+            )?)
+        };
         let io = (coverage, selection);
         let stage = job.range(0.2, 0.95);
+        const MISSING: &str = "missing native retouch source";
         let result = match edit.op {
             RetouchOp::RetouchClone => {
-                self.cmyk_cloned(edit, &dest, offset, &plate, io, frozen, limit, other, stage)?
+                let plate = rendered.as_ref().ok_or(MISSING)?;
+                self.cmyk_cloned(edit, &dest, offset, plate, io, frozen, limit, other, stage)?
             }
             RetouchOp::RetouchHeal => {
-                self.cmyk_healed(edit, &dest, offset, &plate, io, frozen, limit, other, stage)?
+                let plate = rendered.as_ref().ok_or(MISSING)?;
+                self.cmyk_healed(edit, &dest, offset, plate, io, frozen, limit, other, stage)?
             }
             RetouchOp::SpotHeal | RetouchOp::ContentAwareFill => {
-                self.cmyk_synthesized(edit, &dest, offset, &plate, io, scratch, stage)?
+                let plate = match &rendered {
+                    Some(plate) => SynthesisPlate::Cmyk(plate, (0, 0)),
+                    None => {
+                        let (image, at) = plates.cmyk_current_source(source)?;
+                        SynthesisPlate::Cmyk(image, at)
+                    }
+                };
+                self.cmyk_synthesized(edit, &dest, offset, plate, io, scratch, stage)?
             }
             RetouchOp::RedEye => return Err(refused_sentence("Red Eye")),
         };
@@ -507,7 +529,7 @@ impl PrecisionDocument {
         edit: &RetouchEdit,
         dest: &CmykImage,
         offset: (i32, i32),
-        plate: &CmykImage,
+        plate: SynthesisPlate<'_>,
         (coverage, selection): (&[u16], Option<&[u16]>),
         scratch: u64,
         job: JobContext<'_>,
@@ -525,6 +547,7 @@ impl PrecisionDocument {
         .0;
         let synthesis = crate::precision_inpaint::plan(
             self.dimensions(),
+            edit.synthesis_domain(self)?,
             coverage,
             edit.ring,
             edit.op == RetouchOp::ContentAwareFill,
@@ -551,7 +574,7 @@ impl PrecisionDocument {
         };
         crate::precision_inpaint::apply::<u16, 4>(
             &synthesis,
-            crate::precision_inpaint::SynthesisPlate::Cmyk(plate),
+            plate,
             coverage,
             eligibility.as_deref(),
             edit.opacity,
