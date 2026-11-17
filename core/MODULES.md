@@ -23,7 +23,8 @@ Detail belongs in the source file's own header comment.
 - `cmyk_adjust_rgb.rs` — `parse_cmyk` (the one CMYK op dispatch), `InkRgb` (an RGB kernel per plate or on CMY), the refusal table.
 - `cmyk_filter.rs` — Filter menu on CMYK as two RGBA16 `L` passes of the RGB selected-filter path; lock rule, plans, refusals.
 - `cmyk_passes.rs` — the two `L = 1 − ink` RGBA16 pass documents a CMYK edit runs a shipped RGB16 op on, and `join_sample`, the join back into ink.
-- `cmyk_retouch.rs` — Clone, Heal, Spot Heal and Content-Aware Fill on ink (two passes; four-ink synthesis), new layer and expand, the plan and refusals.
+- `cmyk_retouch.rs` — CMYK Clone, Heal, Spot Heal and Content-Aware Fill: the plan and refusals, the dispatch (`cmyk_retouching`), new layer and expand, the pass input, `cloned_sample`.
+- `cmyk_retouch_walk.rs` — the whole-destination CMYK Clone (two passes, composite) and Heal (two passes, join), and the four-ink Spot Heal / Content-Aware Fill synthesis.
 - `cmyk_retouch_rect.rs` — an in-place CMYK Clone/Heal's passes over the stroke's rect (rect pass documents, the taps' plate, join/composite over it); its and the synthesis's plans.
 - `cmyk_retouch_plate.rs` — the CMYK retouch sampling plate (Current; the composite cut at opacity 0), its P3 view and the descriptor's retouch plans.
 - `cmyk_retouch_brush.rs` — Dodge/Burn, Blur, Sharpen, Sponge (K held), Smudge and the History Brush on ink as RGB16 passes; their plans.
@@ -246,6 +247,7 @@ Detail belongs in the source file's own header comment.
 - `retouch_sampling.rs` — the three retouch sampling modes and the ignore-adjustments control, as a `Cut` over the compositor.
 - `precision_retouch.rs` / `precision_retouch_apply.rs` / `precision_retouch_source.rs` / `retouch_transform.rs` / `ffi_retouch.rs` — native retouch requests, typed compositor cuts, source mapping.
 - `precision_retouch_plan.rs` — `retouch_plan`'s in-place terms: the coverage area's domain, the Clone/Heal frame, taps and tiles, the synthesis window and estimate.
+- `precision_retouch_run.rs` — `retouch` / `retouch_from` and its refusal: the lock gate, the coverage prelude, the CMYK and float dispatch, the u16 arm (destination, in-place rect writer).
 - `retouch_coverage.rs` — kernel: `CoveragePlane`, a typed retouch's stroke or selection over one canvas rect (`coverage_rect`), 0 outside it; reads, bbox, crops.
 - `precision_retouch_heal.rs` / `precision_retouch_output.rs` — native retouch windows over the shared membrane writeback; output admission and the new layer above (gated groups refuse).
 - `float_retouch.rs` — the f32 arm of the typed retouch: staging, the linear clone walk, encode → shared kernel → decode for heal, spot heal and fill.

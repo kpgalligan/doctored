@@ -262,7 +262,7 @@
 //! equal dimensions every bitwise-unchanged tile is shared through `TilePlane::rebuilt_from`, else
 //! fresh tiles; since 13B-3d-3a NOTHING is seeded — a rebuild that cannot share tiles tiles fresh
 //! and unseeded; ALWAYS a fresh identity) serve the whole-image typed writers
-//! (`precision_scalar_edit`, `precision_mask_apply`, `precision_retouch`'s new-layer / grown
+//! (`precision_scalar_edit`, `precision_mask_apply`, `precision_retouch_run`'s new-layer / grown
 //! extent, `selected_adjustment`, `precision_color`, `precision_color_policy`, and
 //! `precision_paint_tools`' GROWN extent), which since 13B-3d-2 read their input as `runs_rgba16`
 //! in plain nested loops (the index taken at the top), and `rebuilt_float_samples`

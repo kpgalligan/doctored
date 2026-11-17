@@ -3,7 +3,8 @@
 //! which is what the Clone Stamp, the Healing Brush, Spot Healing, Patch,
 //! Remove, Content-Aware Fill and Content-Aware Move send.
 //!
-//! `precision_retouch` is the MASTER of every step here but the sample type.
+//! `precision_retouch_run` (with `precision_retouch`'s plan) is the MASTER of
+//! every step here but the sample type.
 //! Its shared prelude (the plan and admission, the coverage domain and
 //! bounds checks, the lock gate) runs first and then hands a float document
 //! to [`PrecisionDocument::float_retouching`], which mirrors the master's two

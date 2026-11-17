@@ -75,7 +75,7 @@
 //! at index `i` holding `records` records owns `i + 1 - records ..= i`, so nothing is cloned), and
 //! the two LINK ops go through `precision_structure_ops`' flat list because they rewrite one field
 //! on many records. Every typed writer is wrapped (`precision_paint`, `precision_paint_tools`,
-//! `precision_retouch`, `precision_scalar_edit` — RGBA → Pixels, mask → Mask, channel ungated —
+//! `precision_retouch_run`, `precision_scalar_edit` — RGBA → Pixels, mask → Mask, channel ungated —
 //! `precision_adjustment`, `selected_adjustment`, `artwork_document`, `precision_geometry` —
 //! per-layer affine/perspective → Position or Mask, canvas ops ungated — `precision_mask_edit` and
 //! `precision_mask_apply`); three sites CONSULT the lock with `lock_refusal` rather than wrapping

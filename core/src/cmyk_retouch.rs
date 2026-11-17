@@ -2,7 +2,8 @@
 //! Clone Stamp, the Healing Brush (and Patch and Content-Aware Move's heal,
 //! which are its requests), Spot Healing (and Remove) and Content-Aware Fill
 //! — `precision_retouch`'s `RetouchEdit`, routed here at the top of its plan,
-//! its walk and `retouch_from`'s refusal. Red Eye refuses by name.
+//! its walk and `retouch_from`'s refusal (`precision_retouch_run`). Red Eye
+//! refuses by name.
 //!
 //! * **The sampling plate** (`cmyk_retouch_plate`): the source layer's own
 //!   ink on paper (Current), or the CMYK composite with the records
@@ -45,19 +46,19 @@
 //! terms), and an in-place Spot Heal or Content-Aware Fill plans the RGB
 //! arm's in-place terms at four channels; every pass input is the rect form
 //! over the working coverage's bbox (`cmyk_pass_input`).
+//!
+//! The whole-destination Clone and Heal passes and the four-ink synthesis
+//! are `cmyk_retouch_walk`.
 
 use crate::blend::BlendMode;
 use crate::cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL;
 use crate::cmyk_composite::{codes, over_mode, over_mode_frozen, unit, InkPixel};
 use crate::cmyk_document::{blend_refusal, refused_sentence};
 use crate::cmyk_image::{CmykImage, CmykSample, PAPER};
-use crate::cmyk_passes::{
-    join_images, pass_document, pass_image, pass_pair, pass_result, InkPass, BLANK_PASS,
-};
+use crate::cmyk_passes::{pass_document, BLANK_PASS};
 use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
-use crate::layer_rect::{canvas_rect_on_plane, plane_rect_offset};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{pixel_count, PrecisionImage, BOOKKEEPING_BYTES};
 use crate::precision_inpaint::SynthesisPlate;
@@ -435,205 +436,6 @@ impl PrecisionDocument {
             input.extend(selection.crop(frame)?);
         }
         Ok((input, rect))
-    }
-
-    /// Runs `edit`'s RGB walk on `dest`'s two passes (blank for a clone)
-    /// over the plate's passes; each result's layer-0 image.
-    #[allow(clippy::too_many_arguments)]
-    fn cmyk_retouch_passes(
-        &self,
-        edit: &RetouchEdit,
-        dest: &CmykImage,
-        offset: (i32, i32),
-        plate: &CmykImage,
-        io: Planes<'_>,
-        limit: u64,
-        other: u64,
-        job: JobContext<'_>,
-    ) -> Result<Option<[PrecisionImage; 2]>, String> {
-        let blank = edit.op == RetouchOp::RetouchClone;
-        let mut pass = pass_edit(edit);
-        let (input, rect) = self.cmyk_pass_input(edit, io)?;
-        pass.coverage_rect = rect;
-        let held = self.retained_bytes().saturating_add(other);
-        let mut out = Vec::with_capacity(2);
-        let mut changed = false;
-        for (k, which) in [InkPass::Cmy, InkPass::K].into_iter().enumerate() {
-            let range = job.range(k as f64 * 0.45, (k + 1) as f64 * 0.45);
-            let doc = pass_document(
-                self.dimensions(),
-                pass_image(dest, which, blank, range)?,
-                offset,
-                0,
-            )?;
-            let plates = Self::cmyk_plate_document(plate, which)?;
-            let result = doc.retouching_unlocked(&plates, &pass, &input, limit, held, range)?;
-            changed |= result.is_some();
-            out.push(pass_result(result.as_ref().unwrap_or(&doc))?.clone());
-        }
-        if !changed {
-            return Ok(None);
-        }
-        let b = out.pop().ok_or("internal error: a CMYK pass is missing")?;
-        let a = out.pop().ok_or("internal error: a CMYK pass is missing")?;
-        Ok(Some([a, b]))
-    }
-
-    /// The Clone Stamp on ink (module doc).
-    #[allow(clippy::too_many_arguments)]
-    fn cmyk_cloned(
-        &self,
-        edit: &RetouchEdit,
-        dest: &CmykImage,
-        offset: (i32, i32),
-        plate: &CmykImage,
-        io: Planes<'_>,
-        frozen: bool,
-        limit: u64,
-        other: u64,
-        job: JobContext<'_>,
-    ) -> Result<Option<CmykImage>, String> {
-        let Some([a, b]) = self.cmyk_retouch_passes(
-            edit,
-            dest,
-            offset,
-            plate,
-            io,
-            limit,
-            other,
-            job.range(0.0, 0.9),
-        )?
-        else {
-            return Ok(None);
-        };
-        let mode =
-            BlendMode::from_c(edit.blend_mode as i32).ok_or("retouch blend mode is invalid")?;
-        let (w, h) = dest.dimensions();
-        let mut changed = false;
-        let out = CmykImage::from_rows_with_job(
-            w,
-            h,
-            |y, row| {
-                let mut x = 0u32;
-                for (_, run) in dest.row_segments(y, 0, w) {
-                    for s in run {
-                        let passes = pass_pair(&a, Some(&b), (x, y))?;
-                        let xy = (
-                            i64::from(x) + i64::from(offset.0),
-                            i64::from(y) + i64::from(offset.1),
-                        );
-                        let next = cloned_sample(*s, passes, (edit.opacity, mode), xy, frozen);
-                        changed |= next != *s;
-                        row[x as usize] = next;
-                        x += 1;
-                    }
-                }
-                job.every(y as usize * w as usize)
-            },
-            job.range(0.9, 1.0),
-        )?;
-        Ok(changed.then_some(out))
-    }
-
-    /// The Healing Brush on ink (module doc).
-    #[allow(clippy::too_many_arguments)]
-    fn cmyk_healed(
-        &self,
-        edit: &RetouchEdit,
-        dest: &CmykImage,
-        offset: (i32, i32),
-        plate: &CmykImage,
-        io: Planes<'_>,
-        frozen: bool,
-        limit: u64,
-        other: u64,
-        job: JobContext<'_>,
-    ) -> Result<Option<CmykImage>, String> {
-        let Some([a, b]) = self.cmyk_retouch_passes(
-            edit,
-            dest,
-            offset,
-            plate,
-            io,
-            limit,
-            other,
-            job.range(0.0, 0.9),
-        )?
-        else {
-            return Ok(None);
-        };
-        join_images(dest, &a, Some(&b), frozen, job.range(0.9, 1.0))
-    }
-
-    /// Spot Healing and Content-Aware Fill on the four inks (module doc).
-    #[allow(clippy::too_many_arguments)]
-    fn cmyk_synthesized(
-        &self,
-        edit: &RetouchEdit,
-        dest: &CmykImage,
-        offset: (i32, i32),
-        plate: SynthesisPlate<'_>,
-        (coverage, selection): Planes<'_>,
-        scratch: u64,
-        job: JobContext<'_>,
-    ) -> Result<Option<CmykImage>, String> {
-        let bounds = edit.bounds(self)?;
-        let domain = edit.synthesis_domain(self)?;
-        let estimate = crate::precision_inpaint::estimate(
-            self.dimensions(),
-            bounds,
-            u64::from(bounds.2) * u64::from(bounds.3),
-            edit.ring,
-            synthesis_caller(edit),
-            edit.spot_type,
-            4,
-            u64::from(domain.2) * u64::from(domain.3),
-        )?
-        .0;
-        let synthesis = crate::precision_inpaint::plan(
-            self.dimensions(),
-            domain,
-            coverage,
-            edit.ring,
-            edit.op == RetouchOp::ContentAwareFill,
-            edit.spot_type,
-            scratch.saturating_sub(estimate),
-            4,
-            job,
-        )?;
-        let eligibility = edit
-            .source_mask
-            .as_ref()
-            .map(|m| m.compile(self.width, self.height, job))
-            .transpose()?;
-        let canvas = self.dimensions();
-        let rect = synthesis
-            .window_union()
-            .and_then(|b| canvas_rect_on_plane(canvas, dest.dimensions(), offset, b));
-        let (mut pixels, plane) = match rect {
-            Some(rect) => (
-                dest.read_rect(rect, job)?,
-                ((rect.2, rect.3), plane_rect_offset(offset, rect)),
-            ),
-            None => (Vec::new(), ((0, 0), offset)),
-        };
-        crate::precision_inpaint::apply::<u16, 4>(
-            &synthesis,
-            plate,
-            coverage,
-            eligibility.as_deref(),
-            edit.opacity,
-            edit.seed,
-            pixels.as_flattened_mut(),
-            plane.0,
-            plane.1,
-            selection,
-            job,
-        )?;
-        match rect {
-            Some(rect) => dest.with_rect(rect, &pixels, job),
-            None => Ok(None),
-        }
     }
 }
 

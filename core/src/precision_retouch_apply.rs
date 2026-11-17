@@ -1,5 +1,5 @@
 //! The per-op kernels of a native retouch (13B-3d-2), split out of
-//! `precision_retouch`'s dispatch at the destination write: `prepare` is
+//! `precision_retouch_run`'s dispatch at the destination write: `prepare` is
 //! everything each op computes before it touches the destination (the
 //! transformed source for Clone / Heal, the synthesis plan and the source
 //! permission for Spot Heal / Content-Aware Fill), `apply` is the write
