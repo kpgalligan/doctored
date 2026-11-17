@@ -14,9 +14,14 @@
 //! 2,424,106 and the Heal at 2,437,034, the answer's new tiles included.
 //! Since 13B-9b a `sample: current` Spot Heal reads its source layer in place
 //! and plans its hole over its bounds: the 48×48 dab peaks at 1,160,946 at
-//! 6000×4000 (384,022,322 before). What stays canvas-proportional: a
-//! selection's coverage domain (2 bytes a pixel) and the `all` /
-//! `current_and_below` plate's own render (24 bytes a pixel).
+//! 6000×4000 (384,022,322 before). Since 13B-9c a request may name its
+//! `coverage_rect` (the rect-form cases send the dab's rect grown by 2), the
+//! selection domain covers the stroke's bbox only, a CMYK Clone or Heal runs
+//! its passes over the stroke's rect, and each line carries the request's
+//! plan (`plan_scratch`, `plan_over_peak`); the 24 MP float heal, spot heal
+//! and fill over a 1000×1000 box are `selected_color_planes_24mp`'s RH32, RS32
+//! and RF32. What stays canvas-proportional: the `all` / `current_and_below`
+//! plate's own render (24 bytes a pixel).
 //!
 //! `cd core && cargo run --release --example phase13b_retouch_dab`
 
@@ -26,6 +31,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use doctored_core::ffi::dr_string_free;
+use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -33,6 +39,18 @@ use doctored_core::precision_clipboard::ClipboardPayload;
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
 use doctored_core::precision_image::PrecisionImage;
 use serde_json::{json, Value};
+
+#[path = "../tests/common/cmyk_fixture.rs"]
+mod cmyk_fixture;
+#[allow(dead_code)]
+#[path = "../tests/common/icc_chain.rs"]
+mod icc_chain;
+#[path = "../tests/common/icc_lut_builders.rs"]
+mod icc_lut_builders;
+/// `cmyk_fixture`'s path to the chain builders.
+mod common {
+    pub(crate) use super::icc_chain;
+}
 
 /// The admission limit: high enough that only the bytes are measured.
 const LIMIT: u64 = 64 << 30;
@@ -150,6 +168,28 @@ fn float_document(w: u32, h: u32) -> PrecisionDocument {
     let doc =
         PrecisionDocument::from_clipboard(&payload, LIMIT, 0, None).expect("a float document");
     assert!(doc.is_float());
+    doc
+}
+
+/// `doc` converted into the synthetic press profile the CMYK suites use.
+fn cmyk_document(doc: &PrecisionDocument) -> PrecisionDocument {
+    let profile = cmyk_fixture::press_profile("Press Test");
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_convert_to_cmyk(
+            doc,
+            profile.as_ptr(),
+            profile.len(),
+            c"{}".as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "the CMYK conversion refused");
+    let doc = *unsafe { Box::from_raw(out) };
+    assert!(doc.is_cmyk());
     doc
 }
 
@@ -347,6 +387,34 @@ fn main() {
             &coverage(w, h, (0, h - 60, 80, 60)),
         );
         drop(three);
+        // 13B-9c: an in-place CMYK Clone or Heal runs its passes over the
+        // stroke's rect, in canvas form and in rect form.
+        let cmyk = cmyk_document(&one);
+        let heal = json!({"op":"retouch_heal","layer":0,"sample":"current","matrix":matrix,
+            "opacity":1.0});
+        measure(
+            "cmyk clone current",
+            canvas,
+            &cmyk,
+            &clone("current", false),
+            &cover,
+        );
+        measure("cmyk heal current", canvas, &cmyk, &heal, &cover);
+        measure(
+            "cmyk clone current + selection, rect form",
+            canvas,
+            &cmyk,
+            &rect_form(clone("current", true)),
+            &rect_selected,
+        );
+        measure(
+            "cmyk heal current, rect form",
+            canvas,
+            &cmyk,
+            &rect_form(heal),
+            &crop(&cover, w, rect),
+        );
+        drop(cmyk);
         let float = float_document(w, h);
         measure(
             "float clone current",

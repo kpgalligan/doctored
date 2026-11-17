@@ -477,5 +477,35 @@ fn the_descriptor_reports_the_retouch_plans() {
             descriptor[key]
         );
     }
+    // The three retouch keys are the plans of the rect-form requests the
+    // app sends for `scripts/cmyk-admission/measure.py`'s strokes on the top
+    // CMYK raster (record 1): a heal and a spot heal of one 100 px dab at
+    // the centre (`healBounds`, the 104 px square), and a clone along the
+    // centre row from x − 1500 to x + 1500, size 100, its `healBounds`
+    // clamped to the canvas, the source 400 px above.
+    let (cx, cy) = (cw / 2, ch / 2);
+    let square = [cx - 52, cy - 52, 104, 104];
+    let row = [0, cy - 52, cw, 104];
+    let above = [1.0, 0.0, 0.0, 1.0, 0.0, -400.0];
+    let at = |rect: [u32; 4]| {
+        json!({"x":rect[0],"y":rect[1],"width":rect[2],"height":rect[3],
+        "coverage_rect":rect,"layer":1})
+    };
+    let mut clone = at(row);
+    clone["op"] = json!("retouch_clone");
+    clone["matrix"] = json!(above);
+    let mut heal = at(square);
+    heal["op"] = json!("retouch_heal");
+    heal["matrix"] = json!(above);
+    let mut spot = at(square);
+    spot["op"] = json!("spot_heal");
+    for (key, request) in [
+        ("cmyk_clone_scratch_bytes", clone),
+        ("cmyk_heal_scratch_bytes", heal),
+        ("cmyk_spot_heal_scratch_bytes", spot),
+    ] {
+        let plan = crate::cmyk_structure_fixture::plan(doc, &request.to_string()).unwrap();
+        assert_eq!(descriptor[key], plan["scratch_bytes"], "{key}: {request}");
+    }
     free(doc);
 }

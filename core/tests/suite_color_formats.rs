@@ -169,6 +169,8 @@ mod cmyk_retouch;
 mod cmyk_retouch_brush;
 #[path = "cmyk_retouch_options.rs"]
 mod cmyk_retouch_options;
+#[path = "cmyk_retouch_rect.rs"]
+mod cmyk_retouch_rect;
 #[path = "cmyk_select.rs"]
 mod cmyk_select;
 #[path = "cmyk_select_kinds.rs"]

@@ -20,6 +20,11 @@
 //! lock. A pixel whose final α is 0 keeps its source ink. The two passes'
 //! alphas must agree (every pass edit moves α by the same coverage
 //! arithmetic on both); a disagreement is an internal error, never a guess.
+//!
+//! An in-place Clone or Heal (13B-9c, `cmyk_retouch_rect`) passes a RECT of
+//! its layer ([`pass_rect_image`]: the rect's samples, at the rect's canvas
+//! position) and joins it back over that rect ([`join_rect`]), so its pass
+//! documents are the stroke's size, not the canvas's.
 
 use crate::cmyk_image::{CmykImage, CmykSample};
 use crate::doc_lock::LOCK_TRANSPARENCY;
@@ -28,6 +33,7 @@ use crate::job_control::JobContext;
 use crate::metadata::{Metadata, Resolution};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{pixel_count, reserved_vec, PrecisionImage};
+use crate::retouch_coverage::Rect;
 
 /// The paper sample of a blank pass: no ink, no coverage.
 pub(crate) const BLANK_PASS: [u16; 4] = [65535, 65535, 65535, 0];
@@ -72,7 +78,7 @@ pub(crate) fn join_sample(
 }
 
 /// `image`'s pass `pass` as an RGBA16 image of its own size (`blank`: paper
-/// at α 0).
+/// at α 0): [`pass_rect_image`] over the whole image.
 pub(crate) fn pass_image(
     image: &CmykImage,
     pass: InkPass,
@@ -80,17 +86,76 @@ pub(crate) fn pass_image(
     job: JobContext<'_>,
 ) -> Result<PrecisionImage, String> {
     let (w, h) = image.dimensions();
+    pass_rect_image(image, pass, blank, (0, 0, w, h), job)
+}
+
+/// `image`'s pass `pass` over its rect `rect` (image space, inside the
+/// image) as an RGBA16 image of the rect's size (`blank`: paper at α 0).
+pub(crate) fn pass_rect_image(
+    image: &CmykImage,
+    pass: InkPass,
+    blank: bool,
+    (x, y, w, h): Rect,
+    job: JobContext<'_>,
+) -> Result<PrecisionImage, String> {
     if blank {
         return PrecisionImage::filled_rgba16(w, h, BLANK_PASS, IccProfile::srgb());
     }
     let mut pixels = reserved_vec(pixel_count(w, h)?)?;
-    for y in 0..h {
+    for row in y..y + h {
         job.check()?;
-        for (_, run) in image.row_segments(y, 0, w) {
+        for (_, run) in image.row_segments(row, x, x + w) {
             pixels.extend(run.iter().map(|s| pass.sample(*s)));
         }
     }
     PrecisionImage::from_rgba16_unseeded(w, h, pixels, IccProfile::srgb(), None)
+}
+
+/// The pass samples `pa` and `pb` (`None`: the K plate held) of one pixel
+/// for [`join_sample`] or a clone's composite; a disagreement on alpha is
+/// an internal error (module doc).
+pub(crate) fn pass_pair(
+    a: &PrecisionImage,
+    b: Option<&PrecisionImage>,
+    (x, y): (u32, u32),
+) -> Result<([u16; 4], Option<[u16; 4]>), String> {
+    let pa = a.rgba16_at(x, y).unwrap_or(BLANK_PASS);
+    let pb = match b {
+        Some(b) => {
+            let pb = b.rgba16_at(x, y).unwrap_or(BLANK_PASS);
+            if pb[3] != pa[3] {
+                return Err("internal error: the CMYK passes disagree on alpha".into());
+            }
+            Some(pb)
+        }
+        None => None,
+    };
+    Ok((pa, pb))
+}
+
+/// `dest` with its rect `rect` (image space) joined with pass results `a`
+/// and `b` of the rect's size (module doc, [`join_images`] over the rect):
+/// the rect read, joined and written back through `with_rect`; `None` when
+/// no stored code changes.
+pub(crate) fn join_rect(
+    dest: &CmykImage,
+    rect: Rect,
+    a: &PrecisionImage,
+    b: Option<&PrecisionImage>,
+    frozen: bool,
+    job: JobContext<'_>,
+) -> Result<Option<CmykImage>, String> {
+    let (_, _, w, h) = rect;
+    if a.dimensions() != (w, h) || b.is_some_and(|b| b.dimensions() != (w, h)) {
+        return Err("internal error: a CMYK pass changed the layer's size".into());
+    }
+    let mut pixels = dest.read_rect(rect, job)?;
+    for (i, s) in pixels.iter_mut().enumerate() {
+        job.every(i)?;
+        let (pa, pb) = pass_pair(a, b, ((i % w as usize) as u32, (i / w as usize) as u32))?;
+        *s = join_sample(*s, pa, pb, frozen);
+    }
+    dest.with_rect(rect, &pixels, job)
 }
 
 /// A pass document (module doc) of a `canvas`-sized document whose layer 0
@@ -140,19 +205,7 @@ pub(crate) fn join_images(
             let mut x = 0u32;
             for (_, run) in dest.row_segments(y, 0, w) {
                 for s in run {
-                    let pa = a.rgba16_at(x, y).unwrap_or(BLANK_PASS);
-                    let pb = match b {
-                        Some(b) => {
-                            let pb = b.rgba16_at(x, y).unwrap_or(BLANK_PASS);
-                            if pb[3] != pa[3] {
-                                return Err(
-                                    "internal error: the CMYK passes disagree on alpha".into()
-                                );
-                            }
-                            Some(pb)
-                        }
-                        None => None,
-                    };
+                    let (pa, pb) = pass_pair(a, b, (x, y))?;
                     let next = join_sample(*s, pa, pb, frozen);
                     changed |= next != *s;
                     row[x as usize] = next;

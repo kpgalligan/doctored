@@ -27,7 +27,9 @@
 //! rect form (`coverage_rect`), at 16 bits and 32-bit float, stays below
 //! `2·N` (the canvas-sized selection domain reaches it by itself), and the
 //! rect form's plan is at least 1.25 × its peak and below its fixed
-//! bookkeeping plus `2·N` (the in-place plan charged `40·N` before).
+//! bookkeeping plus `2·N` (the in-place plan charged `40·N` before); and the
+//! 100 × 100 `sample: current` Clone and Heal dabs on the document converted
+//! to CMYK stay below `2·N` (the canvas ink plate and canvas passes break it).
 //!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
@@ -282,6 +284,34 @@ fn a_float_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
     let _serial = serial();
     let doc = float_fixture::float_doc(W, H, &IccProfile::srgb(), &[pattern32()]);
     assert_dabs_below_bound("float", &doc);
+}
+
+/// 13B-9c's CMYK bound, declared before measuring: the same dabs on the
+/// document converted to CMYK stay below `2·N` (a canvas ink plate is 10
+/// bytes a pixel, a canvas pass 8).
+#[test]
+fn a_cmyk_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    let rgb = document16(vec![raster16()]);
+    let profile = cmyk_fixture::press_profile("Press Test");
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_convert_to_cmyk(
+            &rgb,
+            profile.as_ptr(),
+            profile.len(),
+            c"{}".as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "to CMYK: {}", take(error));
+    drop(rgb);
+    let doc = *unsafe { Box::from_raw(out) };
+    assert!(doc.is_cmyk());
+    assert_dabs_below_bound("cmyk", &doc);
 }
 
 // ------------------------------------------------- selected rect dabs --

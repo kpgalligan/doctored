@@ -24,6 +24,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_filter.rs` — Filter menu on CMYK as two RGBA16 `L` passes of the RGB selected-filter path; lock rule, plans, refusals.
 - `cmyk_passes.rs` — the two `L = 1 − ink` RGBA16 pass documents a CMYK edit runs a shipped RGB16 op on, and `join_sample`, the join back into ink.
 - `cmyk_retouch.rs` — Clone, Heal, Spot Heal and Content-Aware Fill on ink (two passes; four-ink synthesis), new layer and expand, the plan and refusals.
+- `cmyk_retouch_rect.rs` — an in-place CMYK Clone/Heal's passes over the stroke's rect (rect pass documents, the taps' plate, join/composite over it); its and the synthesis's plans.
 - `cmyk_retouch_plate.rs` — the CMYK retouch sampling plate (Current; the composite cut at opacity 0), its P3 view and the descriptor's retouch plans.
 - `cmyk_retouch_brush.rs` — Dodge/Burn, Blur, Sharpen, Sponge (K held), Smudge and the History Brush on ink as RGB16 passes; their plans.
 - `cmyk_art_history.rs` — the Art History Brush on an 8-bit CMYK record's ink: the kernel's strokes through `over_mode`, written as `CmykPaintEdit` writes.

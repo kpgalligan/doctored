@@ -38,15 +38,21 @@
 //! 44 with a selection), the destination at 20 B a pixel and
 //! `precision_inpaint::estimate` at four channels. Measured by
 //! `scripts/cmyk-admission/measure.py` (`retouch-clone-16`,
-//! `retouch-heal-16`, `spot-heal-16`).
+//! `retouch-heal-16`, `spot-heal-16`) before 13B-9c.
+//!
+//! Since 13B-9c an in-place Clone or Heal (outside the full-frame seam) runs
+//! its passes over the stroke's rect (`cmyk_retouch_rect`, with its plan's
+//! terms), and an in-place Spot Heal or Content-Aware Fill plans the RGB
+//! arm's in-place terms at four channels; every pass input is the rect form
+//! over the working coverage's bbox (`cmyk_pass_input`).
 
 use crate::blend::BlendMode;
 use crate::cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL;
 use crate::cmyk_composite::{codes, over_mode, over_mode_frozen, unit, InkPixel};
 use crate::cmyk_document::{blend_refusal, refused_sentence};
-use crate::cmyk_image::{CmykImage, PAPER};
+use crate::cmyk_image::{CmykImage, CmykSample, PAPER};
 use crate::cmyk_passes::{
-    join_images, pass_document, pass_image, pass_result, InkPass, BLANK_PASS,
+    join_images, pass_document, pass_image, pass_pair, pass_result, InkPass, BLANK_PASS,
 };
 use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::icc::IccProfile;
@@ -57,16 +63,17 @@ use crate::precision_image::{pixel_count, PrecisionImage, BOOKKEEPING_BYTES};
 use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::PaintPlan;
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
+use crate::precision_retouch_plan::synthesis_caller;
 use crate::retouch_coverage::CoveragePlane;
 use crate::retouch_sampling::RetouchSampling;
 use crate::retouch_transform::StorageExtent;
 
 /// The working coverage and the selection (`retouching_unlocked`'s prelude).
-type Planes<'a> = (CoveragePlane<'a>, Option<CoveragePlane<'a>>);
+pub(crate) type Planes<'a> = (CoveragePlane<'a>, Option<CoveragePlane<'a>>);
 
 /// `edit` as a pass runs it (module doc): layer 0 in place, the plate's
 /// pass document sampled as Current; a clone at opacity 1, Normal.
-fn pass_edit(edit: &RetouchEdit) -> RetouchEdit {
+pub(crate) fn pass_edit(edit: &RetouchEdit) -> RetouchEdit {
     let mut pass = edit.clone();
     pass.layer = 0;
     pass.source_layer = None;
@@ -153,7 +160,16 @@ impl PrecisionDocument {
         // already charges its own (`precision_retouch`'s buffers term), so
         // charging them here too counted them three times.
         let mut scratch = n * DISPLAY_BYTES_PER_PIXEL + 8 * BOOKKEEPING_BYTES;
-        if !edit.reads_plate_in_place() {
+        // In place and outside the full-frame seam (13B-9c): a Clone or Heal
+        // takes the rect path (`cmyk_retouch_rect`), a synthesis plans its
+        // window, as the RGB arm's in-place terms do.
+        let in_place =
+            edit.output == RetouchOutput::Layer && !edit.expand_destination && !edit.full_frame;
+        let rect_path =
+            in_place && matches!(edit.op, RetouchOp::RetouchClone | RetouchOp::RetouchHeal);
+        // The rect path's `Current` plate is the taps' (its own term below).
+        let taps_plate = rect_path && mode == RetouchSampling::Current;
+        if !(edit.reads_plate_in_place() || taps_plate) {
             scratch += self.cmyk_plate_scratch(mode)?;
         }
         if edit.output == RetouchOutput::NewLayer {
@@ -171,6 +187,12 @@ impl PrecisionDocument {
             self.native_fits_geometry(self.dimensions(), &rasters, &masks, self.channels.len())?;
         }
         match edit.op {
+            RetouchOp::RetouchClone | RetouchOp::RetouchHeal if rect_path => {
+                scratch += self.cmyk_rect_retouch_scratch(edit, mode)?;
+            }
+            RetouchOp::SpotHeal | RetouchOp::ContentAwareFill if in_place => {
+                scratch += self.cmyk_synthesis_in_place_scratch(edit)?;
+            }
             RetouchOp::RetouchClone | RetouchOp::RetouchHeal => {
                 // One pass's RGB plan on a stand-in of the destination.
                 let image = PrecisionImage::filled_rgba16(
@@ -281,6 +303,28 @@ impl PrecisionDocument {
             }
             RetouchOutput::Layer => padded(image, target_offset, (dimensions, offset), job)?,
         };
+        let io = (coverage, selection);
+        let stage = job.range(0.2, 0.95);
+        // An in-place Clone or Heal runs its passes over the stroke's rect
+        // (13B-9c, `cmyk_retouch_rect`); the full-frame seam keeps the canvas.
+        let in_place = edit.output == RetouchOutput::Layer
+            && (dimensions, offset) == (image.dimensions(), target_offset);
+        let rect_path = in_place
+            && !edit.full_frame
+            && matches!(edit.op, RetouchOp::RetouchClone | RetouchOp::RetouchHeal);
+        if rect_path {
+            let at = (offset, frozen);
+            let Some(out) =
+                self.cmyk_rect_retouched(plates, edit, &dest, at, io, limit, other, job)?
+            else {
+                job.report(1.0, 5)?;
+                return Ok(None);
+            };
+            let next =
+                self.replacing_content(edit.layer, Content::CmykRaster { image: out, offset })?;
+            job.report(1.0, 5)?;
+            return Ok(next);
+        }
         // A `sample: current` synthesis reads its source layer in place, so no
         // plate is built for it (13B-9b); Clone and Heal always build one.
         let source = edit.source_layer.unwrap_or(edit.layer);
@@ -294,8 +338,6 @@ impl PrecisionDocument {
                 job.range(0.08, 0.2),
             )?)
         };
-        let io = (coverage, selection);
-        let stage = job.range(0.2, 0.95);
         const MISSING: &str = "missing native retouch source";
         let result = match edit.op {
             RetouchOp::RetouchClone => {
@@ -370,20 +412,23 @@ impl PrecisionDocument {
     }
 
     /// The pass input (13B-9c) and the pass request's `coverage_rect`: the
-    /// working coverage, then the selection, each over the working plane's
-    /// rect; over the canvas in canvas form (`None`) when that rect is the
-    /// canvas or under the full-frame seam.
-    fn cmyk_pass_input(
+    /// working coverage, then the selection, each over the working
+    /// coverage's bbox (nothing is covered outside it); over the canvas in
+    /// canvas form (`None`) under the full-frame seam.
+    pub(crate) fn cmyk_pass_input(
         &self,
         edit: &RetouchEdit,
         (coverage, selection): Planes<'_>,
     ) -> Result<(Vec<u16>, Option<[u32; 4]>), String> {
         let (cw, ch) = self.dimensions();
-        let (x, y, w, h) = coverage.rect();
-        let (frame, rect) = if edit.full_frame || (x, y, w, h) == (0, 0, cw, ch) {
-            ((0, 0, i64::from(cw), i64::from(ch)), None)
-        } else {
-            (coverage.frame(), Some([x, y, w, h]))
+        let bbox = coverage.bbox().filter(|_| !edit.full_frame);
+        let (frame, rect) = match bbox {
+            Some((x, y, w, h)) => {
+                let (x0, y0) = (i64::from(x), i64::from(y));
+                let frame = (x0, y0, x0 + i64::from(w), y0 + i64::from(h));
+                (frame, Some([x, y, w, h]))
+            }
+            None => ((0, 0, i64::from(cw), i64::from(ch)), None),
         };
         let mut input = coverage.crop(frame)?;
         if let Some(selection) = selection {
@@ -472,36 +517,12 @@ impl PrecisionDocument {
                 let mut x = 0u32;
                 for (_, run) in dest.row_segments(y, 0, w) {
                     for s in run {
-                        let pa = a.rgba16_at(x, y).unwrap_or(BLANK_PASS);
-                        let pb = b.rgba16_at(x, y).unwrap_or(BLANK_PASS);
-                        if pa[3] != pb[3] {
-                            return Err("internal error: the CMYK passes disagree on alpha".into());
-                        }
-                        let mut next = *s;
-                        if pa[3] != 0 {
-                            let ink = [
-                                unit(65535 - pa[0]),
-                                unit(65535 - pa[1]),
-                                unit(65535 - pa[2]),
-                                unit(65535 - pb[1]),
-                            ];
-                            let sa = unit(pa[3]) * edit.opacity;
-                            let mut pixel: InkPixel = s.map(unit);
-                            let xy = (
-                                i64::from(x) + i64::from(offset.0),
-                                i64::from(y) + i64::from(offset.1),
-                            );
-                            if frozen {
-                                over_mode_frozen(&mut pixel, ink, sa, mode, xy);
-                            } else {
-                                over_mode(&mut pixel, ink, sa, mode, xy);
-                            }
-                            next = codes(pixel);
-                            // Sub-quantum alpha cannot create invisible storage.
-                            if *s == PAPER && next[4] == 0 {
-                                next = *s;
-                            }
-                        }
+                        let passes = pass_pair(&a, Some(&b), (x, y))?;
+                        let xy = (
+                            i64::from(x) + i64::from(offset.0),
+                            i64::from(y) + i64::from(offset.1),
+                        );
+                        let next = cloned_sample(*s, passes, (edit.opacity, mode), xy, frozen);
                         changed |= next != *s;
                         row[x as usize] = next;
                         x += 1;
@@ -616,12 +637,40 @@ impl PrecisionDocument {
     }
 }
 
-/// The synthesis caller of a Spot Heal or Content-Aware Fill request.
-fn synthesis_caller(edit: &RetouchEdit) -> crate::doc_inpaint::Caller {
-    if edit.op == RetouchOp::ContentAwareFill {
-        crate::doc_inpaint::Caller::Fill
+/// The Clone's composite of one destination sample `s` at canvas `xy` (module
+/// doc): the source ink of pass results `pa` and `pb` over `s` at the stroke
+/// `opacity` through `over_mode` (`over_mode_frozen` under a transparency
+/// lock). The ONE per-pixel body of the canvas and the rect clone.
+pub(crate) fn cloned_sample(
+    s: CmykSample,
+    (pa, pb): ([u16; 4], Option<[u16; 4]>),
+    (opacity, mode): (f32, BlendMode),
+    xy: (i64, i64),
+    frozen: bool,
+) -> CmykSample {
+    if pa[3] == 0 {
+        return s;
+    }
+    let k = pb.map_or(65535 - s[3], |pb| pb[1]);
+    let ink = [
+        unit(65535 - pa[0]),
+        unit(65535 - pa[1]),
+        unit(65535 - pa[2]),
+        unit(65535 - k),
+    ];
+    let sa = unit(pa[3]) * opacity;
+    let mut pixel: InkPixel = s.map(unit);
+    if frozen {
+        over_mode_frozen(&mut pixel, ink, sa, mode, xy);
     } else {
-        crate::doc_inpaint::Caller::SpotHeal
+        over_mode(&mut pixel, ink, sa, mode, xy);
+    }
+    let next = codes(pixel);
+    // Sub-quantum alpha cannot create invisible storage.
+    if s == PAPER && next[4] == 0 {
+        s
+    } else {
+        next
     }
 }
 

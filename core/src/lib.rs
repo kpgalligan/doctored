@@ -102,6 +102,7 @@ mod cmyk_render;
 mod cmyk_retouch;
 mod cmyk_retouch_brush;
 mod cmyk_retouch_plate;
+mod cmyk_retouch_rect;
 mod cmyk_select;
 mod cmyk_selected_pixels;
 mod cmyk_selected_plate;

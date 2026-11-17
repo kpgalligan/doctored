@@ -84,11 +84,14 @@ layer pixel for the two `L` passes and the ink, the remapped coverage and
 Shadows/Highlights: the CMYK apply plan plus the guide plane's term) and
 `fade-16` (`cmyk_fade`'s 20 B a layer pixel after a blur), each read from
 `get_precision` before the measured call. The retouch batch adds
-`retouch-clone-16`, `retouch-heal-16` (the two-pass plan: the RGB pass's own
-plan twice, 34 B a destination pixel, the plate and its passes and
-`DISPLAY_BYTES_PER_PIXEL` over the canvas), `spot-heal-16` (the RGB synthesis
-plan at four channels; its `sample: current` heal reads the source layer in
-place, so no plate since 13B-9b), `dodge-16`, `smudge-16` and
+`retouch-clone-16`, `retouch-heal-16` (the two-pass plan; since 13B-9c the
+passes run over the stroke's rect, so the RGB pass's own plan on a
+rect-sized stand-in twice, 34 B a rect pixel, the taps' two passes and their
+`Current` plate at the in-place margin, and `DISPLAY_BYTES_PER_PIXEL` over the
+canvas), `spot-heal-16` (the RGB synthesis plan's in-place terms at four
+channels; its `sample: current` heal reads the source layer in place, so no
+plate since 13B-9b), each the plan of the rect-form request the app sends
+(`coverage_rect`, `cmyk_retouch_plate.rs`), `dodge-16`, `smudge-16` and
 `history-brush-16` (`cmyk_retouch_brush`'s two-pass plans) and `equalize-16`
 (the CMYK adjustment apply's terms plus the table), each read from
 `get_precision` before the measured call, and `equalize-rgb16` /

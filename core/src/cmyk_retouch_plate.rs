@@ -18,11 +18,14 @@
 //!   a sampling source.
 //!
 //! The descriptor's plans (`cmyk_render::cmyk_descriptor`) are the core plans
-//! of the very requests `scripts/cmyk-admission/measure.py` sends on the top
-//! CMYK raster: a clone; a heal and a spot heal over the 104 px square at the
-//! canvas centre (one 100 px dab there, `NativeBrushStroke.healBounds`'
-//! padding); Dodge/Burn; a 100 px smudge across the centre 3000 px wide; the
-//! History Brush from the document itself; and Equalize.
+//! of the very requests the app sends for `scripts/cmyk-admission/measure.py`'s
+//! strokes on the top CMYK raster, in rect form since 13B-9c (`coverage_rect`
+//! and the bounds are the stroke's `NativeBrushStroke.healBounds`): a clone
+//! along the centre row 3000 px wide, size 100, its rect `[cx − 1552, cy − 52,
+//! 3104, 104]` clamped to the canvas, the source 400 px above; a heal (the
+//! same source) and a spot heal of one 100 px dab at the canvas centre, over
+//! the 104 px square there; Dodge/Burn; a 100 px smudge across the centre
+//! 3000 px wide; the History Brush from the document itself; and Equalize.
 
 use std::sync::Arc;
 
@@ -37,6 +40,7 @@ use crate::precision_image::{admit, pixel_count, PrecisionImage, BOOKKEEPING_BYT
 use crate::precision_paint_tools::NativePaintEdit;
 use crate::precision_retouch::RetouchEdit;
 use crate::retouch_sampling::RetouchSampling;
+use crate::retouch_transform::CanvasRect;
 use crate::selected_adjustment::SelectedEdit;
 
 /// Record tree `nodes` with every record `excluded` marks (postorder) at
@@ -65,6 +69,42 @@ fn cut_tree(
         out.push(next);
     }
     out
+}
+
+/// `image` (standing at canvas `(ox, oy)`) on PAPER over the canvas rect
+/// `(x0, y0, x1, y1)` (exclusive ends, nonempty), rect-sized: the ONE copy
+/// behind the Current plate over the canvas and over a rect.
+fn ink_on_paper(
+    image: &CmykImage,
+    (ox, oy): (i32, i32),
+    (x0, y0, x1, y1): CanvasRect,
+    job: JobContext<'_>,
+) -> Result<CmykImage, String> {
+    let (iw, ih) = image.dimensions();
+    let (w, h) = (
+        u32::try_from(x1 - x0).map_err(|_| "retouch plate rect is invalid")?,
+        u32::try_from(y1 - y0).map_err(|_| "retouch plate rect is invalid")?,
+    );
+    // The image's columns under the rect: rect column = lx + ox − x0.
+    let lx0 = (x0 - i64::from(ox)).clamp(0, i64::from(iw));
+    let lx1 = (x1 - i64::from(ox)).clamp(0, i64::from(iw));
+    CmykImage::from_rows_with_job(
+        w,
+        h,
+        |y, row| {
+            row.fill(PAPER);
+            let ly = y0 + i64::from(y) - i64::from(oy);
+            if !(0..i64::from(ih)).contains(&ly) || lx0 >= lx1 {
+                return job.check();
+            }
+            for (lx, run) in image.row_segments(ly as u32, lx0 as u32, lx1 as u32) {
+                let at = (i64::from(lx) + i64::from(ox) - x0) as usize;
+                row[at..at + run.len()].copy_from_slice(run);
+            }
+            job.check()
+        },
+        job,
+    )
 }
 
 impl PrecisionDocument {
@@ -106,29 +146,9 @@ impl PrecisionDocument {
     ) -> Result<CmykImage, String> {
         let (w, h) = self.dimensions();
         if mode == RetouchSampling::Current {
-            let (image, (ox, oy)) = self.cmyk_current_source(index)?;
-            let (iw, ih) = image.dimensions();
-            return CmykImage::from_rows_with_job(
-                w,
-                h,
-                |y, row| {
-                    row.fill(PAPER);
-                    let ly = i64::from(y) - i64::from(oy);
-                    if !(0..i64::from(ih)).contains(&ly) {
-                        return job.check();
-                    }
-                    let lx0 = (-i64::from(ox)).clamp(0, i64::from(iw));
-                    let lx1 = (i64::from(w) - i64::from(ox)).clamp(0, i64::from(iw));
-                    if lx0 < lx1 {
-                        for (lx, run) in image.row_segments(ly as u32, lx0 as u32, lx1 as u32) {
-                            let at = (i64::from(lx) + i64::from(ox)) as usize;
-                            row[at..at + run.len()].copy_from_slice(run);
-                        }
-                    }
-                    job.check()
-                },
-                job,
-            );
+            let (image, offset) = self.cmyk_current_source(index)?;
+            let canvas = (0, 0, i64::from(w), i64::from(h));
+            return ink_on_paper(image, offset, canvas, job);
         }
         if self.layer(index).and_then(|l| l.cmyk_source()).is_none() {
             return Err("retouch requires a raster source layer".into());
@@ -143,6 +163,29 @@ impl PrecisionDocument {
         let mut cut = self.clone();
         cut.layers = Arc::new(cut_tree(&self.layers, &mut 0, &excluded));
         cut.cmyk_frame_image(((0, 0), (w, h)), None, job)
+    }
+
+    /// The sampling plate of `mode` for record `index` over the canvas rect
+    /// `rect` (exclusive ends, nonempty, inside the canvas) only, rect-sized,
+    /// PAPER outside the source, straight ink (13B-9c, a CMYK Clone or
+    /// Heal's taps): `Current` copies the source layer's rows; another mode
+    /// renders the plate as [`Self::cmyk_retouch_plate`] does and keeps the
+    /// rect.
+    pub(crate) fn cmyk_retouch_plate_rect(
+        &self,
+        index: usize,
+        mode: RetouchSampling,
+        ignore_adjustments: bool,
+        rect: CanvasRect,
+        job: JobContext<'_>,
+    ) -> Result<CmykImage, String> {
+        if mode == RetouchSampling::Current {
+            let (image, offset) = self.cmyk_current_source(index)?;
+            return ink_on_paper(image, offset, rect, job);
+        }
+        let plate =
+            self.cmyk_retouch_plate(index, mode, ignore_adjustments, job.range(0.0, 0.8))?;
+        ink_on_paper(&plate, (0, 0), rect, job.range(0.8, 1.0))
     }
 
     /// `dr_precision_doc_retouch_source` on CMYK: `mode`'s plate as the
@@ -210,24 +253,23 @@ impl PrecisionDocument {
                     .map(|plan| plan.scratch_bytes),
             )
         };
-        let bounds = json!({"x":bx,"y":by,"width":side,"height":side});
-        let with = |op: &str| {
-            let mut request = bounds.clone();
-            request["op"] = json!(op);
-            request
-        };
-        out.insert(
-            "cmyk_clone_scratch_bytes".into(),
-            retouch(json!({"op":"retouch_clone"})),
-        );
-        out.insert(
-            "cmyk_heal_scratch_bytes".into(),
-            retouch(with("retouch_heal")),
-        );
-        out.insert(
-            "cmyk_spot_heal_scratch_bytes".into(),
-            retouch(with("spot_heal")),
-        );
+        // The rect forms the app sends (13B-9c): `coverage_rect` and the
+        // bounds are the stroke's `healBounds`, the source 400 px above.
+        let at = |(x, y, w, h): (i64, i64, i64, i64)| json!({"x":x,"y":y,"width":w,"height":h,"coverage_rect":[x,y,w,h]});
+        let above = json!([1.0, 0.0, 0.0, 1.0, 0.0, -400.0]);
+        let (rx0, ry0) = ((cx - 1552).max(0), (cy - 52).max(0));
+        let (rx1, ry1) = ((cx + 1552).min(i64::from(w)), (cy + 52).min(i64::from(h)));
+        let mut clone = at((rx0, ry0, rx1 - rx0, ry1 - ry0));
+        clone["op"] = json!("retouch_clone");
+        clone["matrix"] = above.clone();
+        let mut heal = at((bx, by, side, side));
+        heal["op"] = json!("retouch_heal");
+        heal["matrix"] = above;
+        let mut spot = at((bx, by, side, side));
+        spot["op"] = json!("spot_heal");
+        out.insert("cmyk_clone_scratch_bytes".into(), retouch(clone));
+        out.insert("cmyk_heal_scratch_bytes".into(), retouch(heal));
+        out.insert("cmyk_spot_heal_scratch_bytes".into(), retouch(spot));
         let Some(layer) = top else {
             for key in ["dodge", "smudge", "history_brush", "equalize"] {
                 out.insert(format!("cmyk_{key}_scratch_bytes"), Value::Null);
