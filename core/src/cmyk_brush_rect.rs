@@ -96,6 +96,27 @@ fn grown((x, y, rw, rh): Rect, reach: u32, (w, h): (u32, u32)) -> Rect {
     (x0, y0, x1 - x0, y1 - y0)
 }
 
+/// `edit` as a pass runs it, layer 0 (its `coverage_rect` kept: the pass
+/// documents stand at canvas positions), and that rect.
+pub(crate) fn dodge_pass(
+    edit: &NativePaintEdit,
+) -> Result<(NativePaintEdit, Option<[u32; 4]>), String> {
+    let mut pass = edit.clone();
+    if let NativePaintEdit::DodgeBurn {
+        layer,
+        coverage_rect,
+        ..
+    } = &mut pass
+    {
+        *layer = 0;
+        let rect = *coverage_rect;
+        return Ok((pass, rect));
+    }
+    Err(crate::cmyk_document::refused_sentence(
+        "This native paint request",
+    ))
+}
+
 /// A stroke for [`PrecisionDocument::cmyk_brush_whole_layer`] (tests only).
 #[doc(hidden)]
 pub enum CmykBrushStroke<'a> {
@@ -229,6 +250,14 @@ impl PrecisionDocument {
             canvas_rect_on_plane(self.dimensions(), (w, h), offset, ends)
                 .map_or((0, 0, 1, 1), |part| grown(part, reach, (w, h))),
         )
+    }
+
+    /// A stand-in pass document of CMYK raster `layer` for a plan (module
+    /// doc): its size and offset, its transparency lock, no samples
+    /// (`cmyk_pass_stand_in_rect` over the whole record).
+    pub(crate) fn cmyk_pass_stand_in(&self, layer: usize) -> Result<PrecisionDocument, String> {
+        let ((w, h), _) = self.cmyk_brush_target(layer)?;
+        self.cmyk_pass_stand_in_rect(layer, (0, 0, w, h))
     }
 
     /// A stand-in pass document of CMYK raster `layer` over its rect `frame`

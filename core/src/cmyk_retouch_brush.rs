@@ -59,6 +59,7 @@ use serde_json::{json, Value};
 
 use crate::brush_coverage::BrushRequest;
 use crate::cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL;
+use crate::cmyk_brush_rect::dodge_pass;
 use crate::cmyk_passes::{pass_document, InkPass, BLANK_PASS};
 use crate::doc_lock::EditKind;
 use crate::icc::IccProfile;
@@ -78,25 +79,6 @@ pub(crate) const HISTORY_SOURCE_REFUSAL: &str =
 /// The per-layer-pixel term of every two-pass plan (module doc), and the
 /// per-tile-pixel term of the rect plans (`cmyk_brush_rect`).
 pub(crate) const PASS_BYTES_PER_PIXEL: u64 = 34;
-
-/// `edit` as a pass runs it, layer 0 (its `coverage_rect` kept: the pass
-/// documents stand at canvas positions), and that rect.
-fn dodge_pass(edit: &NativePaintEdit) -> Result<(NativePaintEdit, Option<[u32; 4]>), String> {
-    let mut pass = edit.clone();
-    if let NativePaintEdit::DodgeBurn {
-        layer,
-        coverage_rect,
-        ..
-    } = &mut pass
-    {
-        *layer = 0;
-        let rect = *coverage_rect;
-        return Ok((pass, rect));
-    }
-    Err(crate::cmyk_document::refused_sentence(
-        "This native paint request",
-    ))
-}
 
 /// Whether a retouch brush runs pass B (Sponge holds K; module doc).
 fn runs_k(kind: RetouchBrushKind) -> bool {
@@ -129,14 +111,6 @@ impl PrecisionDocument {
             .cmyk_source()
             .ok_or("CMYK paint requires a CMYK raster layer")?;
         Ok((image.dimensions(), record.offset()))
-    }
-
-    /// A stand-in pass document of CMYK raster `layer` for a plan (module
-    /// doc): its size and offset, its transparency lock, no samples
-    /// (`cmyk_pass_stand_in_rect` over the whole record).
-    pub(crate) fn cmyk_pass_stand_in(&self, layer: usize) -> Result<PrecisionDocument, String> {
-        let ((w, h), _) = self.cmyk_brush_target(layer)?;
-        self.cmyk_pass_stand_in_rect(layer, (0, 0, w, h))
     }
 
     /// A two-pass plan's scratch (module doc): `rgb` is one pass's RGB
