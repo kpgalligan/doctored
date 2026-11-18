@@ -1,10 +1,10 @@
 # Per-subpath operations held on a path (ADR)
 
-- **Status:** Accepted; slices 1–4 shipped (the kernel; the model and DRDC word 116; the PSD and TIFF
-  codecs, a mixed-operation `vmsk` carried live; the app, MCP and the options bar). Slice 4 was built before
-  slice 3 landed and reads none of its code: the app hands the core a shape with `ops` and the codecs write
-  it. The bake rewrite HS-3 chose and the owner's hand check below are what remain of
-  [#19](https://github.com/kpgalligan/doctored/issues/19)'s item; "What a build owes" below is their plan.
+- **Status:** Accepted; slices 1–5 shipped (the kernel; the model and DRDC word 116; the PSD and TIFF
+  codecs, a mixed-operation `vmsk` carried live; the app, MCP and the options bar; the bake rewrite HS-3
+  chose). Slice 4 was built before slice 3 landed and reads none of its code: the app hands the core a
+  shape with `ops` and the codecs write it. Only the owner's hand check at the end of "What a build owes"
+  remains of [#19](https://github.com/kpgalligan/doctored/issues/19)'s item.
 - **Date:** 2026-11-16
 - **Extends:** [v1-paths.md](v1-paths.md) (its `OPEN` item for #19).
 
@@ -23,9 +23,9 @@ raster layer's mask was baked (`psd_vector_mask_bake`: each subpath drawn alone,
 This ADR decides how a path holds the operations, so a subtracted or intersected outline stays editable
 and such a `vmsk` is carried live.
 
-The v1 ADR recorded a quarter-pixel seam wherever two subpaths share an edge. That figure is what the bake's
-per-pixel combine of each subpath's OWN anti-aliased coverage gives (case (b) below). The rasterizer itself
-leaves none.
+The v1 ADR recorded a quarter-pixel seam wherever two subpaths share an edge. That figure was what slice
+3's bake gave by its per-pixel combine of each subpath's OWN anti-aliased coverage (case (b) below). The
+rasterizer itself leaves none.
 
 ## The measurement
 
@@ -36,7 +36,7 @@ pixel (0, 0); each bound is declared in the test before anything is measured. Co
 | Case | Bound | Measured |
 |---|---|---|
 | (a) rectangles `[4, 10.5] × [3, 28]` and `[10.5, 17] × [3, 28]` as two subpaths of one shape, against the one rectangle `[4, 17] × [3, 28]`: nonzero and even-odd, the two orientations the same and opposite | column 10, rows 3–27, all 65535; every sample equal to the one rectangle's | column minimum 65535 and worst difference 0, in all four |
-| (b) the same two rectangles, each rasterized alone, combined per pixel by `vector_mask_combine`'s formulas (union `c + s − c·s`, subtract `c·(1 − s)`) | union 49151 ± 1, subtract 16384 ± 1, the left rectangle alone 32768 ± 1, on column 10's 25 samples | 49152, 16384 and 32768 on every sample |
+| (b) the same two rectangles, each rasterized alone, combined per pixel by the product formulas slice 3's bake used (union `c + s − c·s`, subtract `c·(1 − s)`) | union 49151 ± 1, subtract 16384 ± 1, the left rectangle alone 32768 ± 1, on column 10's 25 samples | 49152, 16384 and 32768 on every sample |
 | (c) the two triangles of `[4.25, 19.75] × [3.5, 27.5]` split corner to corner, against the rectangle; nonzero and even-odd | within 1 | worst difference 0 |
 | (d) an S-shaped cubic from `(12, 3)` to `(12, 29)` (controls `(20, 10)`, `(4, 22)`), walked forward by one closed subpath and backward by the other, against the outer rectangle `[3, 21] × [3, 29]`; nonzero and even-odd | within 64 | worst difference 0 |
 
@@ -115,17 +115,24 @@ Accepted.
     raster's own rectangle and no constant otherwise, so a growth there shows 0 until the next rebake
     (under [#19](https://github.com/kpgalligan/doctored/issues/19)).
   - `landmark_region.rs` builds its own shapes, which never hold `ops`: unchanged.
-  - `psd_vector_mask_bake.rs` draws each subpath as its own shape and folds them with
-    `vector_mask_combine`'s per-pixel product rule. Measured in slice 3 against the `authored_exchange`
-    files (`make t F=psd_authored_exchange T=raster_layers A=--nocapture`, bound 257 declared first): each
-    16-bit mask of `Vc`, `Vd`, `Vx` and `Ve` against the 8-bit file's own rendering of it (its `-2`
-    channel read from the file's bytes, × 257). One coverage of the shape with `ops` (the carried vector
-    mask, HS-2's routine): 0, 0, 0, 0. The product rule (`vmsk_bake` of the 16-bit record's `vmsk`):
-    0, 0, 0, 0. Every figure is within the bound, so HS-3 chooses the replacement: one coverage of the shape
-    with `ops` in place of the product fold, its own slice (below). Both rules read every sample of the four
-    exactly as the file's rendering, so these files do not tell the two apart. Until the rewrite the bake
-    serves only what is not carried: a mask that starts from all pixels, holds a one-anchor subpath beside
-    its operations, or passes the anchor cap; the files on disk hold none.
+  - `psd_vector_mask_bake.rs` draws ONE coverage of the shape with `ops` over the canvas (HS-2's routine
+    through `PathShape::coverage`), in place of slice 3's per-subpath draw and per-pixel product fold, which
+    are deleted with the samples cap (item 5). Slice 3 measured both rules against the `authored_exchange`
+    files (`make t F=psd_authored_exchange T=raster_layers A=--nocapture`, bound 257 declared first): every
+    sample of `Vc`, `Vd`, `Vx` and `Ve` reads exactly as the 8-bit file's rendering under each (0, 0, 0, 0),
+    so those files do not tell the two apart; a shared anti-aliased edge does (one coverage 65535 where the
+    product gives 49152, `core/tests/psd_vector_mask_bake.rs`). The bake serves only what is not carried:
+    a mask from all pixels, one holding a one-anchor subpath beside its operations, one past the anchor cap.
+    The head of the list is rewritten by identities of regions so the routine's own start (everything
+    exactly when the first subpath subtracts) gives the file's; one-anchor subpaths are skipped; the caps
+    are 4,096 subpaths and 32,768 anchors. Decided in item 5: the whole mask shares one `MAX_SCAN_WORK`
+    (256,000,000: the canvas's pixels, then runs × present subpaths per row interval) and one edge cap,
+    where each subpath had its own, so an uncarried mask of many subpaths crossing the same rows now
+    refuses the layered open by the layer's name, as a carried one does, where the per-subpath draw baked it
+    (or, past 2³⁰ samples, dropped it). By the charge rule's arithmetic, not a measurement, N subpaths all
+    crossing H rows cost about (2N + 1) · N · H: the line is near 350 full-height subpaths on 1,024 rows
+    and near 88 on the 10,000 rows of a 100 MP canvas. `core/tests/psd_paths.rs`'s two drawing-caps tests
+    hold it (400 stripes on 1024 × 1024 refuse, 100 bake; 513 whole-canvas rectangles refuse).
   - A path SHAPE layer's fill does not go through `PathShape`: the app hands `dr_artwork_path_coverage`
     the outline's verbs and points and one `even_odd` flag (`NativeArtwork.shape`). Holding `ops` on a path
     shape needs that export to take the operation list (the FFI lockstep) and HS-2's routine behind it.
@@ -224,10 +231,12 @@ Ordered slices, each with its own check, each landing green before the next:
    `tools` set where it lists the path tools, and the generated MCP reference. Check: a drive over MCP at
    8, 16 and 32 bits (each operation's coverage against `dr_path_coverage` of the equivalent combined
    path, save and reopen, undo, a replayed recorded step), plus jobs-probe rows for the options bar.
-5. **Bake rewrite** (HS-3's choice). `psd_vector_mask_bake` draws one coverage of the shape with `ops`
-   in place of the product fold: the fold's start for an initial fill of 1, the one-anchor skip, the
-   drawing caps without `charge`, `vector_mask_combine`'s accumulator deleted. Check:
-   `core/tests/psd_vector_mask_bake.rs`'s oracle rewritten, `psd_authored_exchange.rs`'s figures.
+5. **Bake rewrite** (shipped; HS-3's choice). `psd_vector_mask_bake` draws one coverage of the shape
+   with `ops` in place of the product fold: the head rewrite for a start from all pixels, the one-anchor
+   skip, the subpath and anchor caps without `charge`, `vector_mask_combine` cut to its record words.
+   Check: `core/tests/psd_vector_mask_bake.rs` against a subcell oracle and a held-shape oracle (the shared
+   edge seen red on the product fold), `psd_paths.rs`'s fold-work refusals, `psd_authored_exchange.rs`'s
+   figures (0, 0, 0, 0 both columns).
 
 Hand check (the owner's, still owed): the options bar's four operations on a real path, a vector mask and
 a path shape in a real window.

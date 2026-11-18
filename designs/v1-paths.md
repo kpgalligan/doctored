@@ -190,12 +190,13 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — per-subpath operations held on the path (and
   with them a subtracting `vmsk` carried instead of baked): designed in
   [v1-paths-held-subpaths.md](v1-paths-held-subpaths.md); kernel, model, word 116 and the PSD and TIFF
-  codecs built (slices 1–3; a mixed-operation `vmsk` is carried live), and the app, MCP (`subpaths[i].op`),
-  the path shape's payload version 8 and the options bar's Operation (slice 4); the bake rewrite HS-3 chose
-  and the owner's hand check of the options bar remain; a holding path shape takes no stroke. No seam: two
-  subpaths sharing a straight, diagonal or
+  codecs built (slices 1–3; a mixed-operation `vmsk` is carried live), the app, MCP (`subpaths[i].op`),
+  the path shape's payload version 8 and the options bar's Operation (slice 4), and the bake rewrite HS-3
+  chose (slice 5); only the owner's hand check of the options bar remains; a holding path shape takes no
+  stroke. No seam: two subpaths sharing a straight, diagonal or
   cubic edge cover it exactly as their one outline does (`core/tests/path_shared_edge.rs`); the quarter-pixel
-  loss on a shared edge is the per-pixel combine of each subpath's own coverage, which held operations do not use.
+  loss on a shared edge was slice 3's per-pixel combine of each subpath's own coverage, which the bake no
+  longer uses.
 - `DONE` — paths in PSD, PSB and layered TIFF, both directions, every depth and mode (`psd_paths`,
   `psd_path_records`: Adobe's 26-byte records, saved paths by name, the work path, entry-by-entry import); at RGB
   8/16 a `vmsk` with no raster mask beside it imports as the layer's vector mask (a shape layer as its fill
@@ -210,14 +211,14 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   no rendering, and the user's mask as an ordinary `-2`. A path Doctored holds is the layer's vector mask
   (the rendering dropped, the user's mask its raster part); any other (subpaths that subtract, intersect or
   exclude, a first subpath that subtracts, the anchor cap) becomes a raster mask: the file's rendering, or
-  at 16 bits a bake of the path under its operations (`vector_mask_combine`), each with a sentence. The bake
-  (`psd_vector_mask_bake`) draws each subpath over its own window, its control hull padded one pixel and clamped
-  to the canvas, and an intersect also clears what the mask held outside it; the picture is the whole-canvas
-  draw's (`core/tests/psd_vector_mask_bake.rs`). It draws only a mask within 4,096 subpaths, 32,768 anchors and
-  2³⁰ samples of those windows (an intersect charged the box it clears, no subpath more than the canvas);
-  past them the mask is dropped with the dropped-mask sentence, and a mask the rasterizer refuses refuses the
-  layered open. The canvas is at most 100 MP, inside the rasterizer's per-window limits (a compile-time
-  assert ties the two), so only an outline's row work can refuse one. Every
+  at 16 bits a bake of the path under its operations, each with a sentence. The bake
+  (`psd_vector_mask_bake`) draws one coverage of the shape with `ops` over the canvas, so a shared edge
+  leaves no seam (`core/tests/psd_vector_mask_bake.rs`). It draws only a mask within 4,096 subpaths and
+  32,768 anchors (no samples cap); past them the mask is dropped with the dropped-mask sentence. The whole
+  mask shares the rasterizer's one work budget, so a mask past the fold's work (many subpaths crossing the
+  same rows), like any mask the rasterizer refuses, refuses the layered open by the layer's name. The canvas
+  is at most 100 MP, inside the rasterizer's window limits (a compile-time assert ties the two), so only an
+  outline's row work or edges can refuse one. Every
   layer composites as the file's stored composite (8 bits) and every 16-bit bake equals the 8-bit rendering
   within one 8-bit step. A stroked shape writes `vsms` in the `vmsk` layout and keeps its pixels. Photoshop
   read Doctored's raster-less vector masks (plain, disabled, unlinked) back as vector masks in a take.

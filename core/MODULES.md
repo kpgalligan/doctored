@@ -384,7 +384,7 @@ Detail belongs in the source file's own header comment.
 - `psd_typed_exchange.rs` — every typed PSD codec's one seam for the Background mark, layer comps and raster-less vector masks: `install` on import, `stamp` and `resources` on export.
 - `psd_path_records.rs` (KERNEL) — Adobe's 26-byte path records (8.24 fractions) ↔ `PathShape`, ops as each subpath's word (`uniform_ops`), the `vmsk` body, 2999's flatness tail.
 - `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, clipping path 2999) at every depth and mode; raster-less vector masks as `vmsk`, both ways, by one rule (`vmsk_holds`).
-- `psd_vector_mask_bake.rs` — a raster record's `vmsk` not carried (from all pixels, a one-anchor subpath beside ops, past the cap) drawn into its raster mask; the drawing caps.
+- `psd_vector_mask_bake.rs` — a raster record's `vmsk` not carried (from all pixels, a one-anchor subpath beside ops, past the cap) drawn as one coverage of the shape with `ops` into its raster mask.
 - `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
 - `subpath_ops_native.rs` — native word 116: a path or live vector mask holds per-subpath ops (each subpath's `op` in the PATH table's JSON), checked both ways.
 - `pattern_samples_native.rs` — native word 115: a stored pattern holds native samples (style or description JSON), both ways; the LSTY 16 MiB cap; CMYK ink map.
@@ -647,7 +647,7 @@ Detail belongs in the source file's own header comment.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
 - `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes; `op` keys licensed by 116.
 - `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
-- `vector_mask_combine.rs` (KERNEL) — ops' record words (`op_from_word`, `word_of`); an uncarried `vmsk`'s coverage under them, each over its own window (`charge`), for the bake.
+- `vector_mask_combine.rs` (KERNEL) — a PSD path's per-subpath operation words (`op_from_word`, `word_of`) and the rule their fold starts by.
 - `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `slot_outside`, `anchor_refusal`, `table_mask_agrees`.
 - `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the native table written and `adopted_records`.
 - `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the native table and `adopt_vector_masks`.

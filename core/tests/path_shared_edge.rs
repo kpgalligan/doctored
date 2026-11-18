@@ -103,8 +103,8 @@ fn two_rectangles_sharing_an_edge_cover_it_as_the_one_rectangle_does() {
 
 #[test]
 fn per_subpath_coverages_combined_per_pixel_leave_the_quarter_seam() {
-    // Each rectangle alone, then `vector_mask_combine`'s formulas on the two
-    // fractions: union c + s − c·s, subtract c·(1 − s).
+    // Each rectangle alone, then the per-pixel product of the two fractions,
+    // written here: union c + s − c·s, subtract c·(1 − s).
     let left = plane(&[&rectangle(4.0, 3.0, SEAM_X, 28.0, false)], "nonzero");
     let right = plane(&[&rectangle(SEAM_X, 3.0, 17.0, 28.0, false)], "nonzero");
     let combine = |f: fn(f64, f64) -> f64| -> Vec<u16> {

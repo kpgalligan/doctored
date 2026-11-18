@@ -28,8 +28,9 @@
 //!   operations. At 16 bits, where the file holds no rendering, each of
 //!   those masks is held within one 8-bit step of the 8-bit file's own
 //!   rendering of it (its `-2` channel, read here from the file's bytes),
-//!   and the run prints how far one coverage of the shape and the per-pixel
-//!   product of each subpath's coverage (`vmsk_bake`) each sit from it.
+//!   and the run prints how far the vector mask the open keeps and the bake
+//!   of the record's own `vmsk` (`vmsk_bake`), both one coverage of the
+//!   shape, each sit from it.
 
 use std::ffi::{c_char, CString};
 use std::path::{Path, PathBuf};
@@ -618,9 +619,9 @@ fn raster_layers_under_photoshops_vector_masks_composite_as_the_file_does() {
     }
     // The file holds no rendering of these masks: each is held to the 8-bit
     // file's own rendering of it (P), within one 8-bit step, and the run
-    // prints how far one coverage of the shape (the vector mask the open
-    // keeps) and the per-pixel product of each subpath's coverage (the bake
-    // of the record's own `vmsk`) each sit from it.
+    // prints how far the vector mask the open keeps and the bake of the
+    // record's own `vmsk` (`vmsk_bake`), both one coverage of the shape,
+    // each sit from it.
     let bytes16 = std::fs::read(family("paths_rgb16.psd")).unwrap();
     let (w, h) = typed.dimensions();
     for name in HELD {
@@ -654,7 +655,7 @@ fn raster_layers_under_photoshops_vector_masks_composite_as_the_file_does() {
                 }
             })
             .collect();
-        let product = vmsk_bake(&vmsk_of(&bytes16, name), (w, h))
+        let baked = vmsk_bake(&vmsk_of(&bytes16, name), (w, h))
             .expect("the record's vmsk bakes")
             .unwrap_or_else(|e| panic!("16 bits {name}: {e}"));
         let from_eight = |plane: &[u16]| -> i32 {
@@ -666,9 +667,9 @@ fn raster_layers_under_photoshops_vector_masks_composite_as_the_file_does() {
                 .max()
                 .unwrap()
         };
-        let (one, folded) = (from_eight(&live), from_eight(&product));
-        println!("16 bits {name}: one coverage {one}, product rule {folded}");
-        assert!(folded <= 257, "16 bits {name}: the product rule {folded}");
+        let (one, folded) = (from_eight(&live), from_eight(&baked));
+        println!("16 bits {name}: one coverage {one}, the bake {folded}");
+        assert!(folded <= 257, "16 bits {name}: the bake {folded}");
         assert!(one <= 257, "16 bits {name}: one coverage {one}");
     }
 }

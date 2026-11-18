@@ -1,163 +1,173 @@
 //! The BAKE of a PSD vector mask Doctored does not carry (`psd_paths`): a
 //! raster record's `vmsk` the record walk does not hold as a live vector
-//! mask is drawn under its per-subpath operations ([`vmsk_coverage`],
-//! `vector_mask_combine`) into the layer's raster mask, at every depth.
-//! Since the walk carries a mask that holds a mix of operations
-//! (`psd_paths::vmsk_holds`), what is baked is a mask that starts from all
-//! pixels (flag bit 0 or an initial fill record of 1), one holding a
-//! subpath of a single anchor beside its operations, and one the path
+//! mask is drawn as ONE coverage of the shape with the file's per-subpath
+//! operations over the canvas ([`vmsk_coverage`]) into the layer's raster
+//! mask, at every depth. Since the walk carries a mask that holds a mix of
+//! operations (`psd_paths::vmsk_holds`), what is baked is a mask that starts
+//! from all pixels (flag bit 0 or an initial fill record of 1), one holding
+//! a subpath of a single anchor beside its operations, and one the path
 //! model does not admit or past the document's anchor cap; one naming an
-//! operation word Doctored does not know is not drawn ([`bakes`]). Each
-//! subpath is drawn over its own window — its control hull
-//! (`PathShape::bounds`, which holds the curve) widened to whole pixels and
-//! by one more on every side, clamped to the canvas ([`hull`]) — under
-//! `vector_mask_combine::charge`'s rule, so a small mask on a large canvas
-//! costs its own size, and the picture is the whole-canvas draw's. The
-//! import draws only a mask within the drawing caps ([`bakes`]: one shape's
-//! subpath and anchor caps, and [`MAX_BAKE_SAMPLES`] of those windows); one
-//! past them is dropped with the dropped-mask sentence. A drawn mask is
-//! planned as a canvas plane (`psd_raster_masks::MaskBudget`), drawn under
-//! the open's job, and a mask the rasterizer refuses refuses the layered
-//! open by the layer's name, never leaving the layer unmasked. A window's
-//! size alone never makes the rasterizer refuse (the assert beside
-//! [`MAX_BAKE_SAMPLES`]); only an outline's row work can.
+//! operation word Doctored does not know is not drawn ([`bakes`]).
+//!
+//! The draw is `PathShape::coverage` of one shape holding `ops`, HS-2's
+//! routine (`artwork_ops_coverage::rasterize_ops`), which folds the
+//! subpaths' regions per run between crossings, so two subpaths sharing an
+//! anti-aliased edge leave no seam. The mask starts from all pixels for an
+//! initial fill record of 1 or a FIRST subpath that subtracts, while the
+//! routine starts from everything exactly when the shape's first subpath
+//! subtracts, so [`folded`] rewrites the head of the list by identities of
+//! regions until the two agree. A subpath of one anchor is skipped, as the
+//! bake has always skipped it, though it counts toward the caps and, as the
+//! first, starts a subtracting mask from all pixels. Flag bit 0 inverts the
+//! coverage last.
+//!
+//! The import draws only a mask within one shape's subpath and anchor caps
+//! ([`bakes`]); one past them is dropped with the dropped-mask sentence. A
+//! drawn mask is planned as a canvas plane (`psd_raster_masks::MaskBudget`)
+//! and drawn under the open's job. The whole mask shares the rasterizer's
+//! one work budget (`artwork_coverage::MAX_SCAN_WORK`) and its edge cap, so
+//! a mask the rasterizer refuses refuses the layered open by the layer's
+//! name ([`undrawn`]), never leaving the layer unmasked. The canvas's size
+//! alone never makes it refuse (the assert below); only the outline's row
+//! work or its edges can.
 
-use crate::path_geometry::{PathShape, SubpathOp};
-use crate::vector_mask_combine::{charge, op_from_word, Accumulator, Window};
+use crate::path_geometry::{FillRule, PathShape, Subpath, SubpathOp};
+use crate::vector_mask_combine::op_from_word;
 
-/// The most samples the import spends drawing one vector mask it does not
-/// carry ([`vmsk_coverage`]): the sum over its subpaths of the window each
-/// is drawn over (a rasterization and a combine there), an intersect
-/// charged the whole box of what the mask held so far, which it combines
-/// inside its window and clears outside it (`vector_mask_combine::charge`).
-/// No subpath is charged more than the canvas. The fill a mask starts from
-/// and its final inversion are one canvas pass each per mask, outside the
-/// cap. 2³⁰ is ten whole-canvas subpaths on a 100 MP canvas and over 250 on
-/// a 4 MP one: far past any mask a person draws, and a bound on what one
-/// record of a crafted file can cost the open.
-pub(crate) const MAX_BAKE_SAMPLES: u64 = 1 << 30;
-
-// Why the caps above need no per-window rule: every window lies inside the
-// canvas ([`hull`]), and the container refuses a PSD, PSB or layered-TIFF
-// canvas over `doc::MAX_PIXELS` before any record is walked
-// (`psd_container`). The rasterizer refuses a window over that same
+// Why the caps need no window rule: the bake's one window is the canvas,
+// which the container bounds at `doc::MAX_PIXELS` before any record is
+// walked (`psd_container`). The rasterizer refuses a window over that same
 // `MAX_PIXELS` (`precision_image::pixel_count`) and charges its pixels up
-// front against `artwork_coverage::MAX_SCAN_WORK`, so while this holds no
-// window the bake draws is refused for its size, and each leaves at least
-// `MAX_SCAN_WORK - MAX_PIXELS` for row work. Row work is the outline's
-// (the edges crossing each row), known only by running the sweep, so the
-// report cannot predict it, and a mask past it refuses the open by the
-// layer's name ([`undrawn`]). Raising `MAX_PIXELS` past `MAX_SCAN_WORK`
-// stops the build here: the bake would then need to drop a mask with a
-// window past the cap.
+// front against `artwork_coverage::MAX_SCAN_WORK`, so while this holds the
+// window is never refused for its size, and the fold keeps at least
+// `MAX_SCAN_WORK - MAX_PIXELS` for row work. That one charge is the whole
+// mask's (`artwork_ops_coverage`: the canvas's pixels, then per row
+// interval its runs times the subpaths present there); no per-subpath
+// budget remains. Row work is the outline's, known only by running the
+// sweep, so the report cannot predict it, and a mask past it refuses the
+// open by the layer's name ([`undrawn`]). Raising `MAX_PIXELS` past
+// `MAX_SCAN_WORK` stops the build here: the bake would then need to drop a
+// mask on a canvas past the budget.
 const _: () = assert!(crate::doc::MAX_PIXELS <= crate::artwork_coverage::MAX_SCAN_WORK);
 
-/// A `vmsk` body as the bake draws it: each subpath of two or more anchors
-/// as its own shape beside its operation (one of a single anchor is skipped
-/// and charged nothing, as the bake has always skipped it, though it still
-/// counts toward the subpath cap and, as the first, starts a subtracting
-/// mask from all pixels), whether the mask starts from all pixels, and
-/// whether its flags invert it last (`vector_mask_combine`).
+/// A `vmsk` body as the bake draws it: `shape` holds its subpaths of two or
+/// more anchors with their operations (one per subpath, nonzero), its head
+/// rewritten ([`folded`]), or is empty, which is the constant `full`;
+/// whether the mask starts from all pixels; whether its flags invert it
+/// last.
 struct Bake {
-    subpaths: Vec<(PathShape, SubpathOp)>,
+    shape: PathShape,
     full: bool,
     invert: bool,
 }
 
 impl Bake {
     /// `None` for a body that does not decode, names an unknown operation
-    /// or is disabled (flag bit 2: it masks nothing).
+    /// or is disabled (flag bit 2: it masks nothing). The counts are the
+    /// file's subpaths and anchors, a skipped subpath among them.
     fn read(body: &[u8], canvas: (u32, u32)) -> Option<(Self, usize, usize)> {
         let (decoded, flags) = crate::psd_path_records::decode_vmsk(body, canvas).ok()?;
         if flags & 4 != 0 {
             return None;
         }
+        // The file's words, never `decoded.shape.ops`, which a file whose
+        // every word is 0 or every word is 1 does not hold.
         let operations: Vec<SubpathOp> = decoded
             .operations
             .iter()
             .map(|&word| op_from_word(word))
             .collect::<Option<_>>()?;
         let counts = (decoded.shape.subpaths.len(), decoded.shape.anchor_count());
-        // A first subpath that subtracts starts from all pixels (`vector_mask_combine`).
+        // From all pixels for an initial fill of 1, or a first subpath (of
+        // any anchor count) that subtracts (`vector_mask_combine`).
         let full = decoded.inverted || operations.first() == Some(&SubpathOp::Subtract);
-        let subpaths = decoded
+        let kept = decoded
             .shape
             .subpaths
             .into_iter()
             .zip(operations)
             .filter(|(subpath, _)| subpath.anchors.len() >= 2)
-            .map(|(subpath, op)| {
-                let one = PathShape {
-                    subpaths: vec![subpath],
-                    fill_rule: crate::path_geometry::FillRule::NonZero,
-                    ops: None,
-                };
-                (one, op)
-            })
             .collect();
         let bake = Self {
-            subpaths,
+            shape: folded(full, kept),
             full,
             invert: flags & 1 != 0,
         };
         Some((bake, counts.0, counts.1))
     }
 
-    /// The live box the mask starts from (`vector_mask_combine`).
-    fn live(&self, canvas: (u32, u32)) -> Window {
-        if self.full {
-            Window::canvas(canvas.0, canvas.1)
+    /// Its coverage over the whole `canvas` (module doc). The rows and
+    /// columns the outline misses are the routine's own fold with every
+    /// subpath outside (`artwork_ops_coverage::holds_outside`), so no second
+    /// fill is written.
+    fn draw(
+        self,
+        canvas: (u32, u32),
+        job: crate::job_control::JobContext<'_>,
+    ) -> Result<Vec<u16>, String> {
+        let mut coverage = if self.shape.subpaths.is_empty() {
+            let n = crate::precision_image::pixel_count(canvas.0, canvas.1)?;
+            let mut plane = crate::precision_image::reserved_vec(n)?;
+            plane.resize(n, if self.full { u16::MAX } else { 0 });
+            plane
         } else {
-            Window::default()
+            self.shape.coverage((0, 0), canvas.0, canvas.1, true, job)?
+        };
+        if self.invert {
+            for c in &mut coverage {
+                *c = u16::MAX - *c;
+            }
         }
-    }
-
-    /// The samples drawing it charges ([`MAX_BAKE_SAMPLES`]), saturating.
-    fn samples(&self, canvas: (u32, u32)) -> u64 {
-        let mut live = self.live(canvas);
-        self.subpaths.iter().fold(0u64, |sum, (one, op)| {
-            sum.saturating_add(charge(&mut live, *op, hull(one, canvas)).1)
-        })
+        Ok(coverage)
     }
 }
 
-/// The window a subpath `one` is drawn over on `canvas` (module doc): its
-/// control hull widened to whole pixels and by one pixel on every side,
-/// clamped to the canvas; empty when that misses the canvas.
-fn hull(one: &PathShape, canvas: (u32, u32)) -> Window {
-    let Some([x0, y0, x1, y1]) = one.bounds() else {
-        return Window::default();
+/// The fold from `full` (all pixels, or none) over `subpaths` in order, as
+/// one shape whose own start (`artwork_ops_coverage`: everything exactly
+/// when its first subpath subtracts) gives the same region. Only the head is
+/// rewritten, by identities of regions. From all pixels a leading unite is
+/// dropped (all ∪ S is all) and the rule repeats on the next; a subtract
+/// stays; an intersect becomes a unite (all ∩ S is S); an exclude becomes a
+/// subtract (all ⊕ S is all \ S). From none a leading subtract or intersect
+/// is dropped (none \ S and none ∩ S are none) and the rule repeats; a unite
+/// or an exclude stays (none ∪ S and none ⊕ S are S, and the routine starts
+/// from none). Every subpath after the first kept is unchanged. When none is
+/// kept the shape is empty and the mask the constant `full`.
+fn folded(full: bool, subpaths: Vec<(Subpath, SubpathOp)>) -> PathShape {
+    let mut rest = subpaths.into_iter().skip_while(|(_, op)| {
+        if full {
+            *op == SubpathOp::Unite
+        } else {
+            matches!(op, SubpathOp::Subtract | SubpathOp::Intersect)
+        }
+    });
+    let Some((first, op)) = rest.next() else {
+        return PathShape::default();
     };
-    let (w, h) = (f64::from(canvas.0), f64::from(canvas.1));
-    // Clamped as f64, so a coordinate far off the canvas never wraps a cast.
-    let left = (x0.floor() - 1.0).clamp(0.0, w);
-    let top = (y0.floor() - 1.0).clamp(0.0, h);
-    let right = (x1.ceil() + 1.0).clamp(0.0, w);
-    let bottom = (y1.ceil() + 1.0).clamp(0.0, h);
-    if right <= left || bottom <= top {
-        return Window::default();
-    }
-    Window {
-        x: left as u32,
-        y: top as u32,
-        width: (right - left) as u32,
-        height: (bottom - top) as u32,
+    let head = match (full, op) {
+        (true, SubpathOp::Intersect) => SubpathOp::Unite,
+        (true, SubpathOp::Exclude) => SubpathOp::Subtract,
+        (_, op) => op,
+    };
+    let (subpaths, ops): (Vec<Subpath>, Vec<SubpathOp>) =
+        std::iter::once((first, head)).chain(rest).unzip();
+    PathShape {
+        subpaths,
+        fill_rule: FillRule::NonZero,
+        ops: Some(ops),
     }
 }
 
 /// Whether a `vmsk` body bakes ([`vmsk_coverage`]): it decodes, is enabled
-/// (flag bit 2 clear), names only known operations and is within the
-/// drawing caps — one shape's own (`path_geometry::MAX_SUBPATHS`,
-/// `MAX_PATH_ANCHORS`) and [`MAX_BAKE_SAMPLES`] of the windows its
-/// subpaths are drawn over on `canvas`. No window is checked on its own: on
-/// a canvas the container admits, none is past the rasterizer's pixel
-/// limits (the assert beside [`MAX_BAKE_SAMPLES`]).
+/// (flag bit 2 clear), names only known operations and is within one
+/// shape's caps (`path_geometry::MAX_SUBPATHS`, `MAX_PATH_ANCHORS`), counted
+/// over the file's subpaths, a skipped one among them. Nothing else is
+/// checked: the one window is the canvas (the assert above), and the row
+/// work the rasterizer may refuse is known only by drawing it.
 pub(crate) fn bakes(body: &[u8], canvas: (u32, u32)) -> bool {
     use crate::path_geometry::{MAX_PATH_ANCHORS, MAX_SUBPATHS};
-    Bake::read(body, canvas).is_some_and(|(bake, subpaths, anchors)| {
-        subpaths <= MAX_SUBPATHS
-            && anchors <= MAX_PATH_ANCHORS
-            && bake.samples(canvas) <= MAX_BAKE_SAMPLES
+    Bake::read(body, canvas).is_some_and(|(_, subpaths, anchors)| {
+        subpaths <= MAX_SUBPATHS && anchors <= MAX_PATH_ANCHORS
     })
 }
 
@@ -183,35 +193,20 @@ pub fn vmsk_bake(body: &[u8], canvas: (u32, u32)) -> Option<Result<Vec<u16>, Str
 }
 
 /// The coverage over the whole `canvas` of a `vmsk` body Doctored does not
-/// hold as a live vector mask, under its per-subpath operations, initial
-/// fill and inverted flag (`vector_mask_combine`), each subpath drawn over
-/// its own window (module doc), for an import that keeps the picture as a
-/// raster mask. `None` for a body that does not decode, names an unknown
-/// operation or is disabled (flag bit 2: it masks nothing); `Some(Err)` is
-/// the rasterizer's refusal or a cancellation.
+/// hold as a live vector mask: one coverage of the shape with its
+/// operations, from the start its initial fill and first subpath name,
+/// inverted last when its flags say so (module doc), for an import that
+/// keeps the picture as a raster mask. `None` for a body that does not
+/// decode, names an unknown operation or is disabled (flag bit 2: it masks
+/// nothing); `Some(Err)` is the rasterizer's refusal (its work budget and
+/// edge cap, which the whole mask shares) or a cancellation.
 pub(crate) fn vmsk_coverage(
     body: &[u8],
     canvas: (u32, u32),
     job: crate::job_control::JobContext<'_>,
 ) -> Option<Result<Vec<u16>, String>> {
     let (bake, _, _) = Bake::read(body, canvas)?;
-    let mut acc = Accumulator::start(canvas.0, canvas.1, bake.full);
-    for (one, op) in &bake.subpaths {
-        // Each side of a window is within the canvas, at most 300,000 px.
-        let drawn = acc.apply(*op, hull(one, canvas), |window| {
-            one.coverage(
-                (window.x as i32, window.y as i32),
-                window.width,
-                window.height,
-                true,
-                job,
-            )
-        });
-        if let Err(reason) = drawn {
-            return Some(Err(reason));
-        }
-    }
-    Some(Ok(acc.finish(bake.invert)))
+    Some(bake.draw(canvas, job))
 }
 
 impl crate::doc::DrDocument {
@@ -272,12 +267,12 @@ impl crate::precision_document::PrecisionDocument {
         job: crate::job_control::JobContext<'_>,
     ) -> Result<Self, String> {
         let (w, h) = self.dimensions();
-        // One subpath's coverage (the rasterizer's charge), then the
-        // accumulator and the mask the layer keeps, two u16 planes. A
-        // subpath is drawn over its own window, at most the canvas, so the
-        // canvas-sized charge is an upper bound.
+        // The rasterizer's working memory over the canvas, the one window,
+        // with the u16 plane it answers (`coverage_scratch`), then the mask
+        // the layer keeps while `PrecisionPlane::adopt` copies that plane:
+        // one more u16 plane.
         let scratch = crate::path_geometry::coverage_scratch(w, h)
-            .saturating_add(4 * u64::from(w) * u64::from(h));
+            .saturating_add(2 * u64::from(w) * u64::from(h));
         crate::precision_image::admit(self.retained_bytes(), scratch, other, limit)?;
         let coverage = match vmsk_coverage(body, (w, h), job) {
             None => return Ok(self),

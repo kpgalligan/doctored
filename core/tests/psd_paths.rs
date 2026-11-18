@@ -1041,14 +1041,14 @@ fn a_vector_mask_with_a_one_anchor_subpath_beside_operations_is_drawn_from_its_p
     unsafe { dr_doc_free(doc) };
 }
 
-/// The import draws a vector mask it does not carry one subpath at a time,
-/// each over its own window (its control hull, padded and clamped to the
-/// canvas; an Intersect also clears the rest of what the mask held so far),
-/// so it draws only a mask within the path caps (4,096 subpaths, 32,768
-/// anchors) and within 2³⁰ samples of those windows; any other is dropped
-/// with the dropped-mask sentence and never drawn.
+/// The import draws a vector mask it does not carry as one coverage of the
+/// shape with its operations over the canvas, so it draws only a mask within
+/// the path caps (4,096 subpaths, 32,768 anchors), whatever the canvas; any
+/// other is dropped with the dropped-mask sentence and never drawn. A mask
+/// within them that passes the fold's one work budget refuses the layered
+/// open by the layer's name instead.
 #[test]
-fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
+fn a_vector_mask_past_the_path_caps_is_dropped_and_one_past_the_fold_work_refuses() {
     use doctored_core::psd_vector_mask_bake::vmsk_bakes;
     let canvas = (64.0, 48.0);
     let triangle = |k: usize, operation: i16| {
@@ -1063,12 +1063,16 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
         closed_subpath(&[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], operation, canvas)
     };
     let huge = (30_000, 30_000);
-    // Two small subpaths, the second subtracting: drawn on a small canvas,
-    // and on a large one, where their windows are a small part of it.
+    // Two small subpaths, the second subtracting: drawn on a small canvas
+    // and on a large one.
     let two = vmsk(0, &[triangle(0, 1), triangle(1, 2)]);
     assert!(vmsk_bakes(&two, (64, 48)));
-    assert!(vmsk_bakes(&two, huge), "two small windows on 30000 × 30000");
-    // Two subpaths over the whole canvas are two canvases, past 2³⁰ there.
+    assert!(
+        vmsk_bakes(&two, huge),
+        "two small subpaths on 30000 × 30000"
+    );
+    // Two subpaths over the whole canvas bake on any canvas: no cap counts
+    // the samples a mask covers.
     let whole = vmsk(
         0,
         &[
@@ -1077,46 +1081,42 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
         ],
     );
     assert!(vmsk_bakes(&whole, (64, 48)));
-    assert!(!vmsk_bakes(&whole, huge), "two whole-canvas windows");
-    // A first subpath that subtracts starts from all pixels: the first
-    // Intersect clears the canvas outside its window (one canvas), and the
-    // second is charged only the small window the first left.
-    let narrowed = vmsk(
-        0,
-        &[
-            rectangle(8.0, 8.0, 12.0, 12.0, 2),
-            rectangle(20.0, 20.0, 24.0, 24.0, 3),
-            rectangle(21.0, 21.0, 23.0, 23.0, 3),
-        ],
-    );
-    assert!(
-        vmsk_bakes(&narrowed, huge),
-        "one canvas, then small windows"
-    );
-    // From all pixels, a whole-canvas add, then an Intersect that clears
-    // the whole canvas: two canvases.
-    let widened = vmsk(
-        1,
-        &[
-            rectangle(0.0, 0.0, 64.0, 48.0, 1),
-            rectangle(20.0, 20.0, 24.0, 24.0, 3),
-        ],
-    );
-    assert!(!vmsk_bakes(&widened, huge), "an Intersect over a full mask");
-    // 513 whole-canvas windows on 2048 × 1024 are past 2³⁰ (512 of them
-    // reach it): the import drops that mask with its sentence. The file's
-    // mask starts from all pixels, so it is not carried and reaches the bake.
+    assert!(vmsk_bakes(&whole, (2048, 1024)));
+    assert!(vmsk_bakes(&whole, huge), "two whole-canvas subpaths");
+    // 513 whole-canvas rectangles from all pixels on 2048 × 1024 (the
+    // file's mask starts from all pixels, so it is not carried and reaches
+    // the bake). Within the path caps, so the report says it is drawn; but
+    // with the leading unite dropped (all ∪ S is all), 512 whole-canvas
+    // subtracts cross every one of the 1,024 rows, 1,025 runs × 512 present
+    // subpaths a row, past the fold's work budget (`MAX_SCAN_WORK`), so the
+    // layered open is refused by the layer's name.
     let full: Vec<Vec<u8>> = (0..513)
         .map(|k| rectangle(0.0, 0.0, 64.0, 48.0, if k == 0 { 1 } else { 2 }))
         .collect();
     let body = vmsk(1, &full);
-    assert!(vmsk_bakes(&vmsk(0, &full[..512]), (2048, 1024)));
-    assert!(!vmsk_bakes(&body, (2048, 1024)));
+    assert!(vmsk_bakes(&body, (2048, 1024)));
     let dir = TempDir::new().unwrap();
     let file = dir.path().join("passes.psd");
     std::fs::write(&file, masked_raster([2048, 1024], &body)).unwrap();
     let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
-    assert!(losses.iter().any(|l| l.contains(DROPPED)), "{losses:?}");
+    assert!(
+        losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    assert!(!losses.iter().any(|l| l.contains(DROPPED)), "{losses:?}");
+    let reason = refused_open(&file);
+    assert!(
+        reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
+        "{reason}"
+    );
+    // One subpath past the anchor cap.
+    let anchors: Vec<(f64, f64)> = (0..32_769u32)
+        .map(|k| (f64::from(k % 64), f64::from(k / 64 % 48)))
+        .collect();
+    assert!(!vmsk_bakes(
+        &vmsk(1, &[closed_subpath(&anchors, 1, canvas)]),
+        (64, 48)
+    ));
     // One subpath past the subpath cap.
     let many: Vec<Vec<u8>> = (0..4097)
         .map(|k| triangle(k, if k == 0 { 1 } else { 2 }))
@@ -1139,13 +1139,13 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
     unsafe { dr_doc_free(doc) };
 }
 
-/// The bake checks no window on its own: each lies inside the canvas, and
-/// the container refuses a canvas past the 100 MP editing limit before any
-/// record is walked, so no window reaches the rasterizer's pixel limits
-/// (`psd_vector_mask_bake`). A mask from all pixels, of a large add and a
-/// small subtract, on a 30000 × 30000 canvas (an add window of about
-/// 20000 × 20000), and on a canvas one row past 100 MP, never reaches the
-/// bake: the report refuses the file at its header.
+/// The bake draws over the canvas and checks no window of its own: the
+/// container refuses a canvas past the 100 MP editing limit before any
+/// record is walked, so the bake's one window never reaches the
+/// rasterizer's pixel limits (`psd_vector_mask_bake`). A mask from all
+/// pixels, of a large add and a small subtract, on a 30000 × 30000 canvas
+/// and on a canvas one row past 100 MP, never reaches the bake: the report
+/// refuses the file at its header.
 #[test]
 fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
     let canvas = (64.0, 48.0);
@@ -1189,13 +1189,73 @@ fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
     }
 }
 
-/// The zigzag on an 8 × 8000 canvas: 32,760 edges that each cross all 8,000
-/// rows, past the rasterizer's work limit.
-fn zigzag() -> Vec<u8> {
+/// One coverage of the shape shares ONE work budget over the whole mask
+/// (`artwork_ops_coverage`'s charge: the canvas's pixels, then per row
+/// interval the runs times the present subpaths), where the per-subpath
+/// draw gave each subpath its own. A mask from all pixels (an initial fill
+/// of 1, so not carried) less N full-height stripes on 1024 × 1024, where
+/// no head rewrite applies, costs about (2N + 1) · N · 1,024: 100 stripes
+/// bake, and 400 (801 runs × 400 present × 1,024 rows = 328,089,600, past
+/// 256,000,000), which the per-subpath draw baked, refuse the layered open
+/// by the layer's name.
+#[test]
+fn a_vector_mask_past_the_fold_work_refuses_the_layered_open() {
+    use doctored_core::psd_vector_mask_bake::vmsk_bakes;
+    let canvas = (1024.0, 1024.0);
+    // Stripe k: x in [2k, 2k + 1], the whole height, subtracting.
+    let stripes = |n: u32| -> Vec<u8> {
+        let subpaths: Vec<Vec<u8>> = (0..n)
+            .map(|k| {
+                let x = f64::from(2 * k);
+                closed_subpath(
+                    &[(x, 0.0), (x + 1.0, 0.0), (x + 1.0, 1024.0), (x, 1024.0)],
+                    2,
+                    canvas,
+                )
+            })
+            .collect();
+        vmsk(1, &subpaths)
+    };
+    let dir = TempDir::new().unwrap();
+    for n in [100u32, 400] {
+        let body = stripes(n);
+        assert!(vmsk_bakes(&body, (1024, 1024)), "{n} stripes");
+        let file = dir.path().join(format!("stripes{n}.psd"));
+        std::fs::write(&file, masked_raster([1024, 1024], &body)).unwrap();
+        let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+        assert!(
+            losses.iter().any(|l| l.contains("drawn from its path")),
+            "{n} stripes: {losses:?}"
+        );
+        if n == 100 {
+            let doc = byte_open(&file);
+            let mask = unsafe { &*doc }.layers[0]
+                .mask
+                .as_ref()
+                .map(|plane| plane.samples().clone());
+            unsafe { dr_doc_free(doc) };
+            let mask = mask.expect("100 stripes: the drawn mask");
+            // Row 512: inside stripe 0, the gap after it, past the last.
+            for (x, want) in [(0usize, 0u8), (1, 255), (300, 255)] {
+                assert_eq!(mask[512 * 1024 + x], want, "100 stripes: column {x}");
+            }
+        } else {
+            let reason = refused_open(&file);
+            assert!(
+                reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
+                "{n} stripes: {reason}"
+            );
+        }
+    }
+}
+
+/// The zigzag on an 8 × 8000 canvas, combined by `operation`: 32,760 edges
+/// that each cross all 8,000 rows, past the rasterizer's work limit.
+fn zigzag(operation: i16) -> Vec<u8> {
     let zigzag: Vec<(f64, f64)> = (0..32_760u32)
         .map(|k| (f64::from(k % 8), if k % 2 == 0 { 0.0 } else { 8000.0 }))
         .collect();
-    closed_subpath(&zigzag, 1, (8.0, 8000.0))
+    closed_subpath(&zigzag, operation, (8.0, 8000.0))
 }
 
 /// The refusal of the layered byte open of `file`, which must refuse.
@@ -1242,7 +1302,7 @@ fn canvas_raster(canvas: [u32; 2], body: &[u8]) -> Vec<u8> {
 fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
     let canvas = (8.0, 8000.0);
     let hole = closed_subpath(&[(1.0, 10.0), (6.0, 10.0), (3.0, 90.0)], 2, canvas);
-    let carried = vmsk(0, &[zigzag(), hole.clone()]);
+    let carried = vmsk(0, &[zigzag(1), hole.clone()]);
     let dir = TempDir::new().unwrap();
     let small = dir.path().join("zigzag.psd");
     std::fs::write(&small, masked_raster([8, 8000], &carried)).unwrap();
@@ -1257,9 +1317,11 @@ fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
     unsafe { dr_doc_free(doc) };
     for (file, bytes) in [
         ("carried.psd", canvas_raster([8, 8000], &carried)),
+        // From all pixels the zigzag subtracts: a leading unite would be
+        // dropped (all ∪ S is all) and never reach the rasterizer.
         (
             "baked.psd",
-            masked_raster([8, 8000], &vmsk(1, &[zigzag(), hole])),
+            masked_raster([8, 8000], &vmsk(1, &[zigzag(2), hole])),
         ),
     ] {
         let file = dir.path().join(file);
@@ -1286,7 +1348,7 @@ fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
 fn a_carried_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
     let dir = TempDir::new().unwrap();
     let file = dir.path().join("zigzag_alone.psd");
-    std::fs::write(&file, canvas_raster([8, 8000], &vmsk(0, &[zigzag()]))).unwrap();
+    std::fs::write(&file, canvas_raster([8, 8000], &vmsk(0, &[zigzag(1)]))).unwrap();
     let reason = refused_open(&file);
     assert!(
         reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
@@ -1307,7 +1369,7 @@ fn a_carried_vector_mask_the_rasterizer_refuses_refuses_the_typed_open() {
         .map(|(id, plane)| (id, psd16::raw_plane(plane)))
         .collect();
     let mut record = psd16::Record::raster("Duplicate", [0, 0, h as i32, w as i32], channels);
-    record.blocks = psd16::block(b"vmsk", &vmsk(0, &[zigzag()]));
+    record.blocks = psd16::block(b"vmsk", &vmsk(0, &[zigzag(1)]));
     let bytes = psd16::fixture(
         (w, h),
         &[record],
