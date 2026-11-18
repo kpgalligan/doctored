@@ -4,7 +4,11 @@
 //! every 0.25 px. Shared by `edge_trace.rs`, `edge_trace_cost.rs` and
 //! `edge_trace_placement.rs`.
 
-use doctored_core::{ffi::*, ffi_selection_tools::dr_selection_trace_edge, DrEdgeMap, DrImage};
+use doctored_core::ffi_selection_tools::{
+    dr_edge_map_create, dr_edge_map_free, dr_selection_trace_edge, edge_map_cached_samples,
+    edge_map_create_capped,
+};
+use doctored_core::{ffi::*, DrEdgeMap, DrImage};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -13,6 +17,33 @@ pub(crate) struct Image(pub(crate) *mut DrImage);
 impl Drop for Image {
     fn drop(&mut self) {
         unsafe { dr_image_free(self.0) };
+    }
+}
+
+/// An owned edge map.
+pub(crate) struct Map(pub(crate) *mut DrEdgeMap);
+
+impl Map {
+    pub(crate) fn of(img: &Image) -> Map {
+        let map = unsafe { dr_edge_map_create(img.0) };
+        assert!(!map.is_null());
+        Map(map)
+    }
+
+    pub(crate) fn capped(img: &Image, cap: usize) -> Map {
+        let map = unsafe { edge_map_create_capped(img.0, cap) };
+        assert!(!map.is_null());
+        Map(map)
+    }
+
+    pub(crate) fn cached(&self) -> usize {
+        unsafe { edge_map_cached_samples(self.0) }
+    }
+}
+
+impl Drop for Map {
+    fn drop(&mut self) {
+        unsafe { dr_edge_map_free(self.0) };
     }
 }
 

@@ -8,12 +8,8 @@
 //! per-capture edge map (`dr_edge_map_create`) changing no trace.
 
 use crate::edge_trace_support::{
-    image, raw_call_through, samples, segment_distance, trace, trace_through, Image,
+    image, raw_call_through, samples, segment_distance, trace, trace_through, Image, Map,
 };
-use doctored_core::ffi_selection_tools::{
-    dr_edge_map_create, dr_edge_map_free, edge_map_cached_samples, edge_map_create_capped,
-};
-use doctored_core::DrEdgeMap;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::f64::consts::{PI, SQRT_2};
@@ -459,33 +455,6 @@ fn an_edge_through_the_pixel_centres_wins_over_an_equal_one_between_rows() {
                 );
             }
         }
-    }
-}
-
-/// An owned edge map.
-struct Map(*mut DrEdgeMap);
-
-impl Map {
-    fn of(img: &Image) -> Map {
-        let map = unsafe { dr_edge_map_create(img.0) };
-        assert!(!map.is_null());
-        Map(map)
-    }
-
-    fn capped(img: &Image, cap: usize) -> Map {
-        let map = unsafe { edge_map_create_capped(img.0, cap) };
-        assert!(!map.is_null());
-        Map(map)
-    }
-
-    fn cached(&self) -> usize {
-        unsafe { edge_map_cached_samples(self.0) }
-    }
-}
-
-impl Drop for Map {
-    fn drop(&mut self) {
-        unsafe { dr_edge_map_free(self.0) };
     }
 }
 
