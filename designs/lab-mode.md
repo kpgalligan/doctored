@@ -168,7 +168,10 @@ Photoshop 26.10.0.
   and replaced the full box the 16-bit pair had shipped. `lab_similar_60_take.py` (`lab-similar-60`) measured
   partly selected and ragged references: a reference is at least half selected and counts one in N, the trim
   holds on feathered, elliptical and ragged selections, and Grow seeds only from the references the range admits
-  (one it does not admit keeps its coverage; `selection_similar` alike). Alpha's bound and trim stay unmeasured
+  (one it does not admit keeps its coverage; `selection_similar` alike). `lab_similar_60_alpha_take.py`'s K1
+  (`lab-similar-confirm-60`, held-out scene D, 264 cases) confirmed all three. Its A2 (`lab-similar-alpha-60/take2`,
+  128 cases on a layer keeping its transparency) met no alpha key: colour alone at every alpha probed, alpha 0
+  never. One scene, so the shipped alpha bound and trim stay until a held-out take
   ([#60](https://github.com/kpgalligan/doctored/issues/60)). Tests `core/tests/lab_wand.rs`,
   `lab_wand_photoshop.rs`; drive L99–L101.
 - **An associated alpha in a flat Lab TIFF** (ExtraSamples 1, which Photoshop's 16-bit Lab TIFFs saved with

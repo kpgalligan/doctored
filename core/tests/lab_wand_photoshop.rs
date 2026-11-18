@@ -19,7 +19,9 @@
 //! Photoshop's feather or elliptical marquee read from a `sel` capture);
 //! bound, declared before measuring: the exact class OUT / PART / FULL of
 //! every pixel (coverage up to 128 of 65535 OUT, from 65407 FULL), a pixel
-//! FULL where the kernel admits it and otherwise its starting class. Nothing
+//! FULL where the kernel admits it and otherwise its starting class.
+//! `lab_similar_60_alpha_take.py`'s K1 (`lab-similar-confirm-60/take1`) is
+//! the confirming take on its held-out scene D, scored the same way. Nothing
 //! from the takes is committed.
 use std::path::{Path, PathBuf};
 use std::ptr;
@@ -353,7 +355,8 @@ impl Scene60 {
     }
 }
 
-/// `lab-similar-60`'s take at `folder`: every Similar and Grow case of its
+/// A take in `lab_similar_60_take.py`'s shape at `folder` (`lab-similar-60`,
+/// `lab-similar-confirm-60`): every Similar and Grow case of its
 /// manifest that `keep` accepts (Lab, and the 8-bit RGB control), each scene
 /// the `none` save of its depth. A pixel's class is FULL where the kernel
 /// admits it, else its starting coverage's class (the admitted region is
@@ -440,6 +443,32 @@ fn lab_similar_and_grow_from_partial_and_ragged_selections_match_photoshop() {
                 TAKE2_FINISHED.contains(&case["job"].as_str().unwrap())
             });
             assert_eq!(cases, 48, "take2's finished C cases at 8 bits");
+        }
+    }
+}
+
+/// K1's rows (`lab_similar_60_alpha_take.py`, item K): coverage C, shape S
+/// and Grow's seeding F, per mode and depth.
+const K1_ROWS: [&str; 8] = [
+    "C-lab8", "C-lab16", "C-rgb8", "S-lab8", "S-lab16", "F-lab8", "F-lab16", "F-rgb8",
+];
+
+#[test]
+fn lab_similar_and_grow_match_photoshop_on_the_held_out_scene() {
+    match take("lab-similar-confirm-60/take1") {
+        None => eprintln!("SKIP: lab-similar-confirm-60/take1 is absent on this machine"),
+        Some(folder) => {
+            let decided = decided(&folder);
+            assert_eq!(decided["valid"], true, "K1 is not VALID");
+            assert_eq!(decided["scene"], "D", "K1's scene");
+            for row in K1_ROWS {
+                assert_eq!(decided["verdict"][row], "CONFIRMED", "K1's {row}");
+            }
+            let cases = lab_similar_60_cases(&folder, |_| true);
+            assert_eq!(
+                cases, 264,
+                "K1's C and S cases at 8 and 16 bits and the RGB control's at 8"
+            );
         }
     }
 }

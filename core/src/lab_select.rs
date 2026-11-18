@@ -73,9 +73,15 @@
 //! seeds nothing, so it keeps its coverage (take1's references of a far
 //! colour at coverage 200; take2's held-out scene, whose session stalled after
 //! four jobs, left a moat reachable only through such a reference
-//! unselected, and its finished jobs met the coverage rule too). Unmeasured:
-//! alpha's bound and trim (neither session that tried made the layer's
-//! transparency, #60), and the shapes on a second take.
+//! unselected, and its finished jobs met the coverage rule too).
+//! `lab_similar_60_alpha_take.py`'s K1 (`lab-similar-confirm-60/take1`,
+//! held-out scene D, t 17 and 23) confirmed all three on 264 cases at 8 and
+//! 16 bits and the RGB control's at 8 (the trim at shares 10.00 % to 10.15 %).
+//! Its A2 (`lab-similar-alpha-60/take2`, 128 cases on a layer keeping its
+//! transparency, Lab and RGB at 8 and 16 bits) met no alpha key: the field's
+//! colour was admitted at every alpha probed (88 of 255 up), alpha 0 never,
+//! and the alpha bound and trim here missed 124088 to 124868 pixels a depth.
+//! One scene only: alpha stays as shipped until a held-out take (#60).
 
 use crate::job_control::JobContext;
 use crate::lab_blend::LabGrid;

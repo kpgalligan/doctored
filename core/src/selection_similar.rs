@@ -25,7 +25,8 @@
 //! references** there) measured it on Lab and on this kernel's 8-bit RGB,
 //! whose take1 control also met the half-selected reference rule
 //! ([`is_reference`]). That such a reference does not bridge the flood either
-//! was read on Lab alone, from the jobs a stalled session finished.
+//! was measured on Lab and on this kernel's 8-bit RGB by its confirming take
+//! (`lab-similar-confirm-60`).
 //!
 //! **The reference range.** Each key's values over the N references lose
 //! ⌊N/10⌋ at each end, every key on its own ([`TRIM_DIVISOR`], the rule
@@ -65,7 +66,8 @@
 //! (106,94,100); grey-100 and grey-120 references at tolerance 0 exclude
 //! (110,100,120) and admit (110,110,110). Unmeasured, and following this
 //! kernel: Indexed, float RGB's display codes, Duotone, masks and channels,
-//! alpha's bound and trim, the Paint Bucket on CMYK, the Sample Size mean,
+//! alpha's bound and trim (one scene only, where no alpha key met:
+//! `lab_select`), the Paint Bucket on CMYK, the Sample Size mean,
 //! and the Magic Eraser and the Background Eraser, which are defined by the
 //! wand's admission.
 //!
@@ -76,8 +78,9 @@
 //! (`precision_quantize::nearest`), R, G and B alike, and so is the host's
 //! u16 tolerance (8-bit t × 257, read back to t: a fractional t counts as
 //! its nearest whole step). Alpha keeps its own codes and the tolerance's
-//! (every take was opaque; `lab_select`'s choice). A CMYK document's naive
-//! RGB is a byte at both depths (`selection_region`'s **Ink**).
+//! (`lab_select`'s choice; the one take with transparency met no alpha key).
+//! A CMYK document's naive RGB is a byte at both depths (`selection_region`'s
+//! **Ink**).
 //! `scripts/photoshop-probe/key_resolution_80_take.py` (Photoshop 26.10.0,
 //! `key-resolution-80`, two sessions, exact membership on every pixel)
 //! measured it on 16-bit Gray, neutral RGB and neutral CMYK scenes: fields
@@ -101,8 +104,10 @@
 //! **Sample Size**).
 //!
 //! Not measured, and chosen here: the sample source is the flattened
-//! composite (as the wand's "select what you see"), not the active layer;
-//! alpha is one more key rather than a special case for transparency.
+//! composite (as the wand's "select what you see"), not the active layer.
+//! Chosen here, and met by no take: alpha is one more key rather than a
+//! special case for transparency (the one take with transparency, on one
+//! scene, met no alpha key: `lab_select`).
 //!
 //! The Magic Wand and the Paint Bucket (`selection_region::grow`) run the
 //! same predicate anchored at their one seed ([`ReferenceRange::from_seed`]:
