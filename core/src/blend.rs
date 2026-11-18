@@ -616,6 +616,19 @@ pub(crate) fn blend_kind_byte(mode: BlendMode, encoded: bool) -> BlendKind {
 /// dither pattern is stable for a given position regardless of layer offset
 /// or projection window. Only the low 24 hash bits are used so the result is
 /// exact in f32 and strictly below 1 (a fully opaque pixel always shows).
+/// The same hash dithers the gradient map, the layer-style gradients and
+/// Indexed Noise.
+///
+/// The pattern is Doctored's own at the measured density. An identify take
+/// (#2, `dissolve-dither-2/take1`, Photoshop 26.10.0) found Photoshop's a
+/// fixed threshold per canvas position too: one map, the same across
+/// sessions, bit depth, colour mode, canvas size and layer offset, shared by
+/// stacked Dissolve layers, by a layer inside a Normal or Pass Through group
+/// and by a clip base; but pixel alpha, Fill and a Dissolve group's opacity
+/// each draw from a threshold map of their own (opacity and pixel alpha show
+/// only where both pass), and no declared generator, row stream or tile of
+/// up to 128 px reproduced the opacity map. Matching it would take tables
+/// read from renders, which this function does not hold.
 pub(crate) fn dissolve_threshold(x: i64, y: i64) -> f32 {
     let mut h = (x as u32)
         .wrapping_mul(0x9E37_79B9)
