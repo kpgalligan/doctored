@@ -27,14 +27,22 @@ extension EditorViewController {
     }
 
     /// One gesture on the outline of layer `layerID`, as one undo step re-rendering the layer
-    /// (`ImageDocument.commitShapeOutline`). A pixel lock is named first, as the shape re-edit
-    /// names it; a transparency lock only refuses a re-render that moves or resizes the raster,
-    /// so it is named after the fact. True when it was committed.
+    /// (`ImageDocument.commitShapeOutline`). An outline whose held subpath operations the layer
+    /// cannot take (a stroke, an unbounded fold: `heldOpsRefusal`) is named in an alert first; a
+    /// pixel lock next, as the shape re-edit names it; a transparency lock only refuses a
+    /// re-render that moves or resizes the raster, so it is named after the fact. True when it
+    /// was committed.
     func commitShapeOutlineGesture(
         _ shape: PathShape, layerID: UInt64, name: String, note: String
     ) -> Bool {
         guard let document, let index = document.doc?.layerIndex(id: layerID) else {
             NSSound.beep()
+            return false
+        }
+        if let payload = document.doc?.shapePayload(index),
+           let refusal = ShapeLayerPayload.heldOpsRefusal(
+               outline: shape, stroked: !payload.stroke.isEmpty && payload.strokeWidth > 0) {
+            presentHeldOpsRefusal(refusal)
             return false
         }
         guard !refuseLockedEdit(layer: index, kind: DR_EDIT_PIXELS) else { return false }

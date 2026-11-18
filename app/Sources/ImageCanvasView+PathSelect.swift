@@ -65,9 +65,23 @@ extension ImageCanvasView {
         return true
     }
 
-    private func commitPathSelect(_ commit: PathSelectCommit) {
+    @discardableResult
+    private func commitPathSelect(_ commit: PathSelectCommit) -> Bool {
         let accepted = onPathSelectCommit?(commit.shape, commit.name) == true
         pathSelectSession.commitEnded(accepted: accepted)
+        return accepted
+    }
+
+    /// The options bar's Operation: the selected subpaths take `op`
+    /// (`PathSelectSession.settingOperation`), committed as ⌫'s edit is. True
+    /// when the document took it; false for nothing to change, which beeps
+    /// nowhere (the popup shows the operation already held).
+    func setSelectedSubpathsOperation(_ op: PathCombineOperation) -> Bool {
+        guard tool.selectsPath, !quickMaskActive, let base = penSession.shape else { return false }
+        var session = pathSelectSession
+        guard let commit = session.settingOperation(op, base: base) else { return false }
+        pathSelectSession = session
+        return commitPathSelect(commit)
     }
 
     /// Escape drops a gesture in flight, else the selection; ⌫ removes what

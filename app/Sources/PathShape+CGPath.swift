@@ -37,6 +37,30 @@ extension PathShape {
         return path
     }
 
+    /// The shape with exactly ONE surviving move per subpath that has an anchor, in order: the
+    /// fill of an outline that holds operations, whose codes the core matches to its moves
+    /// (`dr_artwork_path_coverage`). `cgPath()` is the master of every rule but one: a subpath of
+    /// ONE anchor that is OPEN, which `cgPath()` writes as a lone move, is written as that move
+    /// and a line to the same point. CoreGraphics drops a lone move that another move follows
+    /// (measured: four moves of a five-subpath path survive), and keeps a move with a zero-length
+    /// line, and a move with a close (a one-anchor closed subpath, `cgPath()`'s own), before and
+    /// after `copy(using:)`. The added line has no length, so it draws no edge: the subpath is
+    /// still outside everywhere, which is the core's rule for it. Used only for that fill;
+    /// strokes, previews, bounds and placement keep `cgPath()`.
+    func foldCGPath() -> CGPath {
+        let path = CGMutablePath()
+        for subpath in subpaths {
+            guard let first = subpath.anchors.first else { continue }
+            if subpath.anchors.count == 1, !subpath.closed {
+                path.move(to: first.point)
+                path.addLine(to: first.point)
+            } else {
+                path.addPath(PathShape(subpaths: [subpath], fillRule: fillRule).cgPath())
+            }
+        }
+        return path
+    }
+
     /// The anchors of a CoreGraphics path, read element by element: a move starts a subpath, a
     /// line adds a corner, a cubic sets the previous anchor's handle out and adds an anchor with
     /// its handle in, a quadratic is raised to the cubic it is exactly, and a close closes the

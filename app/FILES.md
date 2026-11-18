@@ -184,7 +184,7 @@ Detail belongs in the source file's own header comment.
 - `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.
 - `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
 - `ShapeLayer.swift` — shape layers: `ShapeLayerPayload`, the JSON description in the layer's meta (the source of truth; the raster is its cache), and `ShapeLayer`'s render.
-- `ShapeOutline.swift` — the `path` shape kind's outline (payload version 7): box-local anchors, `placed`, re-box scaling, the stroker-free source rect.
+- `ShapeOutline.swift` — the `path` shape kind's outline (payload 7; 8 when it holds subpath ops): box-local anchors, `placed`, re-box scaling, the stroker-free source rect, the held-ops refusal.
 - `ShapeOutlineTarget.swift` — a path shape's outline as a path target: canvas ↔ box-local under the map, `commitShapeOutline` (one re-render step).
 - `ShapeTool.swift` — the style a shape drags with: the options bar's fill, stroke, weight and corner radius, resolved to native types.
 - `EditorViewController+Shapes.swift` — the shape tools (U): drag out a rectangle, ellipse or line into a re-editable shape layer; a refused re-edit keeps its session open.
@@ -818,6 +818,7 @@ Detail belongs in the source file's own header comment.
 - `PathSelectSession.swift` / `ImageCanvasView+PathSelect.swift` — Path Selection and Direct Selection (A): the shared session (selection, gestures), canvas events and marks.
 - `EditorViewController+PathSelect.swift` — the two tools' actions and commit, Combine Selected Subpaths, Paths panel ▸ Fill Path… and Stroke Path….
 - `EditorViewController+ShapeOutline.swift` — a press adopting the active path shape's outline; the lock-checked outline commit the path tools share.
+- `EditorViewController+SubpathOps.swift` — Path Selection's Operation popup: the selected subpaths' held op as one recorded step; the held-ops refusal alert.
 - `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and five sheets.
 - `EditorViewController+PathCommands.swift` — Paths panel ▸ Convert to Shape Layer and Combine with Path…: the commands, their validation and the steps they record.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.

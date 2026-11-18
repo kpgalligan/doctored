@@ -60,6 +60,8 @@ fn coverage_request(
             width,
             height,
             even_odd,
+            ptr::null(),
+            0,
             output.as_mut_ptr(),
             output.len(),
             limit,
@@ -901,6 +903,8 @@ fn empty_optional_native_buffers_accept_null_only_when_their_lengths_are_zero() 
             2,
             1,
             false,
+            ptr::null(),
+            0,
             output.as_mut_ptr(),
             2,
             LIMIT,
@@ -974,6 +978,8 @@ fn every_artwork_export_tolerates_null_handles_and_error_outputs() {
             1,
             1,
             false,
+            ptr::null(),
+            0,
             ptr::null_mut(),
             0,
             LIMIT,
@@ -981,6 +987,48 @@ fn every_artwork_export_tolerates_null_handles_and_error_outputs() {
             ptr::null(),
             ptr::null_mut()
         ));
+        // NULL held operations with a count: refused, the output untouched,
+        // with and without an error output.
+        let commands = [0u8, 1, 1, 1, 4];
+        let points = [[0.0f64, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let mut output = [0x4a4au16];
+        let mut error = ptr::null_mut();
+        assert!(!dr_artwork_path_coverage(
+            commands.as_ptr(),
+            commands.len(),
+            points.as_ptr().cast(),
+            points.len(),
+            1,
+            1,
+            false,
+            ptr::null(),
+            1,
+            output.as_mut_ptr(),
+            output.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error
+        ));
+        assert_eq!(take_text(error), "invalid native artwork path buffers");
+        assert!(!dr_artwork_path_coverage(
+            commands.as_ptr(),
+            commands.len(),
+            points.as_ptr().cast(),
+            points.len(),
+            1,
+            1,
+            false,
+            ptr::null(),
+            1,
+            output.as_mut_ptr(),
+            output.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert_eq!(output, [0x4a4a]);
         assert!(dr_artwork_render(
             1,
             1,

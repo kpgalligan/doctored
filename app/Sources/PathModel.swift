@@ -59,9 +59,13 @@ struct PathAnchor: Equatable {
 }
 
 /// One contour. An open subpath is closed by a straight line for FILL only.
+/// `op` is how its own region folds into the subpaths' before it when the
+/// shape holds operations (`PathShape.holdsOps`); a shape that does not hold
+/// them ignores it, and a new subpath takes `.unite`.
 struct PathSubpath: Equatable {
     var anchors: [PathAnchor]
     var closed: Bool
+    var op: PathCombineOperation = .unite
 }
 
 /// How overlapping contours combine when a shape is filled; the raw value is
@@ -71,14 +75,62 @@ enum PathFillRule: String {
     case evenOdd = "evenodd"
 }
 
-/// A whole path: every contour and the fill rule. An empty shape is valid and
-/// covers nothing.
+/// A whole path: every contour, the fill rule and whether it HOLDS OPERATIONS
+/// (`designs/v1-paths-held-subpaths.md`, HS-1, the core's `PathShape::ops`). Without them the
+/// subpaths' windings sum under the fill rule; with them each subpath's own region (its own
+/// winding under the fill rule) folds into the regions before it by its `op`, from nothing, or
+/// from everything when the first subtracts. Holding every `.unite` is not holding none. An empty
+/// shape is valid and covers nothing.
 struct PathShape: Equatable {
     var subpaths: [PathSubpath] = []
     var fillRule: PathFillRule = .nonZero
+    var holdsOps = false
 
     var isEmpty: Bool { subpaths.isEmpty }
     var anchorCount: Int { subpaths.reduce(0) { $0 + $1.anchors.count } }
+
+    /// One operation per subpath; nil unless the shape holds them and has a subpath.
+    var ops: [PathCombineOperation]? {
+        holdsOps && !subpaths.isEmpty ? subpaths.map(\.op) : nil
+    }
+
+    /// Whether the fold covers everything its subpaths do not reach: it holds operations, the
+    /// first subtracts and none intersects (an intersect bounds it). Such a region has no outline.
+    var isUnbounded: Bool {
+        guard let ops else { return false }
+        return ops.first == .subtract && !ops.contains(.intersect)
+    }
+
+    /// The shape holding no operations, every subpath's `op` back to `.unite`.
+    func droppingOps() -> PathShape {
+        var result = self
+        result.holdsOps = false
+        for index in result.subpaths.indices { result.subpaths[index].op = .unite }
+        return result
+    }
+
+    /// The shape holding operations, the subpaths at `indices` taking `op`: a shape that held
+    /// none starts from every subpath `.unite`. Indices past the shape are ignored.
+    func settingOp(_ op: PathCombineOperation, at indices: [Int]) -> PathShape {
+        var result = holdsOps ? self : droppingOps()
+        result.holdsOps = true
+        for index in indices where result.subpaths.indices.contains(index) {
+            result.subpaths[index].op = op
+        }
+        return result
+    }
+
+    /// Equal geometry and rule, and the same held operations: a subpath's `op` is compared only
+    /// when both shapes hold operations, since a shape that holds none ignores it.
+    static func == (lhs: PathShape, rhs: PathShape) -> Bool {
+        let held = lhs.ops != nil
+        guard lhs.fillRule == rhs.fillRule, held == (rhs.ops != nil),
+              lhs.subpaths.count == rhs.subpaths.count
+        else { return false }
+        return zip(lhs.subpaths, rhs.subpaths).allSatisfy { a, b in
+            a.anchors == b.anchors && a.closed == b.closed && (!held || a.op == b.op)
+        }
+    }
 }
 
 /// The document's one unsaved scratch path, or a named one.
@@ -224,7 +276,10 @@ extension PathShape {
     }
 
     /// The same, from the two values apart — an MCP call's `subpaths` and
-    /// `fill_rule` arguments.
+    /// `fill_rule` arguments. A subpath's `op` (unite, subtract, intersect,
+    /// exclude) is all or none: on every subpath the shape holds operations,
+    /// on none (absent or null) it does not, and a mix is refused naming the
+    /// first subpath without one.
     init(subpathsJSON subpaths: Any?, fillRuleJSON fillRule: Any?) throws {
         switch fillRule {
         case nil, is NSNull: self.fillRule = .nonZero
@@ -240,6 +295,8 @@ extension PathShape {
             throw PathFormatError(
                 message: "subpaths must be an array of {\"closed\": bool, \"anchors\": […]} objects.")
         }
+        // Which subpaths carry `op`: all or none (the core's own rule, `path_geometry`).
+        var carried: [Bool] = []
         self.subpaths = try list.enumerated().map { index, entry in
             guard let object = entry as? [String: Any], let anchors = object["anchors"] as? [Any]
             else {
@@ -254,12 +311,35 @@ extension PathShape {
             case let flag as Bool: closed = flag
             default: throw PathFormatError(message: "subpath \(index): closed must be a boolean.")
             }
+            let op: PathCombineOperation?
+            switch object["op"] {
+            case nil, is NSNull: op = nil
+            case let name as String:
+                guard let parsed = PathCombineOperation(rawValue: name) else {
+                    throw Self.opRefusal(index)
+                }
+                op = parsed
+            default: throw Self.opRefusal(index)
+            }
+            carried.append(op != nil)
             return PathSubpath(
                 anchors: try anchors.enumerated().map { position, anchor in
                     try Self.anchor(anchor, "subpath \(index), anchor \(position)")
                 },
-                closed: closed)
+                closed: closed, op: op ?? .unite)
         }
+        if carried.contains(true), let missing = carried.firstIndex(of: false) {
+            throw PathFormatError(
+                message: "subpath \(missing) has no op: when any subpath carries op, every "
+                    + "subpath must (unite, subtract, intersect or exclude).")
+        }
+        holdsOps = carried.contains(true)
+    }
+
+    private static func opRefusal(_ index: Int) -> PathFormatError {
+        PathFormatError(
+            message: "subpath \(index): op must be \"unite\", \"subtract\", \"intersect\" or "
+                + "\"exclude\".")
     }
 
     private static func number(_ value: Any?) -> Double? {
@@ -324,10 +404,12 @@ extension PathShape {
         [jsonNumber(point.x), jsonNumber(point.y)]
     }
 
-    /// The `subpaths` array of the shape JSON, every key written.
+    /// The `subpaths` array of the shape JSON, every key written; `op` on every subpath exactly
+    /// when the shape holds operations (`ops`), so a shape without them writes today's JSON.
     var subpathsJSON: [[String: Any]] {
-        subpaths.map { subpath in
-            [
+        let holding = ops != nil
+        return subpaths.map { subpath in
+            var object: [String: Any] = [
                 "closed": subpath.closed,
                 "anchors": subpath.anchors.map { anchor -> [String: Any] in
                     [
@@ -338,6 +420,8 @@ extension PathShape {
                     ]
                 },
             ]
+            if holding { object["op"] = subpath.op.rawValue }
+            return object
         }
     }
 

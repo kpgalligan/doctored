@@ -118,15 +118,19 @@ struct PathSelectSession: Equatable {
         selectionBefore = nil
     }
 
-    /// Whether `a` is `b` as the core stores it: the same structure, every
-    /// coordinate within the core's four-decimal quantization.
+    /// Whether `a` is `b` as the core stores it: the same structure and held
+    /// operations (each `op` compared when both hold them), every coordinate
+    /// within the core's four-decimal quantization.
     static func matches(_ a: PathShape, _ b: PathShape) -> Bool {
-        guard a.fillRule == b.fillRule, a.subpaths.count == b.subpaths.count else { return false }
+        let held = a.ops != nil
+        guard a.fillRule == b.fillRule, held == (b.ops != nil),
+              a.subpaths.count == b.subpaths.count
+        else { return false }
         func near(_ p: CGPoint, _ q: CGPoint) -> Bool {
             abs(p.x - q.x) <= 1e-3 && abs(p.y - q.y) <= 1e-3
         }
         return zip(a.subpaths, b.subpaths).allSatisfy { s, t in
-            s.closed == t.closed && s.anchors.count == t.anchors.count
+            s.closed == t.closed && s.anchors.count == t.anchors.count && (!held || s.op == t.op)
                 && zip(s.anchors, t.anchors).allSatisfy { p, q in
                     p.smooth == q.smooth && near(p.point, q.point)
                         && near(p.handleIn, q.handleIn) && near(p.handleOut, q.handleOut)
@@ -440,5 +444,23 @@ struct PathSelectSession: Equatable {
         selection = PathSelection()
         expecting = next
         return PathSelectCommit(shape: next, name: name)
+    }
+
+    /// The undo name of the options bar's Operation (EditorViewController+SubpathOps.swift).
+    static let operationUndoName = "Set Subpath Operation"
+
+    /// The options bar's Operation: `base` holding operations with the
+    /// selected subpaths taking `op`, as the edit to commit; the selection is
+    /// kept, since the subpaths are the same. Nil with nothing selected,
+    /// mid-gesture, on a shape the selection was not made on, and when every
+    /// selected subpath already holds `op`.
+    mutating func settingOperation(_ op: PathCombineOperation, base: PathShape)
+        -> PathSelectCommit? {
+        guard drag == nil, base == selectionBase, hasSelection else { return nil }
+        let next = base.settingOp(op, at: selectedSubpaths)
+        guard next != base else { return nil }
+        selectionBefore = selection
+        expecting = next
+        return PathSelectCommit(shape: next, name: Self.operationUndoName)
     }
 }

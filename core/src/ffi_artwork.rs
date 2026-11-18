@@ -14,6 +14,12 @@ use std::{
 /// Doctored output-coordinate path commands (0 move,1 line,2 quad,3 cubic,4 close)
 /// into width*height u16 area coverage. points_count counts xy pairs. Output is
 /// unchanged on refusal/cancellation. Caller owns and retains all buffers.
+/// `op_count` 0 (ops NULL or not) fills the subpaths' summed winding by
+/// `even_odd`; otherwise `ops` holds one held operation per MOVE verb (0 unite,
+/// 1 subtract, 2 intersect, 3 exclude), each subpath's own region folded in
+/// order (`artwork_ops_coverage`). A move that draws no edge is still a subpath
+/// and takes a code. Refused: NULL `ops` with a count, more codes than
+/// `MAX_SUBPATHS`, an unknown code, a count other than the moves.
 /// # Safety
 /// Pointers NULL or valid for the declared lengths; output writable; no overlap;
 /// control NULL/live single-use, err_out NULL/writable.
@@ -26,6 +32,8 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
     width: u32,
     height: u32,
     even_odd: bool,
+    ops: *const u8,
+    op_count: usize,
     output: *mut u16,
     output_count: usize,
     limit: u64,
@@ -46,6 +54,7 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
                 let n = pixel_count(width, height)?;
                 if (commands.is_null() && command_count != 0)
                     || (points.is_null() && point_count != 0)
+                    || (ops.is_null() && op_count != 0)
                     || output.is_null()
                     || output_count != n
                     || command_count > crate::artwork_coverage::MAX_PATH_POINTS
@@ -53,7 +62,20 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
                 {
                     return Err("invalid native artwork path buffers".into());
                 }
-                let input = command_count as u64 + point_count as u64 * 16 + n as u64 * 2;
+                if op_count > crate::path_geometry::MAX_SUBPATHS {
+                    return Err(crate::path_geometry::too_many_subpaths());
+                }
+                let held = if op_count == 0 {
+                    Vec::new()
+                } else {
+                    std::slice::from_raw_parts(ops, op_count)
+                        .iter()
+                        .map(|&code| crate::path_geometry::SubpathOp::from_code(code))
+                        .collect::<Option<Vec<_>>>()
+                        .ok_or("invalid native artwork path operation")?
+                };
+                let input =
+                    command_count as u64 + point_count as u64 * 16 + op_count as u64 + n as u64 * 2;
                 // Each buffer holds at most MAX_PATH_EDGES (524,288) entries:
                 // 16 MiB edges + 16 MiB active edges + 8 MiB intersections +
                 // 4 MiB breakpoints + 4 MiB open/spanning u32 index lists;
@@ -80,9 +102,19 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
                 } else {
                     std::slice::from_raw_parts(points.cast::<[f64; 2]>(), point_count)
                 };
-                let coverage = crate::artwork_coverage::rasterize(
-                    commands, points, width, height, even_odd, job,
-                )?;
+                // No operations: the summed winding, today's samples and cost.
+                // Held operations: the fold (`artwork_ops_coverage`), which
+                // refuses a count other than the moves; its scratch fits the
+                // figure above (that module's SCRATCH).
+                let coverage = if held.is_empty() {
+                    crate::artwork_coverage::rasterize(
+                        commands, points, width, height, even_odd, job,
+                    )?
+                } else {
+                    crate::artwork_ops_coverage::rasterize_ops(
+                        commands, points, &held, width, height, even_odd, job,
+                    )?
+                };
                 job.check()?;
                 ptr::copy_nonoverlapping(coverage.as_ptr(), output, n);
                 Ok(())

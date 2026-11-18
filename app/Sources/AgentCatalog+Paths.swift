@@ -22,12 +22,26 @@ extension AgentServer {
                 + "anchor to the next is the cubic Bézier (point, out, next in, next point), a "
                 + "straight line when both handles sit on their points; a closed subpath also "
                 + "joins its last anchor to its first. Coordinates are kept to four decimals. "
-                + "At most 4096 subpaths and 32768 anchors, each coordinate within ±1000000.",
+                + "At most 4096 subpaths and 32768 anchors, each coordinate within ±1000000. "
+                + "Without op the subpaths' windings sum under fill_rule; with op on every "
+                + "subpath the path HOLDS OPERATIONS: each subpath's own region (its own winding "
+                + "under fill_rule) folds into the regions before it, in order, from nothing (from "
+                + "everything when the first subtracts). A subpath that draws no edge (one anchor "
+                + "without a loop handle) has no region: unite, subtract and exclude by it change "
+                + "nothing, intersect by it leaves nothing.",
             "items": [
                 "type": "object",
                 "properties": [
                     "closed": ["type": "boolean", "description": "Default false."],
                     "anchors": ["type": "array", "items": anchor, "minItems": 1],
+                    "op": [
+                        "type": "string", "enum": PathCombineOperation.allCases.map(\.rawValue),
+                        "description": "How this subpath's region folds into the ones before it: "
+                            + "unite, subtract, intersect or exclude. On every subpath or on "
+                            + "none (a mix refuses). Read back on every subpath of a path that "
+                            + "holds operations, and absent otherwise; holding every unite is not "
+                            + "holding none (a counter-wound hole is filled).",
+                    ],
                 ] as [String: Any],
                 "required": ["anchors"],
             ] as [String: Any],
@@ -62,7 +76,8 @@ extension AgentServer {
                     + "or made a selection. Each has name, kind (\"work\": the one unsaved "
                     + "scratch path, always first and always named \"Work Path\"; \"saved\"), "
                     + "fill_rule, anchors (a count) and subpaths (set_path's own shape, so it "
-                    + "can be edited and passed back). max_paths is the most a document holds. "
+                    + "can be edited and passed back; each subpath's op when the path holds "
+                    + "operations). max_paths is the most a document holds. "
                     + "Canvas resizes, crops, rotations and flips move paths with the picture; "
                     + "moving or transforming a layer does not. A PSD, PSB or layered TIFF "
                     + "export writes them and its import reads them back (the work path and "
@@ -132,8 +147,12 @@ extension AgentServer {
                     + "the region path's other subpaths fill is the first operand and the region "
                     + "the listed ones fill the second, both under path's fill_rule (every "
                     + "subpath listed: unite and exclude merge path into one outline, subtract and "
-                    + "intersect leave nothing). The result is an "
-                    + "ordinary path — closed subpaths, fill_rule nonzero, corner anchors whose "
+                    + "intersect leave nothing); on a path that holds subpath operations (op) the "
+                    + "listed subpaths take operation instead and the whole fold is the result. A "
+                    + "path holding operations is its fold here; an unbounded one (first subpath "
+                    + "subtracts, none intersects) refuses. The result is an "
+                    + "ordinary path — no op, closed subpaths, fill_rule nonzero, corner anchors "
+                    + "whose "
                     + "handles keep the curves — that keeps path's name and clipping-path "
                     + "designation; with is unchanged. Geometric, so shared edges stay exact; a "
                     + "curve's result stays within about a tenth of a pixel of its inputs. An empty "
@@ -294,7 +313,7 @@ extension AgentServer {
                 "Runs the Brush or the Eraser along the path: every subpath is one stroke "
                     + "that follows its outline (a closed subpath returns to its first "
                     + "anchor; an open one is not closed; a one-anchor subpath is a dot), at "
-                    + "one pressure. " + shapeNote
+                    + "one pressure, whatever op the subpaths hold. " + shapeNote
                     + "tool \"brush\" (default) is brush_stroke and \"eraser\" is "
                     + "eraser_stroke, and size, hardness, flow, spacing, angle, roundness, "
                     + "opacity, layer and target mean what they mean there — as do color, "
@@ -379,7 +398,8 @@ extension AgentServer {
                     + "(the shape is empty, so it hides nothing), has_raster_mask and "
                     + "raster_mask_enabled (a raster mask is kept beside the shape), fill_rule, "
                     + "anchors (a count) and subpaths (set_path's own shape, in canvas pixels "
-                    + "as of now — a layer move moves it). get_document's layers carry a "
+                    + "as of now — a layer move moves it; each subpath's op when the shape holds "
+                    + "operations). get_document's layers carry a "
                     + "vector_mask flag. The Paths panel's vector-mask row.",
                 ["layer": layer, "document_id": doc]),
             tool(

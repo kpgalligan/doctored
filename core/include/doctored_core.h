@@ -9346,11 +9346,23 @@ DrImage *dr_precision_image_clip_display(const DrPrecisionImage *image, uint32_t
  * outside the outline skipped); caps and sentences unchanged; equal to the full
  * scan and never charged above it. Two edges that both span a whole row are
  * charged only when they cross in it, and Cancel is polled every 4096 pair
- * tests. */
+ * tests.
+ * HELD OPERATIONS: op_count 0 (ops NULL or not) fills the subpaths' summed
+ * winding under even_odd, byte for byte as before. op_count > 0 gives one code
+ * per MOVE verb (0 unite, 1 subtract, 2 intersect, 3 exclude): each subpath's
+ * own region under even_odd, folded in order from nothing (from everything
+ * when the first subtracts). A move that draws no edge is still a subpath and
+ * takes a code: it is outside everywhere, so unite, subtract and exclude change
+ * nothing and intersect clears the fold before it. Refusals (false, err_out,
+ * output untouched): NULL ops with op_count > 0 "invalid native artwork path
+ * buffers"; op_count > 4096 "too many subpaths in a path (max 4096)"; an
+ * unknown code "invalid native artwork path operation"; a count other than the
+ * moves "artwork path operations do not match its subpaths". */
 bool dr_artwork_path_coverage(const uint8_t *commands, size_t command_count,
     const double *points, size_t point_count, uint32_t width, uint32_t height,
-    bool even_odd, uint16_t *output, size_t output_count, uint64_t limit,
-    uint64_t other_retained, const DrJobControl *control, char **err_out);
+    bool even_odd, const uint8_t *ops, size_t op_count, uint16_t *output,
+    size_t output_count, uint64_t limit, uint64_t other_retained,
+    const DrJobControl *control, char **err_out);
 /* Component JSON array (max256): {kind:"coverage",color:[r,g,b,a]} uses one
  * u16 plane; {kind:"intrinsic_rgba8",opacity:1} uses separate straight RGBA8
  * intrinsic bytes. Either may add window:[x,y,w,h], the raster pixels its

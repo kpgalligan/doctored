@@ -416,6 +416,11 @@ extension EditorViewController {
             endShapeEditSession()
             return true
         }
+        // A stroke restyled onto a path shape whose outline holds subpath operations.
+        if let refusal = payload.heldOpsRefusal {
+            presentHeldOpsRefusal(refusal)
+            return false
+        }
         // A re-render REWRITES the layer's pixels, so it answers to the same
         // locks every other pixel path does; without it the core refused and
         // `applyEdit` beeped with nothing said.

@@ -237,14 +237,16 @@ struct ShapeToolPreview {
     }
 
     /// A path shape's outline as the preview fills and strokes it, in `box`'s space (moved to the
-    /// box's corner) with its own fill rule and butt ends, as the commit renders it; nil for the
-    /// box kinds.
+    /// box's corner) with its own fill rule and butt ends, as the commit renders it; an outline
+    /// that holds subpath operations previews its fold (`PathCombine.foldedRegion`) by winding.
+    /// nil for the box kinds.
     func outlinePath() -> NSBezierPath? {
         guard let outline else { return nil }
         var shift = CGAffineTransform(translationX: box.minX, y: box.minY)
-        let local = outline.cgPath()
+        let fold = outline.ops == nil ? nil : PathCombine.foldedRegion(outline.shape(origin: .zero))
+        let local = fold ?? outline.cgPath()
         let path = NSBezierPath(cgPath: local.copy(using: &shift) ?? local)
-        path.windingRule = outline.evenOdd ? .evenOdd : .nonZero
+        path.windingRule = outline.evenOdd && fold == nil ? .evenOdd : .nonZero
         path.lineCapStyle = .butt
         return path
     }

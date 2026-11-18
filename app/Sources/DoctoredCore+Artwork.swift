@@ -14,11 +14,26 @@ struct ArtworkPublicationRefusal: LocalizedError {
     var errorDescription: String? { message }
 }
 
+extension PathCombineOperation {
+    /// The core's code for the operation (`dr_artwork_path_coverage`'s `ops`): 0 unite,
+    /// 1 subtract, 2 intersect, 3 exclude.
+    var artworkCode: UInt8 {
+        switch self {
+        case .unite: return 0
+        case .subtract: return 1
+        case .intersect: return 2
+        case .exclude: return 3
+        }
+    }
+}
+
 // MARK: - Retained native artwork
 enum RasterArtworkCore {
     /// `evenOdd` fills by the even-odd rule, nonzero winding otherwise (`dr_artwork_path_coverage`).
+    /// `ops` empty fills the summed winding; otherwise it holds one operation code per MOVE verb
+    /// (`PathCombineOperation.artworkCode`), each subpath's own region folded in order.
     static func coverage(commands: [UInt8], points: [Double], width: Int, height: Int,
-                         evenOdd: Bool = false,
+                         evenOdd: Bool = false, ops: [UInt8] = [],
                          control: RasterJobControl? = nil) throws -> [UInt16] {
         guard width > 0, height > 0, width <= RasterImage.maxResizePixels / height,
               points.count % 2 == 0, points.count / 2 <= 262_144, commands.count <= 262_144 else {
@@ -30,10 +45,14 @@ enum RasterArtworkCore {
         var error: UnsafeMutablePointer<CChar>?
         let success = commands.withUnsafeBufferPointer { verbs in
             points.withUnsafeBufferPointer { coordinates in
-                output.withUnsafeMutableBufferPointer { samples in
-                    dr_artwork_path_coverage(verbs.baseAddress, verbs.count, coordinates.baseAddress,
-                        coordinates.count / 2, UInt32(width), UInt32(height), evenOdd, samples.baseAddress,
-                        samples.count, context.limit, context.otherRetained, control?.ptr, &error)
+                ops.withUnsafeBufferPointer { codes in
+                    output.withUnsafeMutableBufferPointer { samples in
+                        dr_artwork_path_coverage(verbs.baseAddress, verbs.count,
+                            coordinates.baseAddress, coordinates.count / 2, UInt32(width),
+                            UInt32(height), evenOdd, codes.baseAddress, codes.count,
+                            samples.baseAddress, samples.count, context.limit,
+                            context.otherRetained, control?.ptr, &error)
+                    }
                 }
             }
         }

@@ -173,6 +173,19 @@ impl SubpathOp {
             _ => None,
         }
     }
+
+    /// The operation an FFI code names (`dr_artwork_path_coverage`'s `ops`):
+    /// 0 unite, 1 subtract, 2 intersect, 3 exclude, the declaration order;
+    /// `None` for any other code.
+    pub(crate) fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::Unite),
+            1 => Some(Self::Subtract),
+            2 => Some(Self::Intersect),
+            3 => Some(Self::Exclude),
+            _ => None,
+        }
+    }
 }
 
 /// A whole path: every contour, the fill rule and, when it holds them, one

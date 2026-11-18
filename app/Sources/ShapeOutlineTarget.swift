@@ -10,7 +10,8 @@ import AppKit
 // is the MCP twin (AgentServer+PathShapes.swift), and every canvas commit records it.
 
 extension PathShape {
-    /// Every point and handle through `map`; structure, smoothness and fill rule kept.
+    /// Every point and handle through `map`; structure, smoothness, fill rule and held subpath
+    /// operations kept (it copies `self`).
     fileprivate func mappingPoints(_ map: (CGPoint) -> CGPoint) -> PathShape {
         var result = self
         for s in result.subpaths.indices {

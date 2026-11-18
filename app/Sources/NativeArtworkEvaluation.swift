@@ -40,9 +40,11 @@ struct NativeArtworkEvaluation {
 
     enum Part {
         /// `points` are relative to `window`'s origin; the coverage is
-        /// computed at the window's size, by the even-odd rule when `evenOdd`.
+        /// computed at the window's size, by the even-odd rule when `evenOdd`,
+        /// each subpath's region folded by `ops` (one code per move) when it
+        /// is not empty.
         case path(commands: [UInt8], points: [Double], rgba: [Double], window: Window,
-                  evenOdd: Bool = false)
+                  evenOdd: Bool = false, ops: [UInt8] = [])
         /// A colour glyph run's straight RGBA8 over `window`, row-major.
         case intrinsic([UInt8], opacity: Double, window: Window)
         /// A bitmap glyph's A8 coverage over `window`, row-major.
@@ -116,7 +118,7 @@ struct NativeArtworkEvaluation {
         let colorKey = cmyk ? "ink" : "color"
         for part in drawing.parts {
             switch part {
-            case let .path(path, rgba, evenOdd):
+            case let .path(path, rgba, evenOdd, ops):
                 guard ArtworkColor.valid(rgba, in: ink) else { throw Self.failure(colorRefusal) }
                 // The plane covers only the path's box (the core's
                 // per-component window), so a part costs its own extent,
@@ -144,10 +146,16 @@ struct NativeArtworkEvaluation {
                     }
                 }
                 guard valid else { throw Self.failure("Artwork outline exceeds its bounded path command limit.") }
+                // A defect guard, never reached by a valid payload: a part's
+                // operations are one per move (`ShapeOutline.foldPath`).
+                guard ops.isEmpty || ops.count == commands.lazy.filter({ $0 == 0 }).count else {
+                    throw Self.failure("Artwork path operations do not match its subpaths.")
+                }
                 guard window.pixels <= Self.maximumComponentSamples else { throw Self.componentRefusal }
                 captured.append(.path(commands: commands, points: points, rgba: rgba, window: window,
-                                      evenOdd: evenOdd))
-                scalar += window.pixels; bytes += UInt64(commands.count + points.count * 8)
+                                      evenOdd: evenOdd, ops: ops))
+                scalar += window.pixels
+                bytes += UInt64(commands.count + points.count * 8 + ops.count)
             // A glyph part's plane covers only its window (the core's
             // per-component window), so it is charged its glyphs' extent.
             case let .coverage(pixels, rgba, window):
@@ -272,10 +280,11 @@ struct NativeArtworkEvaluation {
             let end = Double(index + 1) / Double(parts.count + 2)
             guard !control.isCancelled else { throw JobCancelled() }
             switch part {
-            case let .path(commands, points, rgba, window, evenOdd):
+            case let .path(commands, points, rgba, window, evenOdd, ops):
                 let plane = try control.withChildOperation(from: start, to: end) {
                     try RasterArtworkCore.coverage(commands: commands, points: points,
-                        width: window.width, height: window.height, evenOdd: evenOdd, control: $0)
+                        width: window.width, height: window.height, evenOdd: evenOdd, ops: ops,
+                        control: $0)
                 }
                 coverage.append(contentsOf: plane)
                 descriptors.append(["kind": "coverage", colorKey: rgba, "window": window.json])
@@ -351,11 +360,18 @@ enum NativeArtwork {
         transform.ty = fraction.y - CGFloat(rect.originY)
         var parts: [NativeArtworkPart] = []
         // The fill takes the payload's rule (a path's own); the stroke's
-        // outline always fills by winding (`ShapeLayer.strokeOutline`).
+        // outline always fills by winding (`ShapeLayer.strokeOutline`). An
+        // outline that holds operations fills by them: one code per payload
+        // subpath (`opCodes`), on its one-move-per-subpath path (`foldPath`;
+        // `cgPath` drops a one-anchor open subpath's lone move before
+        // another), mapped by the same transform.
+        let codes = payload.path?.opCodes ?? []
+        let fillPath = codes.isEmpty ? path : (payload.path?.foldPath() ?? path)
         if payload.kind != "line", let fill = payload.fillColor,
            let rgba = ArtworkColor.rgba(fill, in: payload.ink),
-           let mapped = path.copy(using: &transform) {
-            parts.append(.path(mapped, rgba: rgba, evenOdd: ShapeLayer.fillRule(payload) == .evenOdd))
+           let mapped = fillPath.copy(using: &transform) {
+            parts.append(.path(mapped, rgba: rgba, evenOdd: ShapeLayer.fillRule(payload) == .evenOdd,
+                               ops: codes))
         }
         if let stroke = payload.strokeColor, payload.strokeWidth > 0,
            let rgba = ArtworkColor.rgba(stroke, in: payload.ink) {

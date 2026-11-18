@@ -4,7 +4,9 @@ import AppKit
 /// (EditorViewController+PathCommands.swift) and of the selection tools' Combine Selected Subpaths
 /// (EditorViewController+PathSelect.swift): a path of the list replaced by its fill region
 /// united with, less, intersected with or excluding another's — or, with `subpath_indices`, the
-/// region of the listed subpaths against the region of its other subpaths (PathCombine.swift).
+/// region of the listed subpaths against the region of its other subpaths (PathCombine.swift); on
+/// a path that holds subpath operations, the listed subpaths take the operation and the fold
+/// becomes the path, holding none.
 /// The result is an ordinary path — `path` keeps its id, name, kind and clipping designation,
 /// `with` is left as it is — committed through the Paths tools' one list edit (`editPaths`,
 /// AgentServer+Paths.swift), so the core's caps and refusal sentences apply and it is one undo
@@ -65,7 +67,10 @@ extension AgentServer {
                     message: "with names the same path as path: combine \"\(name)\" with "
                         + "another path.")
             }
-            result = PathCombine.combine(set.entries[index].shape, second.shape, operation)
+            guard let combined = PathCombine.combine(
+                set.entries[index].shape, second.shape, operation)
+            else { throw ToolError(message: PathCombine.unboundedRefusal) }
+            result = combined
             guard !result.isEmpty else {
                 throw ToolError(
                     message: "Nothing is left: the \(operation.rawValue) of \"\(name)\" and "
@@ -76,7 +81,10 @@ extension AgentServer {
         } else {
             let shape = set.entries[index].shape
             let indices = try subpathIndices(a["subpath_indices"], path: name, shape: shape)
-            result = PathCombine.combineSubpaths(shape, selected: Set(indices), operation)
+            guard let combined = PathCombine.combineSubpaths(
+                shape, selected: Set(indices), operation)
+            else { throw ToolError(message: PathCombine.unboundedRefusal) }
+            result = combined
             guard !result.isEmpty else {
                 throw ToolError(
                     message: "Nothing is left: the \(operation.rawValue) of the listed subpaths of "

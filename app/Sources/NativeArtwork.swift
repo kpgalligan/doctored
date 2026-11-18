@@ -30,7 +30,10 @@ import AppKit
 enum NativeArtworkPart {
     /// `evenOdd`: the path fills by the even-odd rule (a path shape's own,
     /// ShapeOutline.swift); every other part fills by nonzero winding.
-    case path(CGPath, rgba: [Double], evenOdd: Bool = false)
+    /// `ops`: one held operation code per MOVE of the path (a path shape's
+    /// outline that holds them, `ShapeOutline.opCodes`, its path built by
+    /// `foldPath`); empty for every other part.
+    case path(CGPath, rgba: [Double], evenOdd: Bool = false, ops: [UInt8] = [])
     /// A colour glyph run's pixels over `window` of the drawing, row-major
     /// (`ArtworkTextCapture`); transparent outside it.
     case intrinsic(pixels: [UInt8], opacity: Double, window: NativeArtworkEvaluation.Window)

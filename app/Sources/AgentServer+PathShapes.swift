@@ -79,6 +79,13 @@ extension AgentServer {
         return replaced
     }
 
+    /// A path shape whose outline holds subpath operations (`subpaths[i].op`) takes no stroke and
+    /// must be bounded (`ShapeLayerPayload.heldOpsRefusal`, which the canvas commits present as an
+    /// alert); every other payload passes.
+    static func validatePathShapeOps(_ payload: ShapeLayerPayload) throws {
+        if let refusal = payload.heldOpsRefusal { throw ToolError(message: refusal) }
+    }
+
     /// A path shape needs an area to fill: an outline under 1 px across on one axis (a straight
     /// open path) shows only a stroke.
     static func validatePathShapeArea(

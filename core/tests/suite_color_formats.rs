@@ -69,6 +69,8 @@ mod warp_fixture;
 #[path = "common/warp_oracle.rs"]
 mod warp_oracle;
 
+#[path = "artwork_path_ops.rs"]
+mod artwork_path_ops;
 #[path = "artwork_windows.rs"]
 mod artwork_windows;
 #[path = "bigtiff_import.rs"]

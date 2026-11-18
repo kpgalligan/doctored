@@ -24,9 +24,13 @@ extension EditorViewController {
         canvas.onPathSelectionChange = { [weak self] in self?.pathSelectionChanged() }
     }
 
-    /// A finished selection-tool gesture, committed as the Pen commits one.
+    /// A finished selection-tool gesture, committed as the Pen commits one; the options bar's
+    /// Operation (EditorViewController+SubpathOps.swift) names its control.
     private func pathSelectCommitted(_ shape: PathShape, name: String) -> Bool {
-        penGestureCommitted(shape, name: name, note: "\(canvas.tool.displayName) tool")
+        let tool = canvas.tool.displayName
+        let note = name == PathSelectSession.operationUndoName
+            ? "\(tool) ▸ Operation" : "\(tool) tool"
+        return penGestureCommitted(shape, name: name, note: note)
     }
 
     /// The selection changed: the options bar's Combine buttons follow it.
@@ -52,7 +56,8 @@ extension EditorViewController {
 
     // MARK: - Combine Selected Subpaths
 
-    /// The two tools' options bar: Combine's four operations on the selected subpaths.
+    /// The two tools' options bar: Combine's four operations on the selected subpaths, then the
+    /// operation the selected subpaths hold (EditorViewController+SubpathOps.swift).
     func pathSelectClusters() -> [OptionCluster] {
         let operations = PathCombineOperation.allCases
         return [
@@ -66,10 +71,11 @@ extension EditorViewController {
                     }),
                     isEnabled: { [weak self] in self?.canCombineSelectedSubpaths ?? false })
             }),
+            subpathOperationCluster(),
         ]
     }
 
-    private var canCombineSelectedSubpaths: Bool {
+    var canCombineSelectedSubpaths: Bool {
         document?.quickMaskActive == false && selectedSubpathsOfCurrentPath() != nil
     }
 
@@ -110,8 +116,12 @@ extension EditorViewController {
                 "combine_paths", arguments, undoName: "Combine Subpaths", note: note)
             else { return }
         case .vectorMask(let layerID)?:
-            let result = PathCombine.combineSubpaths(
+            guard let result = PathCombine.combineSubpaths(
                 selected.shape, selected: Set(selected.indices), operation)
+            else {
+                presentPathAlert("Combine Subpaths could not run", PathCombine.unboundedRefusal)
+                return
+            }
             guard !result.isEmpty else {
                 presentPathAlert(
                     "Combine Subpaths could not run",
@@ -125,8 +135,12 @@ extension EditorViewController {
         case .shapeOutline(let layerID)?:
             // A path shape's outline, which no path tool can name either: the same rule,
             // committed as the gestures are (one `edit_shape_layer`).
-            let result = PathCombine.combineSubpaths(
+            guard let result = PathCombine.combineSubpaths(
                 selected.shape, selected: Set(selected.indices), operation)
+            else {
+                presentPathAlert("Combine Subpaths could not run", PathCombine.unboundedRefusal)
+                return
+            }
             guard !result.isEmpty else {
                 presentPathAlert(
                     "Combine Subpaths could not run",

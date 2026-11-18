@@ -142,8 +142,11 @@ extension EditorViewController {
         shape: PathShape, arguments: [String: Any]
     )? {
         if selectedOnly, let selected = selectedSubpathsOfCurrentPath() {
+            // The selected subpaths alone, their windings summed: a held operation means
+            // nothing without the subpaths before it.
             var shape = PathShape(fillRule: selected.shape.fillRule)
             shape.subpaths = selected.indices.map { selected.shape.subpaths[$0] }
+            shape = shape.droppingOps()
             return (
                 shape, ["subpaths": shape.subpathsJSON, "fill_rule": shape.fillRule.rawValue]
             )

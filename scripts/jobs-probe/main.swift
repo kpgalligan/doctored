@@ -408,6 +408,8 @@ do {
         ("path selection tools", verifyPathSelectionTools),
         ("path selection gestures", verifyPathSelectionGestures),
         ("path subpath booleans", verifyPathSubpathBooleans),
+        // Per-subpath operations held on a path: the options bar's Operation (subpath_ops.swift).
+        ("path subpath operations", verifyPathSubpathOperations),
         ("path fill and stroke sheets", verifyPathFillStrokeSheets),
         // A path shape's outline as the current path (path_shape_outline.swift).
         ("path shape outline target", verifyPathShapeOutlineTarget),

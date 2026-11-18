@@ -52,6 +52,17 @@ import AppKit
 /// version 7 exactly when its kind is `path`, so the three box kinds keep
 /// encoding as 1–6 byte for byte, and a build that knows only those keeps a
 /// path shape's pixels and refuses to re-render it.
+///
+/// Version 8 is version 7 whose outline HOLDS SUBPATH OPERATIONS
+/// (`designs/v1-paths-held-subpaths.md`, HS-5): every subpath carries `op`
+/// (`unite`, `subtract`, `intersect` or `exclude`), and the fill folds each
+/// subpath's own region by it (`ShapeOutline.opCodes` through
+/// `dr_artwork_path_coverage`). A path payload is version 8 exactly when its
+/// outline holds operations, so a version-7 payload keeps its bytes and a
+/// build that knows only 7 keeps the pixels of an 8. Decoding refuses version
+/// 7 with any `op`, version 8 without one on every subpath, an unknown name,
+/// and a holding outline with a stroke or an unbounded one
+/// (`heldOpsRefusal`).
 struct ShapeLayerPayload: Codable, Equatable {
     /// The only `type` this app understands; anything else (or nothing) means
     /// the layer's metadata was written by something that is not a shape
@@ -59,12 +70,14 @@ struct ShapeLayerPayload: Codable, Equatable {
     static let typeName = "shape"
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
-    static let currentVersion = 7
+    static let currentVersion = 8
     /// The stroke-style schema and the ink one (#1).
     static let styledVersion = 5
     static let cmykVersion = 6
-    /// The `path` kind's schema.
+    /// The `path` kind's schema, and its schema when the outline holds
+    /// subpath operations.
     static let pathVersion = 7
+    static let pathOpsVersion = 8
     /// The schema a linear-ink payload with default stroke styles is written
     /// at (version 3 for sRGB ink): what version 4 has always meant.
     static let linearVersion = 4
@@ -162,18 +175,28 @@ struct ShapeLayerPayload: Codable, Equatable {
         kind = try container.decode(String.self, forKey: .kind)
         artwork = try container.decodeIfPresent(ArtworkShapeStyle.self, forKey: .artwork)
         // Version 5 takes its ink from `artwork.ink`; the version-4 equality
-        // (4 = linear, 3 = sRGB) applies only to versions 3 and 4. Version 7
-        // is the path kind in any ink, and only that kind.
+        // (4 = linear, 3 = sRGB) applies only to versions 3 and 4. Versions 7
+        // and 8 are the path kind in any ink, and only that kind.
+        let pathSchema = version == Self.pathVersion || version == Self.pathOpsVersion
         guard (version >= 3) == (artwork != nil), artwork?.ink != .srgb,
               version >= 5 || (version == Self.linearVersion) == (artwork?.ink == .linearSRGB),
-              version == Self.pathVersion || (version == Self.cmykVersion) == (artwork?.ink == .cmyk),
-              (version == Self.pathVersion) == (kind == "path")
+              pathSchema || (version == Self.cmykVersion) == (artwork?.ink == .cmyk),
+              pathSchema == (kind == "path")
         else {
             throw DecodingError.dataCorruptedError(forKey: .artwork, in: container,
                 debugDescription: "native artwork semantics require version 3 (sRGB), 4 (linear) or 5")
         }
-        if version == Self.pathVersion {
-            path = try container.decode(ShapeOutline.self, forKey: .path)
+        if pathSchema {
+            let outline = try container.decode(ShapeOutline.self, forKey: .path)
+            // Version 8 holds an operation on every subpath, version 7 on none.
+            let holding = version == Self.pathOpsVersion
+            guard holding ? outline.ops != nil : outline.subpaths.allSatisfy({ $0.op == nil })
+            else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .path, in: container,
+                    debugDescription: "subpath operations require version 8, on every subpath")
+            }
+            path = outline
         }
         if version >= 5 {
             strokeJoin = try container.decodeIfPresent(ShapeStrokeJoin.self, forKey: .strokeJoin) ?? .miter
@@ -217,7 +240,7 @@ struct ShapeLayerPayload: Codable, Equatable {
         let style = self.artwork ?? (styled || isPath ? ArtworkShapeStyle(
             fill: fillColor.map(ArtworkColor.authored),
             stroke: strokeColor.map(ArtworkColor.authored), in: .srgb) : nil)
-        let version = isPath ? Self.pathVersion
+        let version = isPath ? (path?.ops != nil ? Self.pathOpsVersion : Self.pathVersion)
             : style?.ink == .cmyk ? Self.cmykVersion
             : styled ? Self.styledVersion
             : style.map { $0.ink == .linearSRGB ? Self.linearVersion : 3 }
@@ -309,7 +332,8 @@ struct ShapeLayerPayload: Codable, Equatable {
     /// dimension), a stroke width ≥ 1, and a stroke color — a line with no
     /// stroke is nothing. A path needs a valid outline (`ShapeOutline.isValid`)
     /// and a box of 1 px on some axis, on both when it has no stroke (a straight
-    /// open path has no area to fill).
+    /// open path has no area to fill); one whose outline holds operations needs
+    /// no stroke and a bounded fold (`heldOpsRefusal`).
     static func decode(_ json: String) -> ShapeLayerPayload? {
         guard let data = json.data(using: .utf8),
               let payload = try? JSONDecoder().decode(ShapeLayerPayload.self, from: data),
@@ -325,7 +349,8 @@ struct ShapeLayerPayload: Codable, Equatable {
               payload.transform.isInvertible,
               TextLayer.isValidFraction(payload.originFraction)
         else { return nil }
-        guard (payload.kind == "path") == (payload.path != nil), payload.path?.isValid != false
+        guard (payload.kind == "path") == (payload.path != nil), payload.path?.isValid != false,
+              payload.heldOpsRefusal == nil
         else { return nil }
         if payload.kind == "line" {
             guard max(payload.w, payload.h) >= 1, payload.strokeWidth >= 1,
@@ -463,8 +488,15 @@ enum ShapeLayer {
             context.setShouldAntialias(true)
             guard let path = vectorPath(payload) else { return false }
             if payload.kind != "line", let fill = fillColor {
-                context.setFillColor(fill.cgColor); context.addPath(path)
-                context.fillPath(using: fillRule(payload))
+                // An outline that holds operations fills its fold, by winding.
+                if let outline = payload.path, outline.ops != nil,
+                   let region = PathCombine.foldedRegion(outline.shape(origin: .zero)) {
+                    context.setFillColor(fill.cgColor); context.addPath(region)
+                    context.fillPath(using: .winding)
+                } else {
+                    context.setFillColor(fill.cgColor); context.addPath(path)
+                    context.fillPath(using: fillRule(payload))
+                }
             }
             if let stroke = strokeColor, let outline = strokeOutline(payload, path: path) {
                 // A styled stroke is its filled outline, the same one

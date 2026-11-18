@@ -1,8 +1,10 @@
 # Per-subpath operations held on a path (ADR)
 
-- **Status:** Accepted; slices 1 and 2 shipped (the kernel, then the model and DRDC word 116). Slices 3
-  and 4 are the last open item of [#19](https://github.com/kpgalligan/doctored/issues/19); "What a build
-  owes" below is their plan.
+- **Status:** Accepted; slices 1, 2 and 4 shipped (the kernel, the model and DRDC word 116, then the app,
+  MCP and the options bar). Slice 4 was built on `main` a80901d2, where slice 3 (the codecs) had not
+  landed: `psd_path_records::encode` still refuses a shape with `ops`, so slice 4 reads none of slice 3's
+  code. Slice 3 and the owner's hand check below are what remain of
+  [#19](https://github.com/kpgalligan/doctored/issues/19)'s item; "What a build owes" is the plan.
 - **Date:** 2026-11-16
 - **Extends:** [v1-paths.md](v1-paths.md) (its `OPEN` item for #19).
 
@@ -121,10 +123,25 @@ Accepted.
   - A path SHAPE layer's fill does not go through `PathShape`: the app hands `dr_artwork_path_coverage`
     the outline's verbs and points and one `even_odd` flag (`NativeArtwork.shape`). Holding `ops` on a path
     shape needs that export to take the operation list (the FFI lockstep) and HS-2's routine behind it.
+    Shipped (slice 4): `ops`/`op_count`, one code per MOVE verb (0 unite, 1 subtract, 2 intersect,
+    3 exclude), `op_count` 0 being today's call byte for byte (`core/tests/artwork_path_ops.rs`). The fill
+    part of a holding outline is built from `ShapeOutline.foldPath()` (`PathShape.foldCGPath`), never
+    `cgPath()`: CoreGraphics drops a one-anchor open subpath's lone move before another move, so it is
+    written move plus a zero-length line, one move per payload subpath, its codes `opCodes`.
+  - **An edgeless subpath** (one anchor without a loop handle, or any move that draws no edge) is still
+    a subpath and takes its code: it is outside everywhere, so unite, subtract and exclude by it change
+    nothing and intersect by it clears the fold before it. The core's walk, the app's preview fold
+    (`PathCombine.foldedRegion`) and the catalog say the same; a holding shape with one renders as
+    `fill_path` of the same subpaths.
 - **HS-4 — Strokes.** `stroke_path` follows each subpath's flattened outline (`path_flatten`) and ignores
   `ops`: a stroke runs along the subpaths, not around the folded region. A path SHAPE layer with `ops` and
   a stroke is refused by name, since its stroke outline (`ShapeLayer.strokeOutline`) would trace subpaths
-  the fold removed; Combine Selected Subpaths makes one outline first.
+  the fold removed; Combine Selected Subpaths makes one outline first. Shipped as
+  `ShapeLayerPayload.heldOpsRefusal`, which also refuses an unbounded holding outline (a shape's box cannot
+  hold everything outside its subpaths): `add_shape_layer` and `edit_shape_layer` refuse by its sentence
+  (whichever side the call brings, the stroke or the operations), the canvas commits (an outline gesture,
+  the re-edit session, Convert to Shape Layer) show it as an alert, and a payload it names decodes as plain
+  pixels.
 - **HS-5 — Persistence.** The `PATH` table's entry JSON (paths and live vector-mask records alike) carries
   each subpath's `op`. A document whose paths and vector masks hold no `ops` writes the prior writer's
   bytes. One the core sees holding `ops` takes DRDC conditional word 116 (`subpath_ops_native`),
@@ -132,6 +149,9 @@ Accepted.
   build refuses the file instead of reading the outline under one rule. A path SHAPE layer's outline lives
   in the shape payload, which the core never parses (opaque `meta`), so it needs no DRDC word: a path shape
   may hold `ops` only in the next shape payload version (8), which an older build reads as plain pixels.
+  Shipped: a path payload is version 8 exactly when its outline holds `ops` (each subpath's `op` in the
+  outline, omitted otherwise, so a version-7 payload keeps its bytes); 7 with an `op`, 8 without one on
+  every subpath, and an unknown name decode as plain pixels.
 - **HS-6 — PSD and TIFF.** `psd_path_records::decode` keeps reading every-0 as even-odd and every-1 as
   nonzero with no `ops` (every file that imports today imports the same); any other mix reads into `ops`
   (0 exclude, 1 unite, 2 subtract, 3 intersect) instead of setting `combined`, with each subpath's region
@@ -153,6 +173,16 @@ Accepted.
   recorded as `set_path` with the whole shape), on a vector mask its rebake (`set_vector_mask`), on a path
   shape's outline its re-render (`edit_shape_layer`). Combine Selected Subpaths keeps producing geometry;
   its result holds no `ops`.
+  - Shipped (slice 4): the app parses and writes `op` in `PathShape(subpathsJSON:)` / `subpathsJSON`, all
+    or none, so every path tool takes and reads it with no per-tool parsing; `stroke_path` ignores it. The
+    options bar's Operation popup (`EditorViewController+SubpathOps.swift`: —, Unite, Subtract, Intersect,
+    Exclude; enabled as Combine is) records "Set Subpath Operation", the selection kept; a path that held
+    none starts holding them, every other subpath `unite`. On a holding shape Combine Selected Subpaths and
+    `combine_paths` with `subpath_indices` give the listed subpaths the operation and return the whole fold
+    as geometry, holding none; an unbounded fold refuses (`PathCombine.unboundedRefusal`). Fill Path…,
+    Stroke Path… and Make Selection… on selected subpaths of a holding path take them without `ops`.
+    Checks: `scripts/verify_path_subpath_ops.py` (RGB 8, 16 and 32) and the jobs-probe's "path subpath
+    operations".
 
 ## What a build owes
 
@@ -173,4 +203,5 @@ Ordered slices, each with its own check, each landing green before the next:
    8, 16 and 32 bits (each operation's coverage against `dr_path_coverage` of the equivalent combined
    path, save and reopen, undo, a replayed recorded step), plus jobs-probe rows for the options bar.
 
-Hand check (the owner's): the options bar's four operations on a real path in a real window.
+Hand check (the owner's, still owed): the options bar's four operations on a real path, a vector mask and
+a path shape in a real window.

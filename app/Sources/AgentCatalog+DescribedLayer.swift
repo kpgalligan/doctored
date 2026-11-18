@@ -224,7 +224,10 @@ extension AgentServer {
                     + "(with an optional fill_rule) in canvas px, or path, a stored path's name — "
                     + "one of the two — and no x, y, w, h, radius or flipped: the box is the "
                     + "outline's own, and the reply's shape carries the outline relative to its "
-                    + "origin. Returns the new layer's "
+                    + "origin. Subpaths that hold operations (op) fill by them; such a shape "
+                    + "refuses a stroke (it would trace the subpaths the operations remove) and an "
+                    + "unbounded outline (first subpath subtract, none intersect). Returns the new "
+                    + "layer's "
                     + "index and name. NOTE: painting on the layer afterwards drops the "
                     + "shape description and leaves plain pixels. "
                     + floatInk + " "
@@ -315,7 +318,9 @@ extension AgentServer {
                     + "layer's current "
                     + "transform, so x, y, w, h and transform are refused beside it (move or re-map "
                     + "in a second call). get_shape_layer reads the outline back as "
-                    + "canvas_subpaths, this form. Omitted arguments keep the "
+                    + "canvas_subpaths, this form. An outline whose subpaths hold operations (op) "
+                    + "refuses a stroke, whichever of the two the call brings, and an unbounded "
+                    + "outline. Omitted arguments keep the "
                     + "layer's current values "
                     + "(x,y default to its origin, transform to its current map); the mask "
                     + "and style ride along. Pass fill or stroke as \"\" to remove that "
@@ -391,7 +396,9 @@ extension AgentServer {
                     + "relative to the shape box's top-left before the transform, and "
                     + "canvas_subpaths, where the outline lies on the canvas (origin plus the "
                     + "transform of each point), in set_path's form, which edit_shape_layer takes "
-                    + "back as subpaths. A layer that is not a shape layer answers ok with shape "
+                    + "back as subpaths; each subpath carries its op when the outline holds "
+                    + "operations (the shape's version is then 8). A layer that is not a shape "
+                    + "layer answers ok with shape "
                     + "null and a note. No undo step.",
                 [
                     "layer": index,

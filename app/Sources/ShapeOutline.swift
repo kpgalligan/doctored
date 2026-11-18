@@ -1,18 +1,21 @@
 import AppKit
 
-// A shape layer's `path` kind (payload version 7, ShapeLayer.swift): its outline is a Pen path's
-// anchors in the shape box's LOCAL space, the box's top-left at (0, 0), so the layer's offset and
-// transform place it like every other shape. Paths panel ▸ Convert to Shape Layer and
-// `add_shape_layer` with kind "path" make one (EditorViewController+PathCommands.swift,
-// AgentServer+Shapes.swift).
+// A shape layer's `path` kind (payload version 7, or 8 when its outline holds subpath operations,
+// ShapeLayer.swift): its outline is a Pen path's anchors in the shape box's LOCAL space, the box's
+// top-left at (0, 0), so the layer's offset and transform place it like every other shape. Paths
+// panel ▸ Convert to Shape Layer and `add_shape_layer` with kind "path" make one
+// (EditorViewController+PathCommands.swift, AgentServer+Shapes.swift).
 
 /// A path shape's outline: `PathShape` in box-local coordinates. Each anchor is the compact array
 /// `[x, y, inX, inY, outX, outY, smooth]` (smooth 0 or 1): the payload is this app's own schema,
 /// and the array is about half the size of the path-list JSON's objects at a few thousand anchors.
+/// A subpath's `op` is the operation it holds (`PathCombineOperation`'s name), on every subpath
+/// when the outline holds them and on none otherwise, when it is omitted from the JSON.
 struct ShapeOutline: Codable, Equatable {
     struct Subpath: Codable, Equatable {
         var closed: Bool
         var anchors: [[Double]]
+        var op: String?
     }
 
     /// The path model's caps (`core/src/path_geometry.rs`): one outline holds at most what one
@@ -34,25 +37,39 @@ struct ShapeOutline: Codable, Equatable {
 
     var anchorCount: Int { subpaths.reduce(0) { $0 + $1.anchors.count } }
 
-    /// `shape` (canvas coordinates) relative to `origin`.
+    /// `shape` (canvas coordinates) relative to `origin`; its operations when it holds them.
     init(_ shape: PathShape, origin: CGPoint) {
         fillRule = shape.fillRule.rawValue
+        let holding = shape.ops != nil
         subpaths = shape.subpaths.map { subpath in
             Subpath(closed: subpath.closed, anchors: subpath.anchors.map { anchor in
                 [Double(anchor.point.x - origin.x), Double(anchor.point.y - origin.y),
                  Double(anchor.handleIn.x - origin.x), Double(anchor.handleIn.y - origin.y),
                  Double(anchor.handleOut.x - origin.x), Double(anchor.handleOut.y - origin.y),
                  anchor.smooth ? 1 : 0]
-            })
+            }, op: holding ? subpath.op.rawValue : nil)
         }
     }
 
+    /// One operation per subpath when every subpath names a known one; nil otherwise.
+    var ops: [PathCombineOperation]? {
+        let named = subpaths.compactMap { $0.op.flatMap(PathCombineOperation.init(rawValue:)) }
+        return !subpaths.isEmpty && named.count == subpaths.count ? named : nil
+    }
+
+    /// The core's code of each subpath's operation (`dr_artwork_path_coverage`'s `ops`: 0 unite,
+    /// 1 subtract, 2 intersect, 3 exclude, `PathCombineOperation.artworkCode`), one per subpath;
+    /// empty for an outline that holds none.
+    var opCodes: [UInt8] { ops?.map(\.artworkCode) ?? [] }
+
     /// What a decoded outline must be to describe pixels: a known fill rule, one subpath or more
     /// within the caps, every subpath with an anchor, every anchor seven finite numbers inside the
-    /// local wall with `smooth` 0 or 1.
+    /// local wall with `smooth` 0 or 1, and an operation on no subpath or a known one on every
+    /// subpath.
     var isValid: Bool {
         PathFillRule(rawValue: fillRule) != nil && !subpaths.isEmpty
             && subpaths.count <= Self.maxSubpaths && anchorCount <= Self.maxAnchors
+            && (subpaths.allSatisfy { $0.op == nil } || ops != nil)
             && subpaths.allSatisfy { subpath in
                 !subpath.anchors.isEmpty && subpath.anchors.allSatisfy { anchor in
                     anchor.count == 7 && (anchor[6] == 0 || anchor[6] == 1)
@@ -61,20 +78,26 @@ struct ShapeOutline: Codable, Equatable {
             }
     }
 
-    /// The outline as a path value with the box's top-left at `origin`.
+    /// The outline as a path value with the box's top-left at `origin`, holding its operations.
     func shape(origin: CGPoint) -> PathShape {
-        PathShape(subpaths: subpaths.map { subpath in
+        let held = ops
+        return PathShape(subpaths: subpaths.enumerated().map { index, subpath in
             PathSubpath(anchors: subpath.anchors.map { a in
                 PathAnchor(
                     point: CGPoint(x: a[0] + origin.x, y: a[1] + origin.y),
                     handleIn: CGPoint(x: a[2] + origin.x, y: a[3] + origin.y),
                     handleOut: CGPoint(x: a[4] + origin.x, y: a[5] + origin.y), smooth: a[6] != 0)
-            }, closed: subpath.closed)
-        }, fillRule: PathFillRule(rawValue: fillRule) ?? .nonZero)
+            }, closed: subpath.closed, op: held?[index] ?? .unite)
+        }, fillRule: PathFillRule(rawValue: fillRule) ?? .nonZero, holdsOps: held != nil)
     }
 
     /// The outline as CoreGraphics draws it, in box-local space (`PathShape.cgPath`'s rule).
     func cgPath() -> CGPath { shape(origin: .zero).cgPath() }
+
+    /// The outline with one move per subpath, in box-local space (`PathShape.foldCGPath`): the
+    /// fill part of an outline that holds operations, whose codes (`opCodes`) the core matches
+    /// to its moves.
+    func foldPath() -> CGPath { shape(origin: .zero).foldCGPath() }
 
     /// The outline scaled about the box's origin by `sx` × `sy` — a re-boxed shape, the box and
     /// its outline resized alike.
@@ -83,7 +106,7 @@ struct ShapeOutline: Codable, Equatable {
         result.subpaths = subpaths.map { subpath in
             Subpath(closed: subpath.closed, anchors: subpath.anchors.map { a in
                 [a[0] * sx, a[1] * sy, a[2] * sx, a[3] * sy, a[4] * sx, a[5] * sy, a[6]]
-            })
+            }, op: subpath.op)
         }
         return result
     }
@@ -108,8 +131,9 @@ struct ShapeOutline: Codable, Equatable {
                       y: axes.y ? Double(new.height / old.height) : 1)
     }
 
-    /// A canvas path placed as a shape: the outline and the box it spans. Every coordinate is
-    /// first quantized to four decimals by the path model's rule (the master is the core's
+    /// A canvas path placed as a shape: the outline (holding the path's operations, if any) and
+    /// the box it spans. Every coordinate is first quantized to four decimals by the path model's
+    /// rule (the master is the core's
     /// `style_json::q4_f64`, which `path_geometry` stores every coordinate through), so a path
     /// read back from the list, a recorded step's `subpaths` and the path itself all place the
     /// same outline bits. The box is the outline's tight bounding box with its origin moved DOWN
@@ -257,5 +281,37 @@ struct ShapeOutline: Codable, Equatable {
             }
         }
         return tips
+    }
+}
+
+// MARK: - Held operations on a path shape
+
+extension ShapeLayerPayload {
+    /// Why a path shape whose outline holds subpath operations cannot be this one, or nil when it
+    /// can (`designs/v1-paths-held-subpaths.md`, HS-4): a stroke would trace subpaths the
+    /// operations remove (`strokeOutline` follows every subpath), and an unbounded outline would
+    /// fill everything outside its subpaths, which a shape's box cannot hold. nil for an outline
+    /// that holds none. The canvas commits present it as an alert and `add_shape_layer` /
+    /// `edit_shape_layer` as their refusal (`AgentServer.validatePathShapeOps`).
+    static func heldOpsRefusal(outline: PathShape, stroked: Bool) -> String? {
+        guard outline.ops != nil else { return nil }
+        if stroked {
+            return "A path shape whose subpaths hold operations cannot take a stroke: the stroke "
+                + "would trace subpaths the operations remove. Remove the stroke, or combine the "
+                + "subpaths into one outline first."
+        }
+        if outline.isUnbounded {
+            return "A path shape's outline must be bounded: its first subpath subtracts and none "
+                + "intersects, so it would fill everything outside them. Start it with a unite "
+                + "subpath."
+        }
+        return nil
+    }
+
+    /// `heldOpsRefusal` of this payload's own outline and stroke (a colour and a width above 0).
+    var heldOpsRefusal: String? {
+        guard kind == "path", let path else { return nil }
+        return Self.heldOpsRefusal(
+            outline: path.shape(origin: .zero), stroked: !stroke.isEmpty && strokeWidth > 0)
     }
 }

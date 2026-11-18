@@ -69,6 +69,7 @@ extension AgentServer {
             transform: transform, ink: ink,
             strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align,
             path: placed?.outline)
+        try Self.validatePathShapeOps(payload)
         let name = ShapeLayer.layerName(for: payload)
         // The shape box lands with its top-left at (x, y) — whole pixels for
         // an untransformed box, exact otherwise: commitShapeLayer's rule.
@@ -195,6 +196,7 @@ extension AgentServer {
             transform: transform, ink: ink,
             strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align,
             path: outline)
+        try Self.validatePathShapeOps(payload)
         // A given x,y is a placement (whole pixels while untransformed, exact
         // otherwise); an omitted one keeps the exact anchor as it is, and a
         // new outline brings its own.

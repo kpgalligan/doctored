@@ -31,6 +31,11 @@ extension EditorViewController {
             strokeJoin: options.strokeJoin, strokeDash: options.strokeDash,
             strokeAlign: options.strokeAlign,
             path: placed.outline)
+        // A path that holds subpath operations takes no stroke and must be bounded.
+        if let refusal = payload.heldOpsRefusal {
+            presentHeldOpsRefusal(refusal)
+            return
+        }
         // The box's corner is whole pixels by construction (`ShapeOutline.placed`), and a new
         // shape is never transformed.
         commitNewShapeLayer(

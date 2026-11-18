@@ -648,7 +648,19 @@ final class PathThumbnailView: NSView {
         }
         outline.windingRule = shape.fillRule == .evenOdd ? .evenOdd : .nonZero
         DS.textMuted.withAlphaComponent(0.35).setFill()
-        outline.fill()
+        if shape.ops != nil {
+            // A path that holds subpath operations fills its fold (nothing when unbounded);
+            // the outline below still shows every subpath.
+            if let region = PathCombine.foldedRegion(shape) {
+                var placement = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
+                                                  tx: offset.x, ty: offset.y)
+                if let placed = region.copy(using: &placement) {
+                    NSBezierPath(cgPath: placed).fill()
+                }
+            }
+        } else {
+            outline.fill()
+        }
         DS.textStrong.setStroke()
         outline.lineWidth = 1
         outline.stroke()

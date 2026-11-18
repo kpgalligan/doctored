@@ -130,6 +130,8 @@ fn polygon() -> Vec<u16> {
             W,
             H,
             false,
+            ptr::null(),
+            0,
             out.as_mut_ptr(),
             out.len(),
             LIMIT,
