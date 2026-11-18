@@ -326,14 +326,22 @@ enum RawLocalWork {
     /// core's float tone stage plans at most the 16-bit stage, and its
     /// develop 8 B/px more (the f32 base), which the 24 B/px above covers
     /// (LTD at 6000×4000 plans 1,773 MiB at 16 bits and 1,957 MiB at float
-    /// against charges of 528 MiB + 82·px + 3·encoded and that + 24·px). Not
-    /// yet measured ([#72](https://github.com/kpgalligan/doctored/issues/72)).
+    /// against charges of 528 MiB + 82·px + 3·encoded and that + 24·px).
     /// Measurement record (`measure.py --float`, the decode record's method):
     /// charge (+ the session's 24 B/px of inspection copies) ÷ max E for L0,
     /// L1, L4 and FX (no grain) is 1.502/1.415/1.351/1.560 on the NEF,
     /// 2.707/1.716/1.543/1.471 on D24 and 2.582/2.184/1.740/1.381 on D850;
     /// FX-32 with grain (#4) 1.558/1.471/1.574 on the NEF, D24 and D850;
-    /// every case ≥ 1.25, so `localPerPixel` was not raised. At 8 GiB, beside
+    /// every case ≥ 1.25, so `localPerPixel` was not raised. PX-32 (FX plus
+    /// Develop Presence) and the float tone locals (2026-11-18, `--float --only
+    /// PX-32-… LT1-32-… LTS-32-… LTD-32-…`, the same method, no STOP), max E on
+    /// the NEF, D24 and D850 and charge ÷ max E: PX-32 1,002,438,920 /
+    /// 3,178,334,560 / 5,249,126,384 (1.558/1.471/1.573); LT1 905,445,544 /
+    /// 1,797,588,264 / 2,660,648,904 (1.725/2.280/3.103); LTS 905,953,448 /
+    /// 2,001,339,304 / 2,881,325,192 (1.724/2.048/2.865); LTD 905,298,088 /
+    /// 2,020,689,384 / 3,790,670,608 (1.725/2.029/2.178). `FLOAT INCREMENTS`
+    /// read 0 for every float term, so no float effects term was added, and
+    /// the float tone terms are 0 and 0: the 16-bit tone terms stand. At 8 GiB, beside
     /// the opened float document (18.1 B/px retained), a Develop session fits
     /// about 53 MP with no local, 49 MP with one and 35.5 MP with four, so a
     /// 45 MP float development with four locals is refused there.

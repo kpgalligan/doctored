@@ -113,10 +113,10 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   Develop previews run the full-size pipeline, so the preview is the Apply result. Persistence: an optional recipe
   `presence`, absent when all three are 0 (an older build refuses the unknown key and keeps the saved rendering).
   Presets are schema 4. On the 32-bit float development the same request runs Filter ▸ Presence's float rule
-  (above); its stage is admitted by the core's float plan, and float grain stands for it in the host's float decode
-  and locals charges, measured with grain: at 24 MP the two stages' footprints are 1,152,697,160 and 1,152,664,416
-  bytes, each one `selectedEdit` after optics, run one after the other (a record with Presence itself:
-  [#72](https://github.com/kpgalligan/doctored/issues/72)). Code:
+  (above); its stage is admitted by the core's float plan, and the host's float decode and locals charges are
+  measured with it (`measure.py --float`: OP32, VP32 and PX-32 on the NEF, D24 and D850, each charged at ≥ 1.28×
+  max E, no constant raised; the records sit beside `RawSourceWork.floatPerPixel` and
+  `RawLocalWork.measuredScratch`). Code:
   `RawPresence.swift`; drives `scripts/verify_v1_raw_presence.py`, `scripts/verify_v1x_raw_hdr.py` (rule D).
 - **Local tone path:** a local may carry a `tone` (Exposure −4…4 stops, Contrast, Highlights, Shadows, Whites,
   Blacks, Saturation, Clarity, Texture), applied in the core to the 16-bit development through the existing kernels

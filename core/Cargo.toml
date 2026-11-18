@@ -157,6 +157,8 @@ name = "float_promote_24mp" # isolate: one large document at a time; sets the pr
 [[test]]
 name = "float_selected_pixels_24mp" # isolate: one large document at a time
 [[test]]
+name = "layer_detail_24mp" # isolate: one large document at a time
+[[test]]
 name = "selected_color_planes_24mp" # isolate: one large document at a time
 [[test]]
 name = "native_save_plan8_45mp" # isolate: about 1.4 GB per case; own #[global_allocator] counting the heap a save or an open adds; sets the working limit

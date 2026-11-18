@@ -28,13 +28,16 @@ and prepares the NEF and every `--real` fixture once at that working limit.
 
 `--float` runs the 32-bit float (linear) development's cases at depth
 32 on the NEF, D24 and every `--real` fixture and gates each on the app's own
-float charge: O32, OG32, W32, K32, V32 and VG32 (`RawSourceWork.scratch(float:
-true)`, V with the session's 24 B/px of inspection copies; OG and VG develop
-grain), GR32 (`applyingRawGrain` alone, the core's selected-edit plan),
-VF32F and VF32D (a viewport-only HDR frame, the preview session's 48 MiB plus
-`extendedFramePerPixel` per output pixel of each f32 side) and L0, L1, L4 and
-FX with grain (`RawLocalWork.measuredScratch(float: true)` plus those 24
-B/px). It fits nothing: a miss is a STOP.
+float charge: O32, OG32, OP32, W32, K32, V32, VG32 and VP32
+(`RawSourceWork.scratch(float: true)`, V with the session's 24 B/px of
+inspection copies; OG and VG develop grain, OP and VP Develop Presence), GR32
+(`applyingRawGrain` alone, the core's selected-edit plan), VF32F and VF32D (a
+viewport-only HDR frame, the preview session's 48 MiB plus
+`extendedFramePerPixel` per output pixel of each f32 side) and L0, L1, L4, FX
+with grain, PX (FX plus Presence) and the tone locals LT1, LTS and LTD
+(`RawLocalWork.measuredScratch(float: true)` plus those 24 B/px). It fits
+nothing: a miss is a STOP, and `FLOAT INCREMENTS` prints the least whole B/px
+raise each float term would need (`float_increments`).
 
 `--predict <limit> --file <fixture>` instead mirrors `RasterResources.admit`
 for one RAW step with the committed `RawSourceWork.scratch` constants (and
@@ -1028,24 +1031,64 @@ def fit_from(paths):
 def float_cases(camera, real):
     """The float cases: (label, mode, fixture, shape, cold) at depth 32. FX is grain, vignette and authored
     lens (grain applies at the float encoding). The float cases add OG32 (the open with grain), VG32
-    (the import preview whose after develops grain), GR32 (`applyingRawGrain` alone on an open
-    float development, gated on the core's selected-edit plan) and VF32F / VF32D (one
+    (the import preview whose after develops grain), OP32 and VP32 (the same with Develop Presence
+    at 50 on all three sliders), GR32 (`applyingRawGrain` alone on an open
+    float development, gated on the core's selected-edit plan), VF32F / VF32D (one
     viewport-only HDR frame of two f32 sides with Clipping, at Fit and at a 1024 x 1024 100 %
-    region, gated on the preview session's own charge)."""
+    region, gated on the preview session's own charge), PX (FX plus Presence) and the float tone
+    locals LT1, LTS and LTD (`TONE_SHAPES`)."""
     rows = []
     for name in (["NEF"] if camera else []) + ["D24"] + list(real):
         rows.append((f"O32-{name}", "open", name, None, False))
         rows.append((f"OG32-{name}", "open", name, "OG", False))
+        rows.append((f"OP32-{name}", "open", name, "OP", False))
         rows.append((f"W32-{name}", "warm", name, None, False))
         rows.append((f"K32-{name}", "cold", name, None, True))
         rows.append((f"V32-{name}", "preview", name, None, False))
         rows.append((f"VG32-{name}", "preview", name, "VG", False))
+        rows.append((f"VP32-{name}", "preview", name, "VP", False))
         rows.append((f"GR32-{name}", "grain", name, None, False))
         rows.append((f"VF32F-{name}", "frame", name, "F", False))
         rows.append((f"VF32D-{name}", "frame", name, "D", False))
-        for shape in ("L0", "L1", "L4", "FX"):
+        for shape in ("L0", "L1", "L4", "FX", "PX", "LT1", "LTS", "LTD"):
             rows.append((f"{shape}-32-{name}", "local", name, shape, False))
     return rows
+
+
+def ceil_div(a, b):
+    """⌈a / b⌉ for integers, negative a included."""
+    return -(-a // b)
+
+
+def float_increments(results):
+    """The least whole B/px raises (each >= 0) that bring every measured float case (max E > 0,
+    no refusal) to ceil(1.25 x max E), short = that - `gate_charge`: `floatPerPixel` over the
+    open, warm, cold and preview cases; `floatEffectsPixel` over the local FX and PX;
+    `floatPerToneLocalPixel` t over LT1, per tone local (`kt`); `floatToneStagePixel` over LTS
+    and LTD, after their kt·t. Prints `FLOAT INCREMENTS {json}`. The gate is unchanged: this only
+    says by how much a missed term rises."""
+    raises = {"floatPerPixel": 0, "floatEffectsPixel": 0, "floatPerToneLocalPixel": 0,
+              "floatToneStagePixel": 0}
+    measured = [c for c in results["cases"].values() if c["max_e"] > 0 and not c["refused"] and c["px"]]
+
+    def raise_to(key, value):
+        raises[key] = max(raises[key], value)
+
+    for c in measured:
+        short = c["need"] - c["gate_charge"]
+        if c["mode"] in ("open", "warm", "cold", "preview"):
+            raise_to("floatPerPixel", ceil_div(short, c["px"]))
+        elif c["mode"] == "local" and c["shape"] in ("FX", "PX"):
+            raise_to("floatEffectsPixel", ceil_div(short, c["px"]))
+        elif c["mode"] == "local" and c["shape"] == "LT1" and c["kt"] > 0:
+            raise_to("floatPerToneLocalPixel", ceil_div(short, c["kt"] * c["px"]))
+    t = raises["floatPerToneLocalPixel"]
+    for c in measured:
+        if c["mode"] == "local" and c["shape"] in ("LTS", "LTD"):
+            short = c["need"] - c["gate_charge"]
+            raise_to("floatToneStagePixel", ceil_div(short - c["kt"] * t * c["px"], c["px"]))
+    print("FLOAT INCREMENTS " + json.dumps(raises), flush=True)
+    return raises
 
 
 def run_float(arguments, output, env, binary, files, receipt):
@@ -1086,14 +1129,17 @@ def run_float(arguments, output, env, binary, files, receipt):
                 "runs": runs, "baseline": twin, "px": first.get("px", 0),
                 "enc": first.get("encoded", first.get("file_bytes", 0)), "max_e": max_e, "need": need,
                 "gate_charge": gate, "ratio": round(gate / max_e, 3) if max_e else None,
-                "refused": refused[0] if refused else None}
+                "refused": refused[0] if refused else None,
+                "kt": first.get("tone_locals", 0), "ts": bool(first.get("tone_stage", False))}
         results["cases"][label] = case
         if refused:
             results["stops"].append(f"{label} was refused: {refused[0]}")
         elif len(good) != arguments.runs:
             results["stops"].append(f"{label}: only {len(good)} of {arguments.runs} runs measured")
-        elif mode in ("warm", "cold", "grain") and not all(r.get("master_is_float") for r in good):
+        elif mode in ("open", "warm", "cold", "grain") and not all(r.get("master_is_float") for r in good):
             results["stops"].append(f"{label}: the source is not a float development")
+        elif mode == "local" and not all(r.get("float") for r in good):
+            results["stops"].append(f"{label}: the local development is not a float development")
         elif mode == "grain" and not all(r.get("grained") for r in good):
             results["stops"].append(f"{label}: the grain changed nothing")
         elif mode == "frame" and not all(r.get("extended") for r in good):
@@ -1109,6 +1155,7 @@ def run_float(arguments, output, env, binary, files, receipt):
         print(f"{label:14s} {case['px']:>11,} {case['enc']:>11,}  {es}  max {case['max_e']:,}  "
               f"charge {case['gate_charge']:,}  {case['ratio']}  twin {case['baseline'].get('e')}"
               + (f"  REFUSED: {case['refused']}" if case["refused"] else ""), flush=True)
+    results["float_increments"] = float_increments(results)
     (output / "measure-float.json").write_text(json.dumps(results, indent=2) + "\n")
     if results["stops"]:
         for stop in results["stops"]:

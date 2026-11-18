@@ -4,7 +4,7 @@
 //
 //   probe calibrate
 //   probe <open|warm|cold|prep|preview|resident> <file> <16|8>   (cold takes a .rz)
-//   probe [baseline] open <raw> <16|8> OP / preview <raw> 16 VP   (with Presence)
+//   probe [baseline] open <raw> <16|8|32> OP / preview <raw> <16|32> VP   (with Presence)
 //   probe [baseline] open <raw> <16|8> OL / preview <raw> 16 VL   (v1-lensfun: Lensfun stage on)
 //   probe [baseline] open <raw> 32 OG / preview <raw> 32 VG        (with grain)
 //   probe [baseline] grain <raw> 32                                (applyingRawGrain alone, GR)
@@ -12,7 +12,7 @@
 //   probe baseline <open|warm|cold|prep|preview> <file> <16|8>
 //   probe save <dng> <16|8> <out.rz>
 //   probe [baseline] restore <raw|.rz> <16|8> [none|L4]           (phase 2, RS)
-//   probe [baseline] local <raw|.rz> <16|8> <L0|L1|L1B|L1C|L4|FX|PX|LS|LP|LT1|LT16|LTS|LTD>  (L)
+//   probe [baseline] local <raw|.rz> <16|8|32> <L0|L1|L1B|L1C|L4|FX|PX|LS|LP|LT1|LT16|LTS|LTD>  (L)
 //   probe [baseline] publish <raw> <16|8> <L0|L1>                 (PB)
 //   probe menu <raw> <16|8> <M0|M1|M11|MC>                        (no E)
 //
@@ -459,7 +459,7 @@ func localCharge(_ source: RasterDocument, settings: RawDevelopSettings,
         // float development's inspection copies (`RawLocalDevelopSession`).
         let inspection = float ? UInt64(retained.width) * UInt64(retained.height) * 24 : 0
         return ["locals": shape.locals, "tone_locals": shape.toneLocals, "tone_stage": shape.toneStage,
-                "effects": shape.effects, "charge": charge,
+                "effects": shape.effects, "float": float, "charge": charge,
                 "budget": max(charge, replace), "replace_charge": replace,
                 "gate_charge": charge + inspection,
                 "decode_charge": try RawSourceWork.scratch(width: retained.width, height: retained.height,
@@ -812,8 +812,12 @@ do {
     case "frame":
         try floatFrame()
     case "open":
-        // OP: the open develops with Presence, the stage before grain.
-        if shapeName == "OP" { RawImportRequest.mode = .headless(withPresence(RawDevelopSettings())) }
+        // OP: the open develops with Presence, the stage before grain, at the probe's depth.
+        if shapeName == "OP" {
+            var settings = withPresence(RawDevelopSettings())
+            if floatDepth { settings.outputEncoding = .linearFloat }
+            RawImportRequest.mode = .headless(settings)
+        }
         // OG: the open develops grain, the last stage, at the probe's depth.
         if shapeName == "OG" {
             var settings = RawDevelopSettings()
@@ -842,7 +846,11 @@ do {
         } else {
             let run = measure { try ImageDocument.openRetainedRaw(found) }
             record(run)
-            if case .success(let opened) = run.result { fields["retained"] = retainedBytes(); _ = opened }
+            if case .success(let opened) = run.result {
+                fields["retained"] = retainedBytes()
+                // Whether the opened master is the float development (`measure.py --float`).
+                fields["master_is_float"] = (try? Retained(opened.doc))?.descriptor.recipe.isLinearFloat ?? false
+            }
         }
     case "warm", "cold", "prep":
         let source: RasterDocument
@@ -904,7 +912,7 @@ do {
         if floatDepth { requested.outputEncoding = .linearFloat }
         var desired = captured
         // VP: the after develop runs Presence too, as the import preview does once a
-        // slider moved (`measure.py` lists VP16 only; the float encoding runs it as well).
+        // slider moved (`measure.py` lists VP16 and, with `--float`, VP32).
         if shapeName == "VL" { requested.lensCorrection = true }
         // VG: the after develop runs grain, at the float encoding too.
         if shapeName == "VG" { requested.grain = probeGrain }

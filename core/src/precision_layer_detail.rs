@@ -26,21 +26,44 @@
 //! # Admission
 //! `scratch = 6·BOOKKEEPING + n·per_pixel` over `T`'s `n` pixels, where the
 //! per-pixel term is the output vector beside the tiles the rebuild copies it
-//! into. The figures are borrowed, not measured here: the float form holds the
-//! same two n×16 buffers as `float_adjust_apply`'s apply stage, so it charges
-//! that module's measured `APPLY_BYTES_PER_PIXEL` (40, 32 bytes at 5/4); the
-//! decoded form holds two n×8 buffers, half of it (20). The transfer tables
-//! are the document's own and already retained.
+//! into: two n×16 buffers in the difference form
+//! ([`DIFFERENCE_BYTES_PER_PIXEL`]), two n×8 in the decoded form
+//! ([`DECODED_BYTES_PER_PIXEL`]). The transfer tables are the document's own
+//! and already retained. Measured 2026-11-18 (Apple M2 Max, release, one case
+//! per process, three runs, `MallocLargeCache=0`, E =
+//! `ri_interval_max_phys_footprint` − pre, a baseline twin per form reading
+//! E 0; `tests/layer_detail_24mp.rs::measure`): a 6000×4000 sRGB document of
+//! two opaque canvas-sized layers, layer 1 detailed against layer 0, every
+//! pixel changed; the difference form in a float document (the target's
+//! ramps over [−0.25, 3.75] and [0.02, 2.02] and a hashed blue in [0, 2]),
+//! the decoded form in a 16-bit document evaluated in linear light (the same
+//! pictures as codes over the full range).
+//!
+//! | case | E (three runs) | retained | scratch | scratch / max E |
+//! |---|---|---|---|---|
+//! | difference | 769,933,888 / 769,933,888 / 769,901,120 | 769,641,201 | 966,291,456 | 1.255 |
+//! | decoded | 385,024,264 / 385,024,264 / 385,024,264 | 386,425,913 | 486,291,456 | 1.263 |
+//!
+//! E is 32 and 16 bytes a pixel plus about 2 MB and 1 MB. Each figure is the
+//! least whole one whose 24 MP plan covers ⌈1.25 × max E⌉: 962,417,360 needs
+//! 39.84 bytes a pixel beside the bookkeeping, so 40; 481,280,330 needs 19.79,
+//! so 20. `layer_detail_24mp` pins both floors. The difference case's
+//! retained + scratch, 1,735,932,657, and the decoded case's, 872,717,369, are
+//! within the 2 GiB test pin (2,147,483,648), so both are admitted there.
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
 use crate::doc_lock::EditKind;
-use crate::float_adjust_apply::APPLY_BYTES_PER_PIXEL;
 use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, reserved_vec, PrecisionImage, BOOKKEEPING_BYTES};
 use crate::sampling_linear::LinearCodes;
+
+/// Scratch bytes per target pixel of the difference form (module doc's `# Admission`).
+const DIFFERENCE_BYTES_PER_PIXEL: u64 = 40;
+/// Scratch bytes per target pixel of the decoded form (module doc's `# Admission`).
+const DECODED_BYTES_PER_PIXEL: u64 = 20;
 
 /// The refusal of every document but a float one and a 16-bit RGB one
 /// evaluated in linear light (module doc).
@@ -130,8 +153,8 @@ impl LayerDetailEdit {
         let target = self.target(doc)?;
         let (w, h) = target.image.dimensions();
         let per_pixel = match target.form {
-            Form::Difference => APPLY_BYTES_PER_PIXEL,
-            Form::Decoded(_) => APPLY_BYTES_PER_PIXEL / 2,
+            Form::Difference => DIFFERENCE_BYTES_PER_PIXEL,
+            Form::Decoded(_) => DECODED_BYTES_PER_PIXEL,
         };
         let scratch = (u64::from(w) * u64::from(h))
             .checked_mul(per_pixel)

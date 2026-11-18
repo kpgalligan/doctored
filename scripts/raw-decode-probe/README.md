@@ -363,13 +363,20 @@ Depth `32` is the float development: `setDepth(32)` opens headless with
 `output_encoding: linear_float` (`PrecisionImportRequest.mode` `.preserve`),
 so every later stage runs on the float recipe. `--float` runs, at depth 32 on
 the NEF, D24 and every `--real` label, O32, W32, K32 and V32 (the modes
-above), L0, L1, L4 and FX through `local` (FX with grain), and the grain and
-HDR-frame cases:
+above), L0, L1, L4 and FX through `local` (FX with grain), and the grain,
+Presence, tone and HDR-frame cases:
 
 - OG32: `open` with grain {50, 1.5, 50} (shape `OG`).
 - VG32: `preview` whose after develops that grain (shape `VG`). V32 and VG32
   draw the frame with `extendedRange` on, the window on a screen with
   headroom, so the f32 side's extended Fit image is in the interval.
+- OP32 / VP32: the same `open` and `preview` with Develop Presence (texture,
+  clarity and dehaze 50; shapes `OP` and `VP`), the open kept at
+  `linear_float`.
+- PX-32: `local` FX plus that Presence. LT1-32, LTS-32 and LTD-32: `local`
+  with the tone shapes (`TONE_SHAPES`): one pointwise tone radial; one radial
+  with highlights, shadows, clarity and texture; and that plus sharpness and
+  noise reduction.
 - GR32: mode `grain`, the float open as setup outside the interval, then
   `applyingRawGrain` alone; gated on the core's `selectedEditPlan`
   `scratch_bytes` for the same request. A run whose grain changed nothing is
@@ -395,11 +402,20 @@ nothing: each case is gated on the charge the app itself computes, which the
 probe prints as `gate_charge` — `RawSourceWork.scratch(float: true)` for O,
 W and K, plus the Develop session's 24 B/px of inspection copies for V, and
 `RawLocalWork.measuredScratch(float: true)` plus those 24 B/px for the local
-shapes. A case charged below ⌈1.25 × max E⌉, a refusal, a W/K/GR source that is
-not a float development, a twin above 16 MiB or an `[AutomationAlerts]` line
-is a STOP (exit 1). It writes `measure-float.json`. A miss raises
-`RawSourceWork.scratchPerPixel` (decode) or `RawLocalWork.localPerPixel`
-(local), after which `--fit-from` and `--recheck-phase2` confirm the 16-bit
-rows. The LT shapes are 16- and 8-bit only: a local tone at depth 32 runs
-(rule L) but is not measured here yet
-([#72](https://github.com/kpgalligan/doctored/issues/72)).
+shapes. A case charged below ⌈1.25 × max E⌉, a refusal, an O/W/K/GR source
+that is not a float development, a local whose desired recipe is not the float
+one, a twin above 16 MiB or an `[AutomationAlerts]` line is a STOP (exit 1).
+It writes `measure-float.json`. `FLOAT INCREMENTS` (`float_increments`)
+prints the least whole B/px raise each float-only term needs to cover every
+measured case: `RawSourceWork.floatPerPixel` over the O, W, K and V cases;
+the float local's effects term over FX and PX; a per-tone-local term over LT1,
+then a tone-stage term over LTS and LTD. A miss raises only that float term,
+never `scratchPerPixel`, `scratchFixed` or `localPerPixel`, so the 16-bit
+charges and their records do not move; the missed labels then run again with
+`--only`.
+
+The Presence and tone cases' record (2026-11-18, `--only` OP32, VP32, PX-32,
+LT1-32, LTS-32 and LTD-32 of the NEF, D24 and D850): every case charged at ≥
+1.284× max E, every twin E 0, `FLOAT INCREMENTS` 0 for every term, no STOP.
+The figures sit beside `RawSourceWork.floatPerPixel` (OP32, VP32) and
+`RawLocalWork.measuredScratch` (PX-32 and the tone locals).

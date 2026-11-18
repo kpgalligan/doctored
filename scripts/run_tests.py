@@ -29,7 +29,7 @@ CORE = ROOT / "core"
 # Run one at a time after the pool and the suites: the large-document binaries.
 SOLO: tuple[str, ...] = ("float_adjust_apply_24mp",
     "float_master_24mp", "conversion_bake_24mp", "float_selected_pixels_24mp",
-    "selected_color_planes_24mp", "float_interchange_24mp")
+    "selected_color_planes_24mp", "float_interchange_24mp", "layer_detail_24mp")
 # A test target whose name starts so mounts many test files; it runs alone.
 SUITE_PREFIX = "suite_"
 # Every test in this suite takes one lock, so it uses about one core: it runs in

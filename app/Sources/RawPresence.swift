@@ -52,11 +52,13 @@ extension RasterDocument {
     ///
     /// At float its charge is the core's own float selected-edit plan for `presence`
     /// (`float_filter_apply`, measured at 24 MP). The host charges around it (the decode's
-    /// `RawSourceWork.scratch` with `floatPerPixel`, a Develop session's 24 B/px) were measured
-    /// with float grain, not with float Presence. The two stages' measured footprints at 24 MP
-    /// are 1,152,697,160 (Presence) and 1,152,664,416 bytes (grain), each runs as one
-    /// `selectedEdit` stage after optics, and they run one after the other, so the peak is one
-    /// stage's.
+    /// `RawSourceWork.scratch` with `floatPerPixel`, a Develop session's 24 B/px and the
+    /// locals charge) are measured with float Presence too: OP32, VP32 and PX-32 on the NEF,
+    /// D24 and D850 (`measure.py --float`) are each charged at ≥ 1.28× max E, the records
+    /// beside `floatPerPixel` and `RawLocalWork.measuredScratch`. The two stages' measured
+    /// footprints at 24 MP are 1,152,697,160 (Presence) and 1,152,664,416 bytes (grain), each
+    /// runs as one `selectedEdit` stage after optics, and they run one after the other, so the
+    /// peak is one stage's.
     func applyingRawPresence(_ presence: RawPresenceSettings?,
                              control: RasterJobControl? = nil) throws -> RasterDocument {
         guard let presence, !presence.isNeutral else { return self }

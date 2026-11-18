@@ -292,7 +292,14 @@ enum RawSourceWork {
     /// float, the extended Fit in V's frame): OG32 (the open with grain)
     /// 1.283/1.553/1.394, VG32 (its preview) 1.387/1.726/1.716 and V32
     /// 1.387/1.726/2.261. Every case ≥ 1.25, so no
-    /// constant was raised. At 8 GiB a float open fits an empty process up to
+    /// constant was raised. With Develop Presence (texture, clarity and dehaze
+    /// 50; 2026-11-18, `--float --only OP32-… VP32-…`, the same method, no
+    /// STOP): OP32 (the open) max E 902,382,168 / 1,961,952,288 /
+    /// 3,710,127,392 on the NEF, D24 and D850, charged at 1.284/1.554/1.394;
+    /// VP32 (its preview, + the 24 B/px) 940,032,432 / 2,100,872,296 /
+    /// 3,649,261,096 at 1.386/1.726/1.716. Every case ≥ 1.25 (`FLOAT
+    /// INCREMENTS` 0), so `floatPerPixel` was not raised either.
+    /// At 8 GiB a float open fits an empty process up to
     /// about 75.9 MP of uncompressed DNG and 78.2 MP at D850's bytes per pixel
     /// (at the 518 MiB fixed term; Develop Presence's 528 MiB lowers each by
     /// about 0.1 MP).
