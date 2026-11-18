@@ -28,12 +28,12 @@
 //! one noise field spans every plate.
 //!
 //! A transparency-locked layer keeps its alpha: the pass documents carry no
-//! locks, so the join freezes it itself (`join_sample`'s `frozen`: α = the
-//! source's) for every filter, Offset included, and `under_locks`' CMYK arm
-//! (`cmyk_lock`) then finds nothing to restore. The join differs from
-//! `precision_lock::restoring_alpha`'s rule in one case: a pixel the pass
-//! drove to α 0 where the source's α is above 0 keeps the pass's ink at the
-//! source's α, where that rule gives back the source pixel. A pixel whose
+//! locks, so the join freezes it itself (`join_sample`'s `frozen`, through
+//! `cmyk_composite::frozen_sample`, `precision_lock::restoring_alpha`'s rule)
+//! for every filter, Offset included, and `under_locks`' CMYK arm
+//! (`cmyk_lock`) then finds nothing to restore. A pixel the pass drove to
+//! α 0, or one the source holds at α 0, gives the source pixel back whole;
+//! elsewhere the pass's ink lands at the source's α. A pixel whose
 //! final alpha is 0 keeps its source ink. Liquify never reaches this module:
 //! `selected_edit` routes it to phase 4b's `cmyk_warp` first. Both passes
 //! unchanged, or no stored code changed, is `Ok(None)`. The edit runs under

@@ -7,6 +7,9 @@
 //!   layer, with and without a selection;
 //! * a transparency-locked disc keeps every alpha code under Gaussian Blur
 //!   while its ink changes;
+//! * a transparency-locked Offset with a transparent edge equals the two
+//!   locked `L` twins' results (the RGB path's own alpha restore), so a
+//!   pixel the pass cleared gives the source pixel back whole;
 //! * Add Noise's K plate is not C's (another seed); Clouds is one field over
 //!   every plate it reaches;
 //! * Fade against an f64 statement of `fade::fade_pixel` on ink (Normal,
@@ -356,6 +359,94 @@ fn a_transparency_locked_disc_keeps_every_alpha_code() {
         moved += usize::from(g[..4] != s[..4]);
     }
     assert!(moved > 10, "the ink changed ({moved} pixels)");
+    free(out);
+    free(locked);
+}
+
+#[test]
+fn a_transparency_locked_offset_gives_the_source_pixel_back_where_its_pass_cleared_alpha() {
+    let (w, h) = (12u32, 9u32);
+    let lock = r#"{"op":"layer_lock","layer":0,"locks":1}"#;
+    let doc = cmyk_layers(
+        w,
+        h,
+        vec![RgbLayer {
+            name: "Varied",
+            w,
+            h,
+            offset: (0, 0),
+            pixels: varied(w, h, 11),
+        }],
+    );
+    let source = samples(doc, 0);
+    let request = json!({"layer":0,"op":"offset","params":{"horizontal":3,"vertical":2,"undefined_areas":"transparent"}});
+    // The unlocked pass, to find the pixels it clears.
+    let unlocked = selected(doc, &request, &[]).unwrap();
+    assert!(!unlocked.is_null(), "the offset changes the layer");
+    let cleared: Vec<usize> = samples(unlocked, 0)
+        .iter()
+        .zip(&source)
+        .enumerate()
+        .filter(|(_, (u, s))| u[4] == 0 && s[4] > 0)
+        .map(|(i, _)| i)
+        .collect();
+    assert!(!cleared.is_empty(), "the offset clears a visible pixel");
+    free(unlocked);
+    let locked = then(doc, lock, &[]);
+    let out = selected(locked, &request, &[]).unwrap();
+    assert!(!out.is_null(), "the locked offset changes the ink");
+    let got = samples(out, 0);
+    // The oracle: each `L` twin locked the same way, so the RGB path's own
+    // `restoring_alpha` answers, mapped back.
+    let twin = |k: bool| -> Vec<[u16; 4]> {
+        let pixels: Vec<[u16; 4]> = source
+            .iter()
+            .map(|s| {
+                if k {
+                    [65535 - s[3], 65535 - s[3], 65535 - s[3], s[4]]
+                } else {
+                    [65535 - s[0], 65535 - s[1], 65535 - s[2], s[4]]
+                }
+            })
+            .collect();
+        let image =
+            PrecisionImage::from_rgba16(w, h, pixels.clone(), IccProfile::srgb(), None).unwrap();
+        let plain = Box::into_raw(Box::new(
+            PrecisionDocument::from_image(image, Metadata::default(), Resolution::default())
+                .unwrap(),
+        ));
+        let twin = then(plain, lock, &[]);
+        let out = selected(twin, &request, &[]).unwrap();
+        let result = if out.is_null() {
+            pixels
+        } else {
+            let px = unsafe { &*out }
+                .layer(0)
+                .unwrap()
+                .source()
+                .unwrap()
+                .to_rgba16()
+                .unwrap();
+            free(out);
+            px
+        };
+        free(twin);
+        result
+    };
+    let (a, b) = (twin(false), twin(true));
+    for (i, g) in got.iter().enumerate() {
+        let want = [
+            65535 - a[i][0],
+            65535 - a[i][1],
+            65535 - a[i][2],
+            65535 - b[i][1],
+            a[i][3],
+        ];
+        assert_eq!(*g, want, "pixel {i}: the locked twins' result");
+    }
+    for &i in &cleared {
+        assert_eq!(got[i], source[i], "pixel {i}: the source pixel whole");
+    }
     free(out);
     free(locked);
 }

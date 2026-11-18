@@ -16,8 +16,12 @@
 //!
 //! [`join_sample`] maps the two results back: C/M/Y = 65535 − A's R/G/B,
 //! K = 65535 − B's G (or the source's K when the edit runs pass A only, the
-//! K plate held exactly), α = A's — or the source's under a transparency
-//! lock. A pixel whose final α is 0 keeps its source ink. The two passes'
+//! K plate held exactly), α = A's. A pixel whose α the passes drove to 0
+//! keeps its source ink. Under a transparency lock that join goes through
+//! `cmyk_composite::frozen_sample` (the CMYK copy of
+//! `precision_lock::restoring_alpha`'s rule): the source pixel whole where
+//! the source's α or the passes' α is 0, else the passes' ink at the
+//! source's α. The two passes'
 //! alphas must agree (every pass edit moves α by the same coverage
 //! arithmetic on both); a disagreement is an internal error, never a guess.
 //!
@@ -26,6 +30,7 @@
 //! position) and joins it back over that rect ([`join_rect`]), so its pass
 //! documents are the stroke's size, not the canvas's.
 
+use crate::cmyk_composite::frozen_sample;
 use crate::cmyk_image::{CmykImage, CmykSample};
 use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::icc::IccProfile;
@@ -63,8 +68,7 @@ pub(crate) fn join_sample(
     b: Option<[u16; 4]>,
     frozen: bool,
 ) -> CmykSample {
-    let alpha = if frozen { source[4] } else { a[3] };
-    if alpha == 0 {
+    let joined = if a[3] == 0 {
         [source[0], source[1], source[2], source[3], 0]
     } else {
         [
@@ -72,8 +76,13 @@ pub(crate) fn join_sample(
             65535 - a[1],
             65535 - a[2],
             b.map_or(source[3], |b| 65535 - b[1]),
-            alpha,
+            a[3],
         ]
+    };
+    if frozen {
+        frozen_sample(source, joined)
+    } else {
+        joined
     }
 }
 
