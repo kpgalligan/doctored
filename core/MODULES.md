@@ -28,6 +28,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_retouch_rect.rs` — an in-place CMYK Clone/Heal's passes over the stroke's rect (rect pass documents, the taps' plate, join/composite over it); its and the synthesis's plans.
 - `cmyk_retouch_plate.rs` — the CMYK retouch sampling plate (Current; the composite cut at opacity 0), its P3 view and the descriptor's retouch plans.
 - `cmyk_retouch_brush.rs` — Dodge/Burn, Blur, Sharpen, Sponge (K held), Smudge and the History Brush on ink as RGB16 passes; their plans.
+- `cmyk_brush_rect.rs` — those brushes' passes over the stroke's rect (frame, rect two-pass, History sources, Smudge's footprint walk and plan); the whole-layer test seam.
 - `cmyk_art_history.rs` — the Art History Brush on an 8-bit CMYK record's ink: the kernel's strokes through `over_mode`, written as `CmykPaintEdit` writes.
 - `cmyk_fade.rs` — Edit ▸ Fade on a CMYK raster: `precision_fade`'s walk over CMYKA16 through `fade_ink`; its plan.
 - `cmyk_paint.rs` — `CmykPaintEdit`: Brush, Eraser, Fill, Gradient and Paint Bucket in ink on a CMYK layer; plan, walk, refusals.
@@ -263,7 +264,7 @@ Detail belongs in the source file's own header comment.
 - `art_history_stroke.rs` — KERNEL of the Art History Brush: request, fitted ten-style table (L, κ, density), clicks, seeded strokes on luma contours (fixed travel sign), painting.
 - `doc_art_history.rs` — byte adapter `art_history_brush_layer`: the kernel over the layer's part within reach of the dabs, half-up; `Part`/`Pair`/`reach_rect`.
 - `precision_retouch_brush.rs` — 16-bit twins: `RetouchBrushEdit` (the `retouch_brush` op) and `history_brush_plan` / `history_brush`.
-- `precision_smudge.rs` — 16-bit `smudge_plan` / `smudge` over the stroke's footprint, quantized to u16 once.
+- `precision_smudge.rs` — 16-bit `smudge_plan` / `smudge` over the stroke's footprint, quantized to u16 once (`smudge_rect_walk`, which CMYK's rect passes share).
 - `precision_art_history.rs` — typed Art History Brush: depth refusals (16-bit, 32-bit, 16-bit CMYK), plan, lock gate, dispatch to CMYK and 8-bit Gray and Lab.
 - `ffi_retouch_brush.rs` — the ten retouch-brush exports: byte retouch / history / smudge / art history, typed smudge, history and art history brush with plans.
 - `background_eraser.rs` — KERNEL of the Background Eraser: request, plan (256M work bound), per-dab reference, like/protect test, contiguous walk, coverage field.

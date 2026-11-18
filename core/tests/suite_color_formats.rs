@@ -111,6 +111,8 @@ mod cmyk_artwork;
 mod cmyk_blend;
 #[path = "cmyk_blend_if.rs"]
 mod cmyk_blend_if;
+#[path = "cmyk_brush_rect.rs"]
+mod cmyk_brush_rect;
 #[path = "cmyk_channels.rs"]
 mod cmyk_channels;
 #[path = "cmyk_clipboard.rs"]

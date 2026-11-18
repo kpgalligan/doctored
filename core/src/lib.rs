@@ -71,6 +71,7 @@ mod cmyk_adjust_rgb;
 mod cmyk_art_history;
 mod cmyk_artwork;
 mod cmyk_artwork_render;
+mod cmyk_brush_rect;
 mod cmyk_clipboard;
 pub mod cmyk_clipboard_codec;
 pub mod cmyk_color;
@@ -976,6 +977,8 @@ mod precision_retouch_source;
 mod precision_smudge;
 mod retouch_brush;
 mod retouch_brush_sampling;
+#[doc(hidden)]
+pub use cmyk_brush_rect::CmykBrushStroke;
 #[doc(hidden)]
 pub use retouch_brush_sampling::SAMPLE_ALL_LAYERS;
 mod retouch_coverage;

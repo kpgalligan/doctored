@@ -125,7 +125,7 @@ use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
 };
 use crate::precision_retouch_brush::{coverage_at, RetouchBrushEdit};
-use crate::precision_smudge::layer_dabs;
+use crate::precision_smudge::{check_smudge_strength, layer_dabs};
 use crate::retouch_brush::{halo_in, mix, refuse_options, targets_in, Vibrancy};
 use crate::retouch_brush_sampling::{clip_footprint, float_sampled_walk, sampled_field};
 use crate::retouch_smudge::{smudge, smudge_stage_pixels, smudge_work};
@@ -432,9 +432,7 @@ impl PrecisionDocument {
         other: u64,
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
-        if !strength.is_finite() || !(0. ..=1.).contains(&strength) {
-            return Err("smudge strength is invalid".into());
-        }
+        check_smudge_strength(strength)?;
         let plan = self.float_smudge_plan(index, request, dabs, !selection.is_empty())?;
         if selection.len() as u64 != plan["input_samples"].as_u64().unwrap_or(u64::MAX) {
             return Err("smudge selection length differs from the canvas".into());

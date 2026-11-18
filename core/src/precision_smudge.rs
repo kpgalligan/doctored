@@ -45,6 +45,23 @@ use serde_json::{json, Value};
 /// (1.891×).
 const SMUDGE_BYTES_PER_PIXEL: u64 = 24;
 
+/// The refusal of a strength outside [0, 1].
+const SMUDGE_STRENGTH_REFUSAL: &str = "smudge strength is invalid";
+
+/// Refuses a strength outside [0, 1] (NaN and the infinities included) in
+/// [`SMUDGE_STRENGTH_REFUSAL`]; the one test the 16-bit walk, its sampled arm,
+/// `float_retouch_brush` and `cmyk_brush_rect` share.
+pub(crate) fn check_smudge_strength(strength: f64) -> Result<(), String> {
+    if !strength.is_finite() || !(0. ..=1.).contains(&strength) {
+        return Err(SMUDGE_STRENGTH_REFUSAL.into());
+    }
+    Ok(())
+}
+
+/// The refusal of a selection plane that is not canvas-sized
+/// (`cmyk_brush_rect` refuses in it too).
+pub(crate) const SMUDGE_SELECTION_REFUSAL: &str = "smudge selection length differs from the canvas";
+
 /// `dabs` (canvas coordinates) in the pixels of a layer at `offset`. A ragged
 /// list keeps its length, so `BrushRequest::plan` refuses it by name.
 pub(crate) fn layer_dabs(dabs: &[f64], offset: (i32, i32)) -> Result<Vec<f64>, String> {
@@ -67,6 +84,83 @@ fn premultiplied(p: [u16; 4]) -> [f32; 4] {
         f32::from(p[2]) / 65535.0 * a,
         a,
     ]
+}
+
+/// The 16-bit walk between the rect read and the write-back: `px` holds the
+/// samples of `rect` (`[x0, y0, x1, y1)` in the pixels of a layer at
+/// `offset` on `canvas`) and is rewritten in place; `local` holds the dabs in
+/// that layer's pixels, `sampled` the canvas-sized picture of Sample All
+/// Layers or `None`, `frozen` a transparency lock. Whether a stored code
+/// changed. A CMYK record's rect passes (`cmyk_brush_rect`) run it on each
+/// `L` pass of the footprint.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn smudge_rect_walk(
+    px: &mut [[u16; 4]],
+    rect: [usize; 4],
+    ((ox, oy), canvas): ((i32, i32), (u32, u32)),
+    request: &BrushRequest,
+    local: &[f64],
+    strength: f64,
+    selection: &[u16],
+    sampled: Option<&PrecisionImage>,
+    frozen: bool,
+    job: JobContext<'_>,
+) -> Result<bool, String> {
+    let start = sampled
+        .map(|plate| sampled_field(plate, rect, (ox, oy)))
+        .transpose()?;
+    let mut field: Vec<[f32; 4]> = reserved_vec(px.len())?;
+    match &start {
+        Some(start) => field.extend_from_slice(start),
+        None => field.extend(px.iter().map(|p| premultiplied(*p))),
+    }
+    let weight = |x: usize, y: usize| -> f64 {
+        if selection.is_empty() {
+            return 1.0;
+        }
+        let (cx, cy) = (x as i64 + i64::from(ox), y as i64 + i64::from(oy));
+        if cx < 0 || cy < 0 || cx >= i64::from(canvas.0) || cy >= i64::from(canvas.1) {
+            return 0.0;
+        }
+        f64::from(selection[cy as usize * canvas.0 as usize + cx as usize]) / 65535.0
+    };
+    smudge(&mut field, rect, request, local, strength, weight, job)?;
+    let code = |v: f32| (f64::from(v).clamp(0., 1.) * 65535.).round() as u16;
+    let mut changed = false;
+    for (at, (old, sample)) in px.iter_mut().zip(&field).enumerate() {
+        job.every(at)?;
+        let first = start
+            .as_ref()
+            .map_or_else(|| premultiplied(*old), |s| s[at]);
+        // A sample the walk left alone keeps its stored codes exactly.
+        if first == *sample || (frozen && old[3] == 0) {
+            continue;
+        }
+        // The quantize-back rule is `doc_smudge.rs`'s (the master copy),
+        // at u16 codes.
+        let alpha = if frozen { old[3] } else { code(sample[3]) };
+        let new = if alpha == 0 && old[3] == 0 {
+            *old
+        } else if alpha == 0 {
+            [0; 4]
+        } else if sample[3] > 0.0 {
+            [
+                code(sample[0] / sample[3]),
+                code(sample[1] / sample[3]),
+                code(sample[2] / sample[3]),
+                alpha,
+            ]
+        } else {
+            // Frozen alpha over a sample smeared to nothing: the colour
+            // has no source, so it stays.
+            *old
+        };
+        if new != *old {
+            *old = new;
+            changed = true;
+        }
+    }
+    Ok(changed)
 }
 
 impl PrecisionDocument {
@@ -174,9 +268,7 @@ impl PrecisionDocument {
                     job,
                 );
             }
-            if !strength.is_finite() || !(0. ..=1.).contains(&strength) {
-                return Err("smudge strength is invalid".into());
-            }
+            check_smudge_strength(strength)?;
             let plan = doc.smudge_plan(layer, request, dabs, !selection.is_empty(), true)?;
             let scratch = plan["scratch_bytes"].as_u64().unwrap_or(u64::MAX);
             admit(doc.retained_bytes(), scratch, other, limit)?;
@@ -259,12 +351,10 @@ impl PrecisionDocument {
                 index, request, dabs, strength, selection, sampled, limit, other, job,
             );
         }
-        if !strength.is_finite() || !(0. ..=1.).contains(&strength) {
-            return Err("smudge strength is invalid".into());
-        }
+        check_smudge_strength(strength)?;
         let plan = self.smudge_plan(index, request, dabs, !selection.is_empty(), false)?;
         if selection.len() as u64 != plan["input_samples"].as_u64().unwrap_or(u64::MAX) {
-            return Err("smudge selection length differs from the canvas".into());
+            return Err(SMUDGE_SELECTION_REFUSAL.into());
         }
         let scratch = plan["scratch_bytes"].as_u64().unwrap_or(u64::MAX);
         admit(self.retained_bytes(), scratch, other, limit)?;
@@ -292,61 +382,19 @@ impl PrecisionDocument {
         let mut px = image
             .read_rect_rgba16(rx, ry, rw, rh)
             .ok_or("could not allocate precision output")?;
-        let start = sampled
-            .map(|plate| sampled_field(plate, rect, (ox, oy)))
-            .transpose()?;
-        let mut field: Vec<[f32; 4]> = reserved_vec(px.len())?;
-        match &start {
-            Some(start) => field.extend_from_slice(start),
-            None => field.extend(px.iter().map(|p| premultiplied(*p))),
-        }
-        let weight = |x: usize, y: usize| -> f64 {
-            if selection.is_empty() {
-                return 1.0;
-            }
-            let (cx, cy) = (x as i64 + i64::from(ox), y as i64 + i64::from(oy));
-            if cx < 0 || cy < 0 || cx >= i64::from(canvas.0) || cy >= i64::from(canvas.1) {
-                return 0.0;
-            }
-            f64::from(selection[cy as usize * canvas.0 as usize + cx as usize]) / 65535.0
-        };
-        smudge(&mut field, rect, request, &local, strength, weight, job)?;
         let frozen = self.lock_owner(index, LOCK_TRANSPARENCY).is_some();
-        let code = |v: f32| (f64::from(v).clamp(0., 1.) * 65535.).round() as u16;
-        let mut changed = false;
-        for (at, (old, sample)) in px.iter_mut().zip(&field).enumerate() {
-            job.every(at)?;
-            let first = start
-                .as_ref()
-                .map_or_else(|| premultiplied(*old), |s| s[at]);
-            // A sample the walk left alone keeps its stored codes exactly.
-            if first == *sample || (frozen && old[3] == 0) {
-                continue;
-            }
-            // The quantize-back rule is `doc_smudge.rs`'s (the master copy),
-            // at u16 codes.
-            let alpha = if frozen { old[3] } else { code(sample[3]) };
-            let new = if alpha == 0 && old[3] == 0 {
-                *old
-            } else if alpha == 0 {
-                [0; 4]
-            } else if sample[3] > 0.0 {
-                [
-                    code(sample[0] / sample[3]),
-                    code(sample[1] / sample[3]),
-                    code(sample[2] / sample[3]),
-                    alpha,
-                ]
-            } else {
-                // Frozen alpha over a sample smeared to nothing: the colour
-                // has no source, so it stays.
-                *old
-            };
-            if new != *old {
-                *old = new;
-                changed = true;
-            }
-        }
+        let changed = smudge_rect_walk(
+            &mut px,
+            rect,
+            ((ox, oy), canvas),
+            request,
+            &local,
+            strength,
+            selection,
+            sampled,
+            frozen,
+            job,
+        )?;
         if !changed {
             job.report(1., 5)?;
             return Ok(None);

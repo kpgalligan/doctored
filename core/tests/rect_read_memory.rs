@@ -31,6 +31,17 @@
 //! 100 × 100 `sample: current` Clone and Heal dabs on the document converted
 //! to CMYK stay below `2·N` (the canvas ink plate and canvas passes break it).
 //!
+//! 13B-9's CMYK brush bounds, declared before measuring, on the document
+//! converted to CMYK: a 100 × 100 dab of Dodge, Burn, the Blur, Sharpen and
+//! Desaturate brushes (`dr_precision_doc_edit`), the History Brush painting
+//! the pre-dodge state back over the dodged one
+//! (`dr_precision_doc_history_brush`) and a size-100 hard Smudge stroke of
+//! three dabs across the dab at strength 0.5 (`dr_precision_doc_smudge`) each
+//! stay below `2·N` (one canvas pass is `8·N`); and Smudge's plan
+//! (`dr_precision_doc_smudge_plan`, no selection, no Sample All Layers) less
+//! its canvas display term (21 bytes a canvas pixel) is at least 1.25 × the
+//! stroke's counted peak, and the whole plan is below `30·N`.
+//!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
 //! `serial()`.
@@ -57,6 +68,9 @@ use doctored_core::ffi_doc::{dr_doc_adding_layer_mask, dr_doc_free, dr_doc_layer
 use doctored_core::ffi_fill_align::{dr_doc_fill_align_box, dr_precision_doc_fill_align_box};
 use doctored_core::ffi_group::dr_doc_group_layers;
 use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
+use doctored_core::ffi_retouch_brush::{
+    dr_precision_doc_history_brush, dr_precision_doc_smudge, dr_precision_doc_smudge_plan,
+};
 use doctored_core::icc::IccProfile;
 use doctored_core::layer_raster::LayerRaster;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -312,6 +326,204 @@ fn a_cmyk_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
     let doc = *unsafe { Box::from_raw(out) };
     assert!(doc.is_cmyk());
     assert_dabs_below_bound("cmyk", &doc);
+}
+
+// ------------------------------------------------- CMYK brush dabs --
+
+/// A hard round tip (`dr_brush_u16`'s request).
+const HARD: &str =
+    r#"{"version":1,"hardness":1.0,"roundness":1.0,"angle_degrees":0.0,"pixel":false}"#;
+
+/// The canvas term every CMYK plan charges for the host's display
+/// preparation (`cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL`).
+const DISPLAY_BYTES_PER_PIXEL: u64 = 21;
+
+/// [`raster16`]'s document converted into the synthetic press profile.
+fn cmyk_dab_document() -> PrecisionDocument {
+    let rgb = document16(vec![raster16()]);
+    let profile = cmyk_fixture::press_profile("Press Test");
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_convert_to_cmyk(
+            &rgb,
+            profile.as_ptr(),
+            profile.len(),
+            c"{}".as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "to CMYK: {}", take(error));
+    let doc = *unsafe { Box::from_raw(out) };
+    assert!(doc.is_cmyk());
+    doc
+}
+
+/// One `dr_precision_doc_edit` call's document (unmeasured).
+fn edited(doc: &PrecisionDocument, request: &Value, samples: &[u16]) -> PrecisionDocument {
+    let text = CString::new(request.to_string()).unwrap();
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_edit(
+            doc,
+            text.as_ptr(),
+            samples.as_ptr(),
+            samples.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "{request}: {}", take(error));
+    *unsafe { Box::from_raw(out) }
+}
+
+/// The History Brush painting `source`'s layer 0 back over `doc`'s under
+/// `samples`: its peak above the live bytes before it.
+fn history_peak(doc: &PrecisionDocument, source: &PrecisionDocument, samples: &[u16]) -> usize {
+    let mut error = ptr::null_mut();
+    let base = begin();
+    let out = unsafe {
+        dr_precision_doc_history_brush(
+            doc,
+            0,
+            source,
+            0,
+            1.0,
+            samples.as_ptr(),
+            samples.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    let peak = peak_since(base);
+    assert!(!out.is_null(), "history brush: {}", take(error));
+    drop(unsafe { Box::from_raw(out) });
+    peak
+}
+
+/// Three size-100 hard dabs across [`DAB`] (`dr_brush_u16`'s tuples).
+const SMUDGE_DABS: [f64; 12] = [
+    1010.0, 850.0, 100.0, 1.0, 1050.0, 850.0, 100.0, 1.0, 1090.0, 850.0, 100.0, 1.0,
+];
+
+/// The Smudge stroke at strength 0.5: its peak above the live bytes before it.
+fn smudge_peak(doc: &PrecisionDocument) -> usize {
+    let brush = CString::new(HARD).unwrap();
+    let mut error = ptr::null_mut();
+    let base = begin();
+    let out = unsafe {
+        dr_precision_doc_smudge(
+            doc,
+            0,
+            brush.as_ptr(),
+            SMUDGE_DABS.as_ptr(),
+            SMUDGE_DABS.len() / 4,
+            0.5,
+            ptr::null(),
+            0,
+            false,
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    let peak = peak_since(base);
+    assert!(!out.is_null(), "smudge: {}", take(error));
+    drop(unsafe { Box::from_raw(out) });
+    peak
+}
+
+/// The Smudge stroke's plan (no selection, no Sample All Layers).
+fn smudge_scratch(doc: &PrecisionDocument) -> u64 {
+    let brush = CString::new(HARD).unwrap();
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_smudge_plan(
+            doc,
+            0,
+            brush.as_ptr(),
+            SMUDGE_DABS.as_ptr(),
+            SMUDGE_DABS.len() / 4,
+            false,
+            false,
+            LIMIT,
+            0,
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "smudge plan: {}", take(error));
+    let plan: Value =
+        serde_json::from_str(unsafe { CStr::from_ptr(out) }.to_str().unwrap()).unwrap();
+    unsafe { dr_string_free(out) };
+    plan["scratch_bytes"].as_u64().unwrap()
+}
+
+/// 13B-9's CMYK brush bound (module doc), declared before measuring: every
+/// stroke on the CMYK document peaks below `2·N`.
+#[test]
+fn a_cmyk_brush_dab_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    let doc = cmyk_dab_document();
+    let samples = coverage(DAB);
+    let dodge = json!({"op":"dodge_burn","layer":0,"exposure":0.5,"range":1,"burn":false});
+    let brush = |kind: &str| json!({"op":"retouch_brush","layer":0,"kind":kind,"strength":0.7});
+    let requests = [
+        ("dodge", dodge.clone()),
+        (
+            "burn",
+            json!({"op":"dodge_burn","layer":0,"exposure":0.5,"range":1,"burn":true}),
+        ),
+        ("blur", brush("blur")),
+        ("sharpen", brush("sharpen")),
+        ("desaturate", brush("desaturate")),
+    ];
+    let mut peaks: Vec<(&str, usize)> = requests
+        .iter()
+        .map(|(label, request)| (*label, dab_peak(&doc, request, &samples)))
+        .collect();
+    let dodged = edited(&doc, &dodge, &samples);
+    peaks.push(("history brush", history_peak(&dodged, &doc, &samples)));
+    drop(dodged);
+    peaks.push(("smudge", smudge_peak(&doc)));
+    for (label, peak) in &peaks {
+        println!("cmyk {label} 100x100 at {W}x{H}: peak {peak}");
+    }
+    for (label, peak) in peaks {
+        assert!(
+            peak < 2 * N,
+            "cmyk {label}: the peak {peak} reaches {}",
+            2 * N
+        );
+    }
+}
+
+/// 13B-9's CMYK Smudge plan bound (module doc), declared before measuring:
+/// the plan less its canvas display term holds 1.25 × the stroke's counted
+/// peak, and the whole plan stays below `30·N`.
+#[test]
+fn a_cmyk_smudge_plan_holds_its_peak_and_follows_its_footprint() {
+    let _serial = serial();
+    let doc = cmyk_dab_document();
+    let peak = smudge_peak(&doc);
+    let plan = smudge_scratch(&doc);
+    println!("cmyk smudge 3 dabs at {W}x{H}: peak {peak}, plan {plan}");
+    let display = DISPLAY_BYTES_PER_PIXEL * N as u64;
+    assert!(
+        plan.saturating_sub(display) as f64 >= 1.25 * peak as f64,
+        "the plan {plan} less the display term {display} is below 1.25 × the peak {peak}"
+    );
+    assert!(
+        plan < 30 * N as u64,
+        "the plan {plan} reaches {}",
+        30 * N as u64
+    );
 }
 
 // ------------------------------------------------- selected rect dabs --
