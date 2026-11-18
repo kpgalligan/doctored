@@ -19,7 +19,8 @@
 //! left less the right is the left alone, the two intersected cover nothing
 //! and excluded they are the union; (c) and (d) united are their outlines.
 //! Overlapping rectangles under each operation, a first subtract, an order
-//! case and two windings are held to their exact areas, computed here by
+//! case, an intersect absent from rows a later subpath reaches and two
+//! windings are held to their exact areas, computed here by
 //! cutting each pixel at every rectangle side. The verbs and points are
 //! written here from the node lists.
 
@@ -478,6 +479,41 @@ fn held_operations_fold_in_their_order() {
             most <= EXACT,
             "unite, unite, subtract: sample {at} differs by {most}"
         );
+    }
+}
+
+#[test]
+fn an_intersect_absent_from_a_row_clears_only_what_folds_before_it() {
+    // B misses rows 0…4 and 13…31; A reaches rows it misses and C, after B,
+    // reaches both rows B has an edge in and rows it misses. Where B is
+    // absent the intersect clears A and only C is left.
+    let (ra, rb, rc) = (
+        [2.25, 3.0, 12.5, 20.75],
+        [6.5, 5.5, 18.0, 12.5],
+        [9.25, 8.5, 20.75, 26.25],
+    );
+    let (a, b, c) = (ring(ra), ring(rb), ring(rc));
+    let exact = exact_plane(&[ra, rb, rc], &|m: &[bool]| (m[0] && m[1]) || m[2]);
+    let c_alone = exact_plane(&[rc], &|m: &[bool]| m[0]);
+    let w = SIZE.0 as usize;
+    for even_odd in [false, true] {
+        let held = folded(&[&a, &b, &c], &[Unite, Intersect, Unite], even_odd).expect("held");
+        let (most, at) = worst(&held, &exact);
+        println!(
+            "unite, intersect, unite, even_odd {even_odd}: worst difference {most} at sample {at}"
+        );
+        assert!(
+            most <= EXACT,
+            "unite, intersect, unite, even_odd {even_odd}: sample {at} differs by {most}"
+        );
+        for y in (0..5).chain(13..SIZE.1) {
+            let row = y as usize * w..(y as usize + 1) * w;
+            let (most, at) = worst(&held[row.clone()], &c_alone[row]);
+            assert!(
+                most <= EXACT,
+                "row {y}, even_odd {even_odd}: column {at} differs from C alone by {most}"
+            );
+        }
     }
 }
 

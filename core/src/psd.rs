@@ -394,7 +394,7 @@ pub(crate) fn import_layers(
     // two together fit the document's anchor cap.
     for (k, &source) in sources.iter().enumerate() {
         if let Some(body) = crate::psd_paths::source_vmsk(records, source) {
-            document = document.importing_vector_mask(k, body);
+            document = document.importing_vector_mask(k, body)?;
         }
         // A vector mask the file holds no rendering of, baked (`psd_paths`).
         if let Some(body) = crate::psd_paths::source_bake(records, source) {

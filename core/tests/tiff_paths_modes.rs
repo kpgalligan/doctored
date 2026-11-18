@@ -43,7 +43,7 @@ use crate::common::{cpath, take_err_string};
 use crate::psd_clipping_path::tiff_run;
 use crate::psd_paths::assert_paths_close;
 use crate::tiff_paths::{
-    block, byte_doc, clipping_names, expected_resources, held, is_path_id, path_list,
+    block, byte_doc, clipping_names, expected_resources, held, held_list, is_path_id, path_list,
     path_resources, promoted, ramp_jpeg, rotated, segment, typed_losses, typed_with_list, H,
     ROTATED, W,
 };
@@ -285,6 +285,30 @@ impl Checks {
             self.failures.push(format!("{:?}: {what}", self.mode));
         }
     }
+}
+
+/// A path holding a mix of per-subpath operations in one mode's flat TIFF
+/// (Grayscale at 16 bits, through its own writer and open): the records
+/// hold each subpath's word, the open reads the operations back, and the
+/// flat save names no "paths".
+#[test]
+fn a_modes_flat_tiff_carries_a_path_holding_operations() {
+    let dir = TempDir::new().unwrap();
+    let mode = Mode::Gray16;
+    let doc = typed_with_list(
+        &mode.document(),
+        &held_list("nonzero", ["unite", "intersect"]),
+    );
+    let want = doc.paths().to_vec();
+    assert_eq!(want.len(), 1);
+    assert!(want[0].shape.ops.is_some());
+    assert!(!typed_losses(&doc, true).contains(&"paths".to_string()));
+    let path = dir.path().join("held.tif");
+    let file = mode.save(&doc, &path).expect("the save");
+    assert_eq!(path_resources(&file), expected_resources(&want, (W, H)));
+    let back = mode.open(&path).expect("the reopen");
+    assert!(mode.is_mode(&back), "the reopen is in the same mode");
+    assert_paths_close(back.paths(), &want, "Gray16 reopen");
 }
 
 /// Each mode's flat TIFF writes the document's paths and its clipping path

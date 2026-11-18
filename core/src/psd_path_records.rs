@@ -42,16 +42,26 @@
 //! value outside it is kept and read as it is, and an edit that hands that
 //! reading back (the same 16.16 word) changes nothing.
 //!
-//! **Fill rule.** Photoshop combines a path's subpaths by an operation per
-//! subpath; Doctored fills a path by one rule. Every subpath `0` (exclude
-//! overlapping shapes) reads as `evenodd`, every subpath `1` (combine) as
-//! `nonzero`, which agree wherever contours do not cancel by winding; any
-//! other mix reads as `nonzero` and is reported ([`Decoded::combined`]). The
-//! writer gives every subpath the rule's operation. A shape holding
-//! per-subpath operations (`PathShape::ops`) is not written yet ([`encode`]'s
-//! `Err`; its codec is slice 3 of `designs/v1-paths-held-subpaths.md`).
+//! **Fill rule and operations.** A PSD path combines its subpaths by an
+//! operation word per subpath (`vector_mask_combine::op_from_word`: 0
+//! exclude, 1 unite, 2 subtract, 3 intersect). Every subpath `0` reads as
+//! `evenodd` and every subpath `1` (or no subpath) as `nonzero`, with no
+//! `PathShape::ops`, as every such file has always read; any other list of
+//! known words reads into `ops`, each subpath's own region under `nonzero`
+//! (`designs/v1-paths-held-subpaths.md`, HS-6); a word outside 0–3 reads as
+//! `nonzero` with no `ops` and is reported ([`Decoded::unheld`]). The writer
+//! gives every subpath of a shape without `ops` the rule's word (the bytes
+//! every earlier build wrote) and each subpath of a shape with `ops` its own
+//! word (`vector_mask_combine::word_of`), under `nonzero` only: a word names
+//! the operation on a region, not the rule the region is taken under, so
+//! `ops` under `evenodd` is not written ([`encode`]'s `Err`). A list of one
+//! operation, every `unite` or every `exclude` ([`uniform_ops`]), is written
+//! as that word on every subpath and so reads back as the fill rule with no
+//! `ops`; the two differ only where a subpath's own winding cancels or
+//! doubles (HS-1), so the callers (`psd_paths`) treat it as not held exactly.
 
-use crate::path_geometry::{Anchor, FillRule, PathShape, Subpath};
+use crate::path_geometry::{Anchor, FillRule, PathShape, Subpath, SubpathOp};
+use crate::vector_mask_combine::{op_from_word, word_of};
 
 /// One record's size.
 const RECORD: usize = 26;
@@ -66,9 +76,9 @@ pub(crate) struct Decoded {
     pub shape: PathShape,
     /// The initial fill record says the path starts from all pixels.
     pub inverted: bool,
-    /// The subpaths' operations are not all one of the two Doctored reads
-    /// exactly (module doc).
-    pub combined: bool,
+    /// Some subpath's operation word is outside 0–3: the shape is its
+    /// outline under `nonzero` with no `ops` (module doc).
+    pub unheld: bool,
     /// Each subpath's operation word, in order (`vector_mask_combine`).
     pub operations: Vec<i16>,
 }
@@ -133,35 +143,66 @@ pub(crate) fn decode(bytes: &[u8], canvas: (u32, u32)) -> Result<Decoded, String
     if pending != 0 {
         return Err("a path subpath has fewer knots than its length record".into());
     }
-    let even = operations.iter().all(|&op| op == 0);
-    let fill_rule = if !operations.is_empty() && even {
-        FillRule::EvenOdd
+    // Every 0 is even-odd and every 1 (or none) nonzero, with no `ops`; any
+    // other list of known words is `ops` (module doc).
+    let even = !operations.is_empty() && operations.iter().all(|&op| op == 0);
+    let (fill_rule, ops, unheld) = if even {
+        (FillRule::EvenOdd, None, false)
+    } else if operations.iter().all(|&op| op == 1) {
+        (FillRule::NonZero, None, false)
     } else {
-        FillRule::NonZero
+        match operations.iter().map(|&op| op_from_word(op)).collect() {
+            Some(ops) => (FillRule::NonZero, Some(ops), false),
+            None => (FillRule::NonZero, None, true),
+        }
     };
     Ok(Decoded {
         shape: PathShape {
             subpaths,
             fill_rule,
-            ops: None,
+            ops,
         },
         inverted,
-        combined: !even && !operations.iter().all(|&op| op == 1),
+        unheld,
         operations,
     })
 }
 
+/// The one operation every subpath of `shape` holds when it is `unite` or
+/// `exclude`: the list [`encode`] writes as every word 1 or every word 0,
+/// which [`decode`] reads back as a fill rule with no `ops` (module doc).
+/// `None` for a shape without `ops`, an empty list and any other list.
+pub(crate) fn uniform_ops(shape: &PathShape) -> Option<SubpathOp> {
+    let ops = shape.ops.as_ref()?;
+    let first = *ops.first()?;
+    (matches!(first, SubpathOp::Unite | SubpathOp::Exclude) && ops.iter().all(|&op| op == first))
+        .then_some(first)
+}
+
 /// The records of `shape` on a `canvas`, `inverted` the initial fill. `Err`
 /// for a coordinate past the fixed-point range and for a shape holding
-/// per-subpath operations (module doc).
+/// per-subpath operations under the even-odd rule (module doc).
 pub(crate) fn encode(
     shape: &PathShape,
     canvas: (u32, u32),
     inverted: bool,
 ) -> Result<Vec<u8>, String> {
-    if shape.ops.is_some() {
-        return Err("a PSD path does not hold per-subpath operations".into());
+    let rule_word: i16 = match shape.fill_rule {
+        FillRule::EvenOdd => 0,
+        FillRule::NonZero => 1,
+    };
+    if shape.ops.is_some() && shape.fill_rule == FillRule::EvenOdd {
+        return Err("a PSD path holds per-subpath operations only under the nonzero rule".into());
     }
+    // Each subpath's word: its own operation's, else the rule's. `ops`
+    // holds one per subpath (`PathShape::validated`).
+    let operation = |index: usize| -> i16 {
+        shape
+            .ops
+            .as_ref()
+            .and_then(|ops| ops.get(index))
+            .map_or(rule_word, |&op| word_of(op))
+    };
     let (w, h) = (f64::from(canvas.0), f64::from(canvas.1));
     let mut out = Vec::with_capacity(RECORD * (2 + shape.anchor_count() + shape.subpaths.len()));
     let mut record = |selector: u16, body: &[u8]| {
@@ -171,10 +212,6 @@ pub(crate) fn encode(
     };
     record(6, &[]);
     record(8, &u16::from(inverted).to_be_bytes());
-    let operation: i16 = match shape.fill_rule {
-        FillRule::EvenOdd => 0,
-        FillRule::NonZero => 1,
-    };
     let to_fixed = |value: f64, side: f64| -> Result<[u8; 4], String> {
         let fraction = value / side;
         if !fraction.is_finite() || fraction.abs() >= FIXED_LIMIT {
@@ -182,11 +219,11 @@ pub(crate) fn encode(
         }
         Ok(((fraction * ONE).round() as i32).to_be_bytes())
     };
-    for subpath in &shape.subpaths {
+    for (index, subpath) in shape.subpaths.iter().enumerate() {
         let count = u16::try_from(subpath.anchors.len())
             .map_err(|_| "a path subpath has too many anchors for a PSD path")?;
         let mut length = count.to_be_bytes().to_vec();
-        length.extend_from_slice(&operation.to_be_bytes());
+        length.extend_from_slice(&operation(index).to_be_bytes());
         length.extend_from_slice(&1u16.to_be_bytes());
         record(if subpath.closed { 0 } else { 3 }, &length);
         for anchor in &subpath.anchors {

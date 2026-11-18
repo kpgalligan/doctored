@@ -1,6 +1,10 @@
 //! A PSD vector mask's COVERAGE under its per-subpath operations (KERNEL):
-//! what a `vmsk` Doctored cannot hold as a live vector mask draws, for an
-//! import that keeps the picture as a raster mask (`psd_vector_mask_bake`).
+//! what a `vmsk` Doctored does not carry as a live vector mask draws (one
+//! that starts from all pixels, holds a subpath of one anchor beside its
+//! operations, or passes the document's anchor cap: `psd_paths::vmsk_shape`),
+//! for an import that keeps the picture as a raster mask
+//! (`psd_vector_mask_bake`). The operation words are this module's
+//! ([`op_from_word`], [`word_of`]), which `psd_path_records` reads and writes.
 //!
 //! A path's subpaths combine in file order, each by the operation its length
 //! record names (`psd_path_records`): 1 adds (combine), 2 subtracts, 3
@@ -46,6 +50,16 @@ pub(crate) fn op_from_word(word: i16) -> Option<SubpathOp> {
         2 => Some(SubpathOp::Subtract),
         3 => Some(SubpathOp::Intersect),
         _ => None,
+    }
+}
+
+/// [`op_from_word`]'s inverse: the length record's word for `op`.
+pub(crate) fn word_of(op: SubpathOp) -> i16 {
+    match op {
+        SubpathOp::Exclude => 0,
+        SubpathOp::Unite => 1,
+        SubpathOp::Subtract => 2,
+        SubpathOp::Intersect => 3,
     }
 }
 

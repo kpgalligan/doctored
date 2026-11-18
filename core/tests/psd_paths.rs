@@ -13,11 +13,20 @@
 //!   document's `.doctored` keeps them.
 //! - A vector mask beside a raster mask keeps its baked mask and its
 //!   sentence.
-//! - A `vmsk` whose subpaths subtract, or that starts from all pixels, is not
-//!   carried: the shape record keeps its own pixels and the dropped-mask
-//!   sentence. One that would take the file's paths and vector masks past
-//!   the document's anchor cap is not carried either: on a raster record it
-//!   is drawn into the raster mask, and the opened file then saves.
+//! - Per-subpath operations (`PathShape::ops`) are each subpath's length
+//!   record word: a saved path, the work path and a raster-less vector mask
+//!   holding them round-trip through every container, and a file's own mix
+//!   of words imports as them. A vector mask a `vmsk` does not read back as
+//!   itself (a one-anchor subpath beside operations, one operation on every
+//!   subpath) is written as pixels, and a path holding one operation on
+//!   every subpath is written as the fill rule it reopens under, with a
+//!   sentence.
+//! - A `vmsk` that starts from all pixels is not carried: the shape record
+//!   keeps its own pixels and the dropped-mask sentence. One that would take
+//!   the file's paths and vector masks past the document's anchor cap is not
+//!   carried either: on a raster record it is drawn into the raster mask,
+//!   and the opened file then saves. A carried one the rasterizer refuses
+//!   refuses the layered open by the layer's name, at 8 and 16 bits.
 
 use std::ffi::{c_char, CString};
 use std::path::Path;
@@ -28,15 +37,18 @@ use doctored_core::doc_path::PathEntry;
 use doctored_core::ffi_doc::*;
 use doctored_core::ffi_path::dr_doc_with_paths_json;
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure;
-use doctored_core::ffi_psd::{dr_precision_doc_open_psd, dr_precision_doc_save_psd};
-use doctored_core::ffi_vector_mask::dr_doc_set_vector_mask;
-use doctored_core::path_geometry::{FillRule, PathShape};
+use doctored_core::ffi_psd::{
+    dr_doc_psd_export_report, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
+};
+use doctored_core::ffi_vector_mask::{dr_doc_set_vector_mask, dr_doc_vector_mask_json};
+use doctored_core::path_geometry::{FillRule, PathShape, SubpathOp};
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES as LIMIT;
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
 use crate::common;
+use crate::psd16_fixture as psd16;
 use crate::psd_mask_fixture as fixture;
 use common::psd_photoshop::{import_report, open_psd, soco_body, LAYERS};
 use common::{cpath, doc_from, solid, take_err_string};
@@ -195,7 +207,12 @@ fn path_list() -> Value {
 }
 
 fn with_paths(doc: *mut DrDocument) -> *mut DrDocument {
-    let text = CString::new(path_list().to_string()).unwrap();
+    with_path_list(doc, &path_list())
+}
+
+/// `doc` (consumed) with the path list `list`.
+fn with_path_list(doc: *mut DrDocument, list: &Value) -> *mut DrDocument {
+    let text = CString::new(list.to_string()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let out = unsafe { dr_doc_with_paths_json(doc, text.as_ptr(), &mut err) };
     assert!(!out.is_null(), "{}", take_err_string(err));
@@ -206,6 +223,11 @@ fn with_paths(doc: *mut DrDocument) -> *mut DrDocument {
 fn with_vector_mask(doc: *mut DrDocument) -> *mut DrDocument {
     let shape = json!({"fill_rule": "nonzero", "subpaths": [
         {"closed": true, "anchors": [[12, 4], [48, 8], [30, 36]]}]});
+    with_mask_shape(doc, &shape)
+}
+
+/// `doc` (consumed) with `shape` as layer 1's vector mask.
+fn with_mask_shape(doc: *mut DrDocument, shape: &Value) -> *mut DrDocument {
     let text = CString::new(shape.to_string()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let out = unsafe { dr_doc_set_vector_mask(doc, 1, text.as_ptr(), ptr::null(), &mut err) };
@@ -214,17 +236,21 @@ fn with_vector_mask(doc: *mut DrDocument) -> *mut DrDocument {
     out
 }
 
-pub fn document(dir: &TempDir) -> *mut DrDocument {
+/// A 60 × 40 base and a red layer "Top" over it.
+fn two_layers(dir: &TempDir) -> *mut DrDocument {
     let doc = doc_from(dir, "base.png", &solid(60, 40, [10, 20, 30, 255]));
-    let doc = common::add_layer(
+    common::add_layer(
         dir,
         "top.png",
         doc,
         0,
         &solid(60, 40, [200, 0, 0, 255]),
         "Top",
-    );
-    with_vector_mask(with_paths(doc))
+    )
+}
+
+pub fn document(dir: &TempDir) -> *mut DrDocument {
+    with_vector_mask(with_paths(two_layers(dir)))
 }
 
 /// Every coordinate of two path lists equal within the fixed-point step, and
@@ -239,6 +265,7 @@ pub fn assert_paths_close(got: &[PathEntry], want: &[PathEntry], what: &str) {
 
 pub fn assert_shapes_close(got: &PathShape, want: &PathShape, what: &str) {
     assert_eq!(got.fill_rule, want.fill_rule, "{what}: fill rule");
+    assert_eq!(got.ops, want.ops, "{what}: operations");
     assert_eq!(got.subpaths.len(), want.subpaths.len(), "{what}");
     for (g, w) in got.subpaths.iter().zip(&want.subpaths) {
         assert_eq!(g.closed, w.closed, "{what}");
@@ -259,7 +286,10 @@ pub fn assert_shapes_close(got: &PathShape, want: &PathShape, what: &str) {
     }
 }
 
-/// The 26-byte records of one subpath, computed here from Adobe's layout.
+/// The 26-byte records of one subpath, computed here from Adobe's layout:
+/// each length record's operation word the subpath's own from `ops` (0
+/// exclude, 1 combine, 2 subtract, 3 intersect), else the fill rule's (0
+/// even-odd, 1 nonzero).
 pub fn expected_records(shape: &PathShape, canvas: (f64, f64)) -> Vec<u8> {
     let mut out = Vec::new();
     let mut record = |selector: u16, body: Vec<u8>| {
@@ -269,12 +299,19 @@ pub fn expected_records(shape: &PathShape, canvas: (f64, f64)) -> Vec<u8> {
     };
     record(6, vec![]);
     record(8, vec![0, 0]);
-    let op: i16 = if shape.fill_rule == FillRule::EvenOdd {
+    let rule: i16 = if shape.fill_rule == FillRule::EvenOdd {
         0
     } else {
         1
     };
-    for sub in &shape.subpaths {
+    for (k, sub) in shape.subpaths.iter().enumerate() {
+        let op: i16 = match shape.ops.as_ref().map(|ops| ops[k]) {
+            None => rule,
+            Some(SubpathOp::Exclude) => 0,
+            Some(SubpathOp::Unite) => 1,
+            Some(SubpathOp::Subtract) => 2,
+            Some(SubpathOp::Intersect) => 3,
+        };
         let mut length = (sub.anchors.len() as u16).to_be_bytes().to_vec();
         length.extend_from_slice(&op.to_be_bytes());
         length.extend_from_slice(&1u16.to_be_bytes());
@@ -379,6 +416,206 @@ fn paths_and_a_vector_mask_round_trip_through_every_rgb_container() {
     let view = back.vector_mask(1).expect("the 16-bit vector mask");
     assert_shapes_close(&view.shape, &want_mask, "16 bits");
     unsafe { dr_doc_free(doc) };
+}
+
+// ------------------------------------------- per-subpath operations --
+
+/// Four closed subpaths on the 60 × 40 canvas, combined by `unite`,
+/// `subtract`, `intersect` (one smooth anchor) and `exclude`.
+fn held_subpaths() -> Value {
+    json!([
+        {"closed": true, "op": "unite", "anchors": [[5, 5], [40, 5], [40, 30], [5, 30]]},
+        {"closed": true, "op": "subtract", "anchors": [[10, 10], [20, 10], [20, 20], [10, 20]]},
+        {"closed": true, "op": "intersect", "anchors": [
+            {"x": 8, "y": 8, "in": [6.5, 12.25], "out": [10.5, 4.75], "smooth": true},
+            [50, 8], [50, 35], [8, 35]]},
+        {"closed": true, "op": "exclude", "anchors": [[30, 2], [55, 2], [55, 12], [30, 12]]}
+    ])
+}
+
+const HELD_OPS: [SubpathOp; 4] = [
+    SubpathOp::Unite,
+    SubpathOp::Subtract,
+    SubpathOp::Intersect,
+    SubpathOp::Exclude,
+];
+
+/// `dr_doc_psd_export_report`'s losses for a layered PSD.
+fn psd_export_losses(doc: *const DrDocument) -> Vec<String> {
+    let mut err: *mut c_char = ptr::null_mut();
+    let raw = unsafe { dr_doc_psd_export_report(doc, 0, 0, &mut err) };
+    assert!(!raw.is_null(), "{}", take_err_string(err));
+    let report: Value = serde_json::from_str(&take_err_string(raw)).expect("report JSON");
+    report["losses"]
+        .as_array()
+        .expect("losses")
+        .iter()
+        .map(|line| line.as_str().expect("a sentence").to_string())
+        .collect()
+}
+
+/// A saved path, the work path and a raster-less vector mask holding the
+/// four operations: each subpath's length record holds its own word, and
+/// all three come back with their operations through every RGB container,
+/// the mask as a `vmsk` (no raster part, no sentence).
+#[test]
+fn paths_and_a_vector_mask_holding_operations_round_trip_through_every_rgb_container() {
+    let dir = TempDir::new().unwrap();
+    let list = json!({"paths": [
+        {"kind": "work", "fill_rule": "nonzero", "subpaths": held_subpaths()},
+        {"kind": "saved", "name": "Held", "fill_rule": "nonzero", "subpaths": held_subpaths()}
+    ]});
+    let doc = with_mask_shape(
+        with_path_list(two_layers(&dir), &list),
+        &json!({"fill_rule": "nonzero", "subpaths": held_subpaths()}),
+    );
+    let want_paths = unsafe { &*doc }.paths().to_vec();
+    assert_eq!(want_paths[1].shape.ops.as_deref(), Some(&HELD_OPS[..]));
+    let want_mask = unsafe { &*doc }
+        .vector_mask(1)
+        .expect("the vector mask")
+        .shape;
+    assert_eq!(want_mask.ops.as_deref(), Some(&HELD_OPS[..]));
+    let losses = psd_export_losses(doc);
+    assert!(
+        !losses.iter().any(|l| l.starts_with("Path “Held”")
+            || l.starts_with("The work path")
+            || l.starts_with("The vector mask on “Top”")),
+        "{losses:?}"
+    );
+    let bytes = byte_save(doc, &dir.path().join("held.psd"), 0);
+    let (name, body) = resource(&bytes, 2000).expect("resource 2000");
+    assert_eq!(name, "Held");
+    assert_eq!(body, expected_records(&want_paths[1].shape, (60.0, 40.0)));
+    let (_, body) = resource(&bytes, 1025).expect("the work path");
+    assert_eq!(body, expected_records(&want_paths[0].shape, (60.0, 40.0)));
+    for (container, name) in [(0, "h.psd"), (1, "h.psb"), (2, "h.tif")] {
+        let path = dir.path().join(name);
+        byte_save(doc, &path, container);
+        let losses = common::psd_photoshop::strings(&import_report(&path), "verified_losses");
+        assert!(
+            !losses.iter().any(|l| l.starts_with("Path “Held”")
+                || l.starts_with("The work path")
+                || l.contains("has a vector mask")),
+            "{name}: {losses:?}"
+        );
+        let reopened = byte_open(&path);
+        let back = unsafe { &*reopened };
+        assert_paths_close(back.paths(), &want_paths, name);
+        let view = back.vector_mask(1).expect("the vector mask comes back");
+        assert!(view.enabled && view.linked && !view.has_raster, "{name}");
+        assert_shapes_close(&view.shape, &want_mask, name);
+        unsafe { dr_doc_free(reopened) };
+    }
+
+    // 16 bits, through the promoted document.
+    let mut err: *mut c_char = ptr::null_mut();
+    let wide = unsafe { dr_doc_promote_structure(doc, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!wide.is_null(), "{}", take_err_string(err));
+    let wide = unsafe { Box::from_raw(wide) };
+    let path = dir.path().join("h16.psd");
+    typed_save(&wide, &path);
+    let back = typed_open(&path);
+    assert_paths_close(back.paths(), &want_paths, "16 bits");
+    let view = back.vector_mask(1).expect("the 16-bit vector mask");
+    assert!(!view.has_raster, "16 bits");
+    assert_shapes_close(&view.shape, &want_mask, "16 bits");
+    unsafe { dr_doc_free(doc) };
+}
+
+/// An outer rectangle and a counter-wound inner one on the 60 × 40 canvas.
+const OUTER: [[f64; 2]; 4] = [[8.0, 6.0], [52.0, 6.0], [52.0, 34.0], [8.0, 34.0]];
+const INNER_REVERSED: [[f64; 2]; 4] = [[20.0, 14.0], [20.0, 26.0], [40.0, 26.0], [40.0, 14.0]];
+
+/// A saved path holding one operation on every subpath is written as the
+/// words that read back as a fill rule (every 1 nonzero, every 0 even-odd)
+/// with no operations, and the export report says so.
+#[test]
+fn a_path_holding_one_operation_on_every_subpath_is_written_as_its_fill_rule() {
+    for (op, rule, word, fill) in [
+        ("unite", "nonzero", 1i16, FillRule::NonZero),
+        ("exclude", "even-odd", 0, FillRule::EvenOdd),
+    ] {
+        let dir = TempDir::new().unwrap();
+        let list = json!({"paths": [{"kind": "saved", "name": "Same", "fill_rule": "nonzero",
+            "subpaths": [{"closed": true, "op": op, "anchors": OUTER},
+                         {"closed": true, "op": op, "anchors": INNER_REVERSED}]}]});
+        let doc = with_path_list(two_layers(&dir), &list);
+        let want = unsafe { &*doc }.paths()[0].shape.clone();
+        let sentence = format!("Path “Same” holds {op} on every subpath, which a PSD path holds as its {rule} fill rule; it is written, and reopens under that rule without its operations.");
+        let losses = psd_export_losses(doc);
+        assert!(losses.contains(&sentence), "{op}: {losses:?}");
+        let path = dir.path().join("same.psd");
+        let bytes = byte_save(doc, &path, 0);
+        let (_, body) = resource(&bytes, 2000).expect("the path is written");
+        assert_eq!(body, expected_records(&want, (60.0, 40.0)), "{op}");
+        let words: Vec<i16> = body
+            .chunks_exact(26)
+            .filter(|r| matches!(u16::from_be_bytes([r[0], r[1]]), 0 | 3))
+            .map(|r| i16::from_be_bytes([r[4], r[5]]))
+            .collect();
+        assert_eq!(words, [word, word], "{op}");
+        let reopened = byte_open(&path);
+        let back = &unsafe { &*reopened }.paths()[0].shape;
+        assert_eq!(back.ops, None, "{op}");
+        assert_eq!(back.fill_rule, fill, "{op}");
+        unsafe { dr_doc_free(reopened) };
+        unsafe { dr_doc_free(doc) };
+    }
+}
+
+/// The writers write a vector mask as a `vmsk` only when Doctored reads the
+/// same mask back (`psd_paths::vmsk_holds`): Top's live vector mask of
+/// `OUTER` united, then `second`, is written as pixels with its sentence,
+/// and the reopened document shows the live picture, `centre` at (30, 20).
+fn written_as_pixels(second: Value, centre: [u8; 4]) {
+    let sentence = "The vector mask on “Top” is written as pixels, an ordinary layer mask of its rendered shape; its path is not written.";
+    let dir = TempDir::new().unwrap();
+    let shape = json!({"fill_rule": "nonzero", "subpaths": [
+        {"closed": true, "op": "unite", "anchors": OUTER}, second]});
+    let doc = with_mask_shape(two_layers(&dir), &shape);
+    let losses = psd_export_losses(doc);
+    assert!(losses.iter().any(|l| l == sentence), "{losses:?}");
+    let live = common::flat_pixels(doc);
+    assert_eq!(common::pixel(&live, 60, 30, 20), centre, "live");
+    let path = dir.path().join("pixels.psd");
+    let bytes = byte_save(doc, &path, 0);
+    assert!(!bytes.windows(8).any(|w| w == b"8BIMvmsk"), "no vmsk");
+    let reopened = byte_open(&path);
+    assert!(unsafe { &*reopened }.vector_mask(1).is_none());
+    let back = common::flat_pixels(reopened);
+    assert_eq!(common::pixel(&back, 60, 30, 20), centre, "reopened");
+    let worst = live
+        .iter()
+        .zip(&back)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max()
+        .unwrap();
+    assert!(worst <= 1, "the reopened composite differs by {worst}");
+    unsafe { dr_doc_free(reopened) };
+    unsafe { dr_doc_free(doc) };
+}
+
+/// A rectangle intersected with a subpath of one anchor covers nothing live
+/// (the subpath encloses nothing), where the import would skip that
+/// subpath and draw the rectangle: written as pixels.
+#[test]
+fn a_vector_mask_holding_a_one_anchor_subpath_beside_operations_is_written_as_pixels() {
+    written_as_pixels(
+        json!({"closed": true, "op": "intersect", "anchors": [[30, 20]]}),
+        [10, 20, 30, 255],
+    );
+}
+
+/// An outer rectangle united with a counter-wound inner one covers the
+/// inner one, where a `vmsk` of every word 1 reads back under the nonzero
+/// rule with a hole there: written as pixels.
+#[test]
+fn a_vector_mask_holding_one_operation_on_every_subpath_is_written_as_pixels() {
+    written_as_pixels(
+        json!({"closed": true, "op": "unite", "anchors": INNER_REVERSED}),
+        [200, 0, 0, 255],
+    );
 }
 
 #[test]
@@ -502,6 +739,70 @@ fn a_refused_path_is_dropped_alone() {
     unsafe { dr_doc_free(doc) };
 }
 
+/// A file's saved path whose subpaths' words mix 1 and 2 imports holding
+/// them (`unite`, `subtract`) under the nonzero rule with no sentence; one
+/// that names a word outside 0–3 keeps its outline under the nonzero rule
+/// with no operations, and its sentence.
+#[test]
+fn a_files_mix_of_operation_words_imports_as_operations() {
+    let canvas = (8.0, 8.0);
+    let outer = |op| {
+        closed_subpath(
+            &[(1.0, 1.0), (7.0, 1.0), (7.0, 7.0), (1.0, 7.0)],
+            op,
+            canvas,
+        )
+    };
+    let inner = |op| {
+        closed_subpath(
+            &[(3.0, 3.0), (5.0, 3.0), (5.0, 5.0), (3.0, 5.0)],
+            op,
+            canvas,
+        )
+    };
+    let resources = [
+        path_resource(2000, "Mixed", &path_body(0, &[outer(1), inner(2)])),
+        path_resource(2001, "Odd", &path_body(0, &[outer(1), inner(7)])),
+    ]
+    .concat();
+    let base = fixture::fixture(
+        &[fixture::Record::raster(
+            [0, 0, 8, 8],
+            &[9, 9, 9, 255].repeat(64),
+            false,
+        )],
+        [8, 8],
+        false,
+    );
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("words.psd");
+    std::fs::write(&path, with_resources(&base, &resources)).unwrap();
+    let losses = common::psd_photoshop::strings(&import_report(&path), "verified_losses");
+    assert!(
+        !losses.iter().any(|l| l.starts_with("Path “Mixed”")),
+        "{losses:?}"
+    );
+    let odd = "Path “Odd” names a subpath operation Doctored does not know; Doctored keeps its outline under one fill rule (nonzero).";
+    assert!(losses.iter().any(|l| l == odd), "{losses:?}");
+    let doc = byte_open(&path);
+    let paths = unsafe { &*doc }.paths();
+    let shape = |name: &str| {
+        &paths
+            .iter()
+            .find(|p| p.name == name)
+            .unwrap_or_else(|| panic!("{name}"))
+            .shape
+    };
+    assert_eq!(
+        shape("Mixed").ops.as_deref(),
+        Some(&[SubpathOp::Unite, SubpathOp::Subtract][..])
+    );
+    assert_eq!(shape("Mixed").fill_rule, FillRule::NonZero);
+    assert_eq!(shape("Odd").ops, None);
+    assert_eq!(shape("Odd").fill_rule, FillRule::NonZero);
+    unsafe { dr_doc_free(doc) };
+}
+
 // ------------------------------------------- a `vmsk` that is not carried --
 
 /// The report's sentence for a record whose mask the layered import drops.
@@ -566,14 +867,14 @@ fn with_resources(base: &[u8], resources: &[u8]) -> Vec<u8> {
     bytes
 }
 
-/// A shape layer whose second subpath SUBTRACTS (operation 2), and one whose
-/// path starts from all pixels (an initial fill record of 1), cannot be held
-/// under Doctored's one fill rule: neither `vmsk` is carried, so the record
-/// keeps the pixels Photoshop stored (already masked: a ring around a
-/// transparent hole) and the dropped-mask sentence. Carried, either would
-/// fill the whole outer rectangle.
+/// A shape layer whose second subpath SUBTRACTS (operation 2) is carried: a
+/// fill layer under its vector mask, which holds the file's operations, so
+/// it shows the ring around the hole the record's pixels show. One whose
+/// path starts from all pixels (an initial fill record of 1) is not
+/// carried, so the record keeps the pixels Photoshop stored (already
+/// masked: a ring around a transparent hole) and the dropped-mask sentence.
 #[test]
-fn a_vector_mask_one_fill_rule_cannot_hold_keeps_the_records_pixels() {
+fn a_subtracting_vector_mask_is_carried_and_one_from_all_pixels_keeps_the_records_pixels() {
     let canvas = (64.0, 48.0);
     let outer = closed_subpath(
         &[(8.0, 8.0), (56.0, 8.0), (56.0, 40.0), (8.0, 40.0)],
@@ -597,9 +898,9 @@ fn a_vector_mask_one_fill_rule_cannot_hold_keeps_the_records_pixels() {
         })
         .collect();
     let dir = TempDir::new().unwrap();
-    for (what, body) in [
-        ("subtracted", vmsk(0, &[outer.clone(), hole])),
-        ("from all pixels", vmsk(1, &[outer])),
+    for (what, body, carried) in [
+        ("subtracted", vmsk(0, &[outer.clone(), hole]), true),
+        ("from all pixels", vmsk(1, &[outer]), false),
     ] {
         let mut record = fixture::Record::raster([8, 8, 40, 56], &pixels, false);
         record.flags = 0x18;
@@ -611,16 +912,30 @@ fn a_vector_mask_one_fill_rule_cannot_hold_keeps_the_records_pixels() {
         let path = dir.path().join(format!("{what}.psd"));
         std::fs::write(&path, fixture::fixture(&[record], [64, 48], false)).unwrap();
         let losses = common::psd_photoshop::strings(&import_report(&path), "verified_losses");
-        assert!(
+        assert_eq!(
             losses.iter().any(|l| l.contains(DROPPED)),
+            !carried,
             "{what}: {losses:?}"
         );
         let doc = byte_open(&path);
-        assert!(unsafe { &*doc }.vector_mask(0).is_none(), "{what}");
-        assert!(
-            !common::ffi_meta(doc, 0).is_some_and(|m| m.contains("\"type\":\"fill\"")),
-            "{what}: no fill layer"
+        assert_eq!(unsafe { &*doc }.vector_mask(0).is_some(), carried, "{what}");
+        assert_eq!(
+            common::ffi_meta(doc, 0).is_some_and(|m| m.contains("\"type\":\"fill\"")),
+            carried,
+            "{what}: a fill layer when carried"
         );
+        if carried {
+            let view: Value =
+                serde_json::from_str(&take_err_string(unsafe { dr_doc_vector_mask_json(doc, 0) }))
+                    .expect("vector mask JSON");
+            let ops: Vec<&str> = view["subpaths"]
+                .as_array()
+                .expect("subpaths")
+                .iter()
+                .map(|s| s["op"].as_str().unwrap_or("none"))
+                .collect();
+            assert_eq!(ops, ["unite", "subtract"], "{what}");
+        }
         let flat = common::flat_pixels(doc);
         assert_eq!(common::pixel(&flat, 64, 12, 12)[3], 255, "{what}: the ring");
         assert_eq!(common::pixel(&flat, 64, 32, 24)[3], 0, "{what}: the hole");
@@ -694,6 +1009,38 @@ fn masked_raster(canvas: [u32; 2], body: &[u8]) -> Vec<u8> {
     fixture::fixture(&[record], canvas, false)
 }
 
+/// A `vmsk` holding operations beside a subpath of one anchor is not
+/// carried (the bake skips that subpath where the live fold would not:
+/// `psd_paths::vmsk_holds`), so on a raster record it is still drawn from
+/// its path.
+#[test]
+fn a_vector_mask_with_a_one_anchor_subpath_beside_operations_is_drawn_from_its_path() {
+    let canvas = (64.0, 48.0);
+    let body = vmsk(
+        0,
+        &[
+            closed_subpath(
+                &[(8.0, 8.0), (56.0, 8.0), (56.0, 40.0), (8.0, 40.0)],
+                1,
+                canvas,
+            ),
+            closed_subpath(&[(30.0, 20.0)], 2, canvas),
+        ],
+    );
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("dot.psd");
+    std::fs::write(&file, masked_raster([64, 48], &body)).unwrap();
+    let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+    assert!(
+        losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    let doc = byte_open(&file);
+    assert!(unsafe { &*doc }.vector_mask(0).is_none());
+    assert!(unsafe { &*doc }.layers[0].mask.is_some(), "the drawn mask");
+    unsafe { dr_doc_free(doc) };
+}
+
 /// The import draws a vector mask it does not carry one subpath at a time,
 /// each over its own window (its control hull, padded and clamped to the
 /// canvas; an Intersect also clears the rest of what the mask held so far),
@@ -757,11 +1104,12 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
     );
     assert!(!vmsk_bakes(&widened, huge), "an Intersect over a full mask");
     // 513 whole-canvas windows on 2048 × 1024 are past 2³⁰ (512 of them
-    // reach it): the import drops that mask with its sentence.
+    // reach it): the import drops that mask with its sentence. The file's
+    // mask starts from all pixels, so it is not carried and reaches the bake.
     let full: Vec<Vec<u8>> = (0..513)
         .map(|k| rectangle(0.0, 0.0, 64.0, 48.0, if k == 0 { 1 } else { 2 }))
         .collect();
-    let body = vmsk(0, &full);
+    let body = vmsk(1, &full);
     assert!(vmsk_bakes(&vmsk(0, &full[..512]), (2048, 1024)));
     assert!(!vmsk_bakes(&body, (2048, 1024)));
     let dir = TempDir::new().unwrap();
@@ -794,10 +1142,10 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
 /// The bake checks no window on its own: each lies inside the canvas, and
 /// the container refuses a canvas past the 100 MP editing limit before any
 /// record is walked, so no window reaches the rasterizer's pixel limits
-/// (`psd_vector_mask_bake`). A mask of a large add and a small subtract on
-/// a 30000 × 30000 canvas (an add window of about 20000 × 20000), and on a
-/// canvas one row past 100 MP, never reaches the bake: the report refuses
-/// the file at its header.
+/// (`psd_vector_mask_bake`). A mask from all pixels, of a large add and a
+/// small subtract, on a 30000 × 30000 canvas (an add window of about
+/// 20000 × 20000), and on a canvas one row past 100 MP, never reaches the
+/// bake: the report refuses the file at its header.
 #[test]
 fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
     let canvas = (64.0, 48.0);
@@ -805,7 +1153,7 @@ fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
         closed_subpath(&[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], operation, canvas)
     };
     let body = vmsk(
-        0,
+        1,
         &[
             rectangle(0.0, 0.0, 43.0, 32.0, 1),
             rectangle(2.0, 2.0, 4.0, 4.0, 2),
@@ -841,32 +1189,23 @@ fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
     }
 }
 
-/// A vector mask within the drawing caps that the rasterizer refuses (32,760
-/// edges that each cross all 8,000 rows are past its work limit) refuses the
-/// layered open by name: the report said the mask is drawn, so the layer
-/// must not open unmasked.
-#[test]
-fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
-    let canvas = (8.0, 8000.0);
+/// The zigzag on an 8 × 8000 canvas: 32,760 edges that each cross all 8,000
+/// rows, past the rasterizer's work limit.
+fn zigzag() -> Vec<u8> {
     let zigzag: Vec<(f64, f64)> = (0..32_760u32)
         .map(|k| (f64::from(k % 8), if k % 2 == 0 { 0.0 } else { 8000.0 }))
         .collect();
-    let hole = closed_subpath(&[(1.0, 10.0), (6.0, 10.0), (3.0, 90.0)], 2, canvas);
-    let body = vmsk(0, &[closed_subpath(&zigzag, 1, canvas), hole]);
-    let dir = TempDir::new().unwrap();
-    let file = dir.path().join("zigzag.psd");
-    std::fs::write(&file, masked_raster([8, 8000], &body)).unwrap();
-    let report = import_report(&file);
-    let losses = common::psd_photoshop::strings(&report, "verified_losses");
-    assert!(
-        losses.iter().any(|l| l.contains("drawn from its path")),
-        "{losses:?}"
-    );
+    closed_subpath(&zigzag, 1, (8.0, 8000.0))
+}
+
+/// The refusal of the layered byte open of `file`, which must refuse.
+fn refused_open(file: &Path) -> String {
+    let report = import_report(file);
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let doc = unsafe {
         doctored_core::ffi_psd::dr_doc_open_psd(
-            cpath(&file).as_ptr(),
+            cpath(file).as_ptr(),
             LAYERS,
             token.as_ptr(),
             ptr::null(),
@@ -877,6 +1216,130 @@ fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
         let masked = unsafe { &*doc }.layers[0].mask.is_some();
         unsafe { dr_doc_free(doc) };
         panic!("the open must refuse; it opened with a mask: {masked}");
+    }
+    take_err_string(err)
+}
+
+/// The raster record “Duplicate” covering the whole of a `canvas`, under
+/// `body` as its `vmsk`. A carried (linked) vector mask is drawn over its
+/// layer's pixels (`doc_vector_mask`), so this one is drawn over the
+/// canvas, as a baked one always is.
+fn canvas_raster(canvas: [u32; 2], body: &[u8]) -> Vec<u8> {
+    let [w, h] = canvas;
+    let pixels = [9, 9, 9, 255].repeat((w * h) as usize);
+    let mut record = fixture::Record::raster([0, 0, h as i32, w as i32], &pixels, false);
+    record.blocks = fixture::block(b"vmsk", body);
+    fixture::fixture(&[record], canvas, false)
+}
+
+/// A vector mask within the drawing caps that the rasterizer refuses
+/// refuses the layered open by name, whether it is carried (a mix of
+/// operations, over a layer covering the canvas) or drawn into a raster
+/// mask (from all pixels): the report said the mask is kept, so the layer
+/// must not open unmasked. Carried over a 4 × 4 layer, the same mask is
+/// drawn over those pixels alone and opens.
+#[test]
+fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
+    let canvas = (8.0, 8000.0);
+    let hole = closed_subpath(&[(1.0, 10.0), (6.0, 10.0), (3.0, 90.0)], 2, canvas);
+    let carried = vmsk(0, &[zigzag(), hole.clone()]);
+    let dir = TempDir::new().unwrap();
+    let small = dir.path().join("zigzag.psd");
+    std::fs::write(&small, masked_raster([8, 8000], &carried)).unwrap();
+    let doc = byte_open(&small);
+    let view = unsafe { &*doc }
+        .vector_mask(0)
+        .expect("carried over its layer");
+    assert_eq!(
+        view.shape.ops.as_deref(),
+        Some(&[SubpathOp::Unite, SubpathOp::Subtract][..])
+    );
+    unsafe { dr_doc_free(doc) };
+    for (file, bytes) in [
+        ("carried.psd", canvas_raster([8, 8000], &carried)),
+        (
+            "baked.psd",
+            masked_raster([8, 8000], &vmsk(1, &[zigzag(), hole])),
+        ),
+    ] {
+        let file = dir.path().join(file);
+        std::fs::write(&file, bytes).unwrap();
+        let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+        assert_eq!(
+            losses.iter().any(|l| l.contains("drawn from its path")),
+            file.ends_with("baked.psd"),
+            "{losses:?}"
+        );
+        let reason = refused_open(&file);
+        assert!(
+            reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
+            "{}: {reason}",
+            file.display()
+        );
+    }
+}
+
+/// The same zigzag alone, every word 1 (a vector mask with no operations),
+/// carried over a layer covering the canvas: the rasterizer's refusal
+/// refuses the open by the layer's name rather than leaving it unmasked.
+#[test]
+fn a_carried_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("zigzag_alone.psd");
+    std::fs::write(&file, canvas_raster([8, 8000], &vmsk(0, &[zigzag()]))).unwrap();
+    let reason = refused_open(&file);
+    assert!(
+        reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
+        "{reason}"
+    );
+}
+
+/// The typed twin: the same zigzag on a 16-bit record covering the canvas
+/// refuses the typed open (`dr_precision_doc_open_psd`) by the layer's name.
+#[test]
+fn a_carried_vector_mask_the_rasterizer_refuses_refuses_the_typed_open() {
+    let (w, h) = (8u32, 8000u32);
+    let pixels = (w * h) as usize;
+    let grey = vec![9u16 * 257; pixels];
+    let opaque = vec![65535u16; pixels];
+    let channels = [(-1i16, &opaque), (0, &grey), (1, &grey), (2, &grey)]
+        .into_iter()
+        .map(|(id, plane)| (id, psd16::raw_plane(plane)))
+        .collect();
+    let mut record = psd16::Record::raster("Duplicate", [0, 0, h as i32, w as i32], channels);
+    record.blocks = psd16::block(b"vmsk", &vmsk(0, &[zigzag()]));
+    let bytes = psd16::fixture(
+        (w, h),
+        &[record],
+        doctored_core::icc::IccProfile::srgb().bytes(),
+        (72.0, 72.0),
+        &vec![[9 * 257, 9 * 257, 9 * 257, 65535]; pixels],
+        false,
+        false,
+    );
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("zigzag16.psd");
+    std::fs::write(&file, bytes).unwrap();
+    let report = import_report(&file);
+    let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
+    let mut err: *mut c_char = ptr::null_mut();
+    let doc = unsafe {
+        dr_precision_doc_open_psd(
+            cpath(&file).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    if !doc.is_null() {
+        let doc = unsafe { Box::from_raw(doc) };
+        panic!(
+            "the typed open must refuse; it opened with a vector mask: {}",
+            doc.vector_mask(0).is_some()
+        );
     }
     let reason = take_err_string(err);
     assert!(

@@ -1,7 +1,13 @@
 //! The BAKE of a PSD vector mask Doctored does not carry (`psd_paths`): a
 //! raster record's `vmsk` the record walk does not hold as a live vector
 //! mask is drawn under its per-subpath operations ([`vmsk_coverage`],
-//! `vector_mask_combine`) into the layer's raster mask, at every depth. Each
+//! `vector_mask_combine`) into the layer's raster mask, at every depth.
+//! Since the walk carries a mask that holds a mix of operations
+//! (`psd_paths::vmsk_holds`), what is baked is a mask that starts from all
+//! pixels (flag bit 0 or an initial fill record of 1), one holding a
+//! subpath of a single anchor beside its operations, and one the path
+//! model does not admit or past the document's anchor cap; one naming an
+//! operation word Doctored does not know is not drawn ([`bakes`]). Each
 //! subpath is drawn over its own window — its control hull
 //! (`PathShape::bounds`, which holds the curve) widened to whole pixels and
 //! by one more on every side, clamped to the canvas ([`hull`]) — under
@@ -157,8 +163,9 @@ pub(crate) fn bakes(body: &[u8], canvas: (u32, u32)) -> bool {
 
 /// The refusal of a layered open whose vector mask on layer `name` the
 /// rasterizer does not draw: the report said the mask is drawn, so the
-/// layer does not open unmasked instead.
-fn undrawn(name: &str, reason: &str) -> String {
+/// layer does not open unmasked instead. A carried vector mask's refusal
+/// too (`psd_paths`).
+pub(crate) fn undrawn(name: &str, reason: &str) -> String {
     format!("PSD vector mask on layer “{name}” could not be drawn: {reason}")
 }
 

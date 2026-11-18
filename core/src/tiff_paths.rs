@@ -47,8 +47,11 @@
 //! run as it did. The records are fractions of the canvas, so they stay
 //! right at an export's output size; a trimmed layer export holds only a
 //! part of the canvas, so it writes none ([`DrDocument::without_canvas_paths`]).
-//! A path whose coordinates leave the fixed-point range is not written, and
-//! the flat save lists "paths" then too ([`DrDocument::tiff_keeps_paths`]).
+//! A path's per-subpath operations are its records' words (`psd_paths`). A
+//! path whose coordinates leave the fixed-point range, or that holds
+//! operations under the even-odd rule, is not written, and one holding one
+//! operation on every subpath reopens as a fill rule; the flat save lists
+//! "paths" then too ([`DrDocument::tiff_keeps_paths`]).
 
 use std::sync::Arc;
 

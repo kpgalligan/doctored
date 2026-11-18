@@ -9,7 +9,10 @@
 //! made here (`psd_clipping_path::clipping_body`).
 //!
 //! - A byte RGB save, a 16-bit RGB save and a CMYK save write every path
-//!   and the clipping path, and each reopens with them.
+//!   and the clipping path, and each reopens with them; a path holding
+//!   per-subpath operations under the nonzero rule too, with each subpath's
+//!   word, while one under even-odd, or `unite` on every subpath, keeps the
+//!   "paths" loss.
 //! - A TIFF that brought its paths writes the document's current ones, once:
 //!   cropped, they are the cropped records; deleted, none is written.
 //! - The flat save's "paths" loss is gone for a TIFF that writes every path,
@@ -485,6 +488,84 @@ fn a_flat_tiff_that_writes_every_path_does_not_list_paths_as_lost() {
         typed_losses(&gray, false).contains(&paths),
         "a Grayscale PNG"
     );
+}
+
+/// One saved path "Held" of two closed subpaths combined by `ops`, under
+/// `rule`, on the W × H canvas.
+pub(crate) fn held_list(rule: &str, ops: [&str; 2]) -> Value {
+    json!({"paths": [{"kind": "saved", "name": "Held", "fill_rule": rule, "subpaths": [
+        {"closed": true, "op": ops[0], "anchors": [[5, 5], [40, 5], [40, 30], [5, 30]]},
+        {"closed": true, "op": ops[1], "anchors": [[10, 10], [50, 12], [30, 36]]}]}]})
+}
+
+/// A path holding a mix of per-subpath operations under the nonzero rule is
+/// written to tag 34377 with each subpath's word, reopens holding them at 8
+/// and 16 bits and in CMYK, and the flat save lists no "paths". One holding
+/// them under the even-odd rule is not written, and one holding `unite` on
+/// every subpath reopens as the nonzero rule without them: the TIFF lists
+/// "paths" for each.
+#[test]
+fn a_flat_tiff_carries_a_path_holding_operations() {
+    let dir = TempDir::new().unwrap();
+    let paths = "paths".to_string();
+    let base = || {
+        DrDocument::from_pixels(RgbaImage::from_fn(W, H, |x, y| {
+            Rgba([(x * 4) as u8, (y * 6) as u8, 90, 255])
+        }))
+    };
+    let doc = with_list(base(), &held_list("nonzero", ["unite", "subtract"]));
+    let want = doc.paths().to_vec();
+    assert!(want[0].shape.ops.is_some());
+
+    assert!(!byte_losses(&doc, TIFF).contains(&paths), "8 bits");
+    let path = dir.path().join("held.tif");
+    let file = save_byte(&doc, &path, TIFF);
+    assert_eq!(
+        path_resources(&file),
+        expected_resources(&want, (W, H)),
+        "8 bits"
+    );
+    assert_paths_close(open_byte(&path).paths(), &want, "8-bit reopen");
+
+    let wide = promoted(&doc);
+    assert!(!typed_losses(&wide, true).contains(&paths), "16 bits");
+    let path = dir.path().join("held16.tif");
+    let file = save_typed(&wide, &path);
+    assert_eq!(
+        path_resources(&file),
+        expected_resources(&want, (W, H)),
+        "16 bits"
+    );
+    assert_paths_close(open_typed(&path).paths(), &want, "16-bit reopen");
+
+    let cmyk = cmyk_doc(&doc);
+    assert!(!typed_losses(&cmyk, true).contains(&paths), "CMYK");
+    let path = dir.path().join("held_cmyk.tif");
+    let file = save_cmyk(&cmyk, &path);
+    assert_eq!(
+        path_resources(&file),
+        expected_resources(&want, (W, H)),
+        "CMYK"
+    );
+    assert_paths_close(open_typed(&path).paths(), &want, "CMYK reopen");
+
+    let even = with_list(base(), &held_list("evenodd", ["unite", "subtract"]));
+    assert!(
+        byte_losses(&even, TIFF).contains(&paths),
+        "even-odd, 8 bits"
+    );
+    let file = save_byte(&even, &dir.path().join("even.tif"), TIFF);
+    assert!(path_resources(&file).is_empty(), "even-odd: not written");
+    assert!(
+        typed_losses(&promoted(&even), true).contains(&paths),
+        "even-odd, 16 bits"
+    );
+    assert!(
+        typed_losses(&cmyk_doc(&even), true).contains(&paths),
+        "even-odd, CMYK"
+    );
+    let united = with_list(base(), &held_list("nonzero", ["unite", "unite"]));
+    assert!(byte_losses(&united, TIFF).contains(&paths), "every unite");
 }
 
 /// `file`, one of this crate's TIFFs, with its Orientation (one SHORT,

@@ -189,10 +189,11 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   jobs-probe's "path shape outline target").
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — per-subpath operations held on the path (and
   with them a subtracting `vmsk` carried instead of baked): designed in
-  [v1-paths-held-subpaths.md](v1-paths-held-subpaths.md); kernel, model and word 116 built (slices 1 and 2),
-  and the app, MCP (`subpaths[i].op`), the path shape's payload version 8 and the options bar's Operation
-  (slice 4); the codecs (slice 3) and the owner's hand check of the options bar remain; a holding path shape
-  takes no stroke. No seam: two subpaths sharing a straight, diagonal or
+  [v1-paths-held-subpaths.md](v1-paths-held-subpaths.md); kernel, model, word 116 and the PSD and TIFF
+  codecs built (slices 1–3; a mixed-operation `vmsk` is carried live), and the app, MCP (`subpaths[i].op`),
+  the path shape's payload version 8 and the options bar's Operation (slice 4); the bake rewrite HS-3 chose
+  and the owner's hand check of the options bar remain; a holding path shape takes no stroke. No seam: two
+  subpaths sharing a straight, diagonal or
   cubic edge cover it exactly as their one outline does (`core/tests/path_shared_edge.rs`); the quarter-pixel
   loss on a shared edge is the per-pixel combine of each subpath's own coverage, which held operations do not use.
 - `DONE` — paths in PSD, PSB and layered TIFF, both directions, every depth and mode (`psd_paths`,

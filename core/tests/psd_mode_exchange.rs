@@ -1120,7 +1120,7 @@ fn record_0_the_open_drops_marks_no_bottom() {
     );
 }
 
-/// A vector mask the import draws (its second subpath subtracts) is a
+/// A vector mask the import draws (it starts from all pixels) is a
 /// canvas-sized mask the document keeps, so the layered plan charges it as
 /// one: the same file with the block under a key no reader knows plans at
 /// least the mask's two bytes a pixel less.
@@ -1129,7 +1129,7 @@ fn a_drawn_vector_mask_is_planned_as_a_canvas_mask() {
     const SIDE: u32 = 256;
     let canvas = (f64::from(SIDE), f64::from(SIDE));
     let body = vmsk(
-        0,
+        1,
         &[
             closed_subpath(
                 &[(8.0, 8.0), (200.0, 8.0), (200.0, 200.0), (8.0, 200.0)],

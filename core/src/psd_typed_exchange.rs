@@ -173,7 +173,8 @@ pub(crate) fn resources(document: &PrecisionDocument, layered: bool) -> Vec<Reso
 
 /// The ids of the layers whose live vector mask the layered mode writes as
 /// pixels, for the preflight's sentence: one with a raster part, or one a
-/// PSD path cannot hold (`psd_paths::vmsk_body`).
+/// `vmsk` does not hold so that Doctored reads it back
+/// (`psd_paths::vmsk_body`, `vmsk_holds`).
 pub(crate) fn baked_vector_masks(document: &PrecisionDocument) -> Vec<u64> {
     document
         .live_vector_masks()

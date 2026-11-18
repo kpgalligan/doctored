@@ -340,15 +340,15 @@ fn each_subpath_drawn_over_its_own_window_is_the_whole_canvas_draw() {
 }
 
 /// An 8-bit open draws the mask a raster record's uncarried `vmsk` holds
-/// (a subtracting subpath is not carried) into the layer's mask: the
-/// oracle's coverage, each sample rounded to the nearest byte.
+/// (one that starts from all pixels is not carried) into the layer's mask:
+/// the oracle's coverage, each sample rounded to the nearest byte.
 #[test]
 fn an_eight_bit_open_draws_the_windowed_bake_into_the_layers_mask() {
     let s = shapes();
     let case = Case::new(
         "open",
         0,
-        0,
+        1,
         &[(&s.blob, 1), (&s.far, 1), (&s.big, 2), (&s.small, 0)],
     );
     let mut record = fixture::Record::raster([0, 0, 4, 4], &[9, 9, 9, 255].repeat(16), false);

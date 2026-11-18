@@ -23,9 +23,13 @@
 //!   not keep.
 //! - Every raster layer under a vector mask composites as the file's stored
 //!   composite does: a plain vector mask and one beside a user mask are kept
-//!   as vector masks (the second with its raster part), and the ones whose
-//!   subpaths subtract, intersect or exclude become the raster mask the file
-//!   rendered, with a sentence.
+//!   as vector masks (the second with its raster part), and so are the ones
+//!   whose subpaths subtract, intersect or exclude, holding the file's
+//!   operations. At 16 bits, where the file holds no rendering, each of
+//!   those masks is held within one 8-bit step of the 8-bit file's own
+//!   rendering of it (its `-2` channel, read here from the file's bytes),
+//!   and the run prints how far one coverage of the shape and the per-pixel
+//!   product of each subpath's coverage (`vmsk_bake`) each sit from it.
 
 use std::ffi::{c_char, CString};
 use std::path::{Path, PathBuf};
@@ -36,8 +40,10 @@ use doctored_core::ffi_comps::dr_doc_edit_layer_comps;
 use doctored_core::ffi_doc::*;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_psd::{dr_precision_doc_open_gray_psd, dr_precision_doc_open_lab_psd};
+use doctored_core::ffi_vector_mask::dr_doc_vector_mask_json;
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES as LIMIT;
+use doctored_core::psd_vector_mask_bake::vmsk_bake;
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
@@ -568,49 +574,28 @@ fn raster_layers_under_photoshops_vector_masks_composite_as_the_file_does() {
     }
     assert!(!document.vector_mask(index("Vh")).unwrap().enabled);
     assert!(!document.vector_mask(index("Vi")).unwrap().linked);
-    // Rendered: the masks whose subpaths subtract, intersect or exclude, or
-    // start by subtracting, and the stroked shape keeps its pixels.
-    for name in ["Vc", "Vd", "Vx", "Ve"] {
-        assert!(document.vector_mask(index(name)).is_none(), "{name}");
-        assert!(
-            document.layers[index(name)].mask.is_some(),
-            "{name}: a raster mask"
-        );
+    // Kept as vector masks holding the file's operations: the masks whose
+    // subpaths subtract, intersect or exclude, or start by subtracting.
+    let bytes8 = std::fs::read(&path).unwrap();
+    for name in HELD {
+        let i = index(name);
+        assert!(document.vector_mask(i).is_some(), "{name}: a vector mask");
+        let json: Value =
+            serde_json::from_str(&take_err_string(unsafe { dr_doc_vector_mask_json(doc, i) }))
+                .unwrap();
+        let ops: Vec<String> = json["subpaths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["op"].as_str().unwrap_or("none").to_string())
+            .collect();
+        assert_eq!(ops, vmsk_ops(&vmsk_of(&bytes8, name)), "{name}");
     }
     let losses = strings(&import_report(&path), "verified_losses");
-    for name in ["Vc", "Vd", "Vx", "Ve"] {
-        assert!(
-            losses.iter().any(|l| l.contains(&format!(
-                "(“{name}”) has a vector mask Doctored does not keep"
-            ))),
-            "{name}: {losses:?}"
-        );
-    }
-    // Photoshop's 8-bit renderings of the masks it does not keep live, as
-    // canvas coverage, for the 16-bit file below (which holds none).
-    let rendered: Vec<(&str, Vec<u8>)> = ["Vc", "Vd", "Vx", "Ve"]
-        .into_iter()
-        .map(|name| {
-            let layer = &document.layers[index(name)];
-            let plane = layer.mask.as_ref().unwrap();
-            let (ox, oy) = layer.mask_properties.offset;
-            let outside = layer.mask_properties.outside_coverage;
-            let (w, h) = (document.width as i32, document.height as i32);
-            let canvas = (0..h)
-                .flat_map(|y| (0..w).map(move |x| (x, y)))
-                .map(|(x, y)| {
-                    let (u, v) = (x - ox, y - oy);
-                    if u >= 0 && v >= 0 && (u as u32) < plane.width() && (v as u32) < plane.height()
-                    {
-                        plane.get_pixel(u as u32, v as u32)[0]
-                    } else {
-                        outside
-                    }
-                })
-                .collect();
-            (name, canvas)
-        })
-        .collect();
+    assert!(
+        !losses.iter().any(|l| l.contains("does not keep")),
+        "{losses:?}"
+    );
     unsafe { dr_doc_free(doc) };
     // 16 bits: the same layers, through the typed open.
     let typed = typed_open(&family("paths_rgb16.psd"));
@@ -631,23 +616,243 @@ fn raster_layers_under_photoshops_vector_masks_composite_as_the_file_does() {
             .unwrap_or_else(|| panic!("16 bits {name}: a vector mask"));
         assert_eq!(view.has_raster, raster, "16 bits {name}");
     }
-    // Baked from the path (the file holds no rendering): the 8-bit file's
-    // rendering of the same mask, within one 8-bit step.
-    for (name, eight) in &rendered {
-        assert!(typed.vector_mask(named(name)).is_none(), "16 bits {name}");
+    // The file holds no rendering of these masks: each is held to the 8-bit
+    // file's own rendering of it (P), within one 8-bit step, and the run
+    // prints how far one coverage of the shape (the vector mask the open
+    // keeps) and the per-pixel product of each subpath's coverage (the bake
+    // of the record's own `vmsk`) each sit from it.
+    let bytes16 = std::fs::read(family("paths_rgb16.psd")).unwrap();
+    let (w, h) = typed.dimensions();
+    for name in HELD {
+        let i = named(name);
+        assert!(
+            typed.vector_mask(i).is_some(),
+            "16 bits {name}: a vector mask"
+        );
+        let eight = rendered(&bytes8, name);
+        assert!(
+            eight.contains(&0) && eight.contains(&255),
+            "{name}: P covers a part of the canvas"
+        );
         let mask = typed
-            .layer(named(name))
+            .layer(i)
             .unwrap()
             .mask()
-            .unwrap_or_else(|| panic!("16 bits {name}: a baked mask"));
-        let samples = mask.plane().samples();
-        assert_eq!(samples.len(), eight.len(), "{name}: a canvas-sized mask");
-        let worst = samples
-            .iter()
-            .zip(eight)
-            .map(|(&b, &a)| (i32::from(a) * 257 - i32::from(b)).abs())
-            .max()
-            .unwrap();
-        assert!(worst <= 257, "16 bits {name}: {worst}");
+            .unwrap_or_else(|| panic!("16 bits {name}: the vector mask's plane"));
+        let plane = mask.plane();
+        let (ox, oy) = mask.properties().offset;
+        let outside = u16::from(mask.properties().outside_coverage) * 257;
+        let samples = plane.samples();
+        let live: Vec<u16> = (0..h as i32)
+            .flat_map(|y| (0..w as i32).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                let (u, v) = (x - ox, y - oy);
+                if u >= 0 && v >= 0 && (u as u32) < plane.width() && (v as u32) < plane.height() {
+                    samples[(v as u32 * plane.width() + u as u32) as usize]
+                } else {
+                    outside
+                }
+            })
+            .collect();
+        let product = vmsk_bake(&vmsk_of(&bytes16, name), (w, h))
+            .expect("the record's vmsk bakes")
+            .unwrap_or_else(|e| panic!("16 bits {name}: {e}"));
+        let from_eight = |plane: &[u16]| -> i32 {
+            assert_eq!(plane.len(), eight.len(), "{name}: a canvas-sized plane");
+            plane
+                .iter()
+                .zip(&eight)
+                .map(|(&b, &a)| (i32::from(a) * 257 - i32::from(b)).abs())
+                .max()
+                .unwrap()
+        };
+        let (one, folded) = (from_eight(&live), from_eight(&product));
+        println!("16 bits {name}: one coverage {one}, product rule {folded}");
+        assert!(folded <= 257, "16 bits {name}: the product rule {folded}");
+        assert!(one <= 257, "16 bits {name}: one coverage {one}");
     }
+}
+
+/// The layers whose vector masks combine their subpaths by subtracting,
+/// intersecting or excluding them, or start by subtracting (`provenance.json`).
+const HELD: [&str; 4] = ["Vc", "Vd", "Vx", "Ve"];
+
+/// One layer record of a classic PSD by Adobe's layout: its Pascal name,
+/// its mask body (the layer mask data), its additional blocks and each
+/// channel's id and stored bytes (the compression word first).
+struct FileRecord {
+    name: String,
+    mask: Vec<u8>,
+    blocks: Vec<([u8; 4], Vec<u8>)>,
+    channels: Vec<(i16, Vec<u8>)>,
+}
+
+/// Every layer record of the classic PSD `bytes` in FILE order, as
+/// `record_blocks` walks them, with the channels' stored bytes, which
+/// follow the records, record by record and channel by channel. A 16-bit
+/// file's layer info is empty and its records are the `Lr16` block's,
+/// after the global layer mask info.
+fn file_records(bytes: &[u8]) -> Vec<FileRecord> {
+    let be16 = |at: usize| usize::from(u16::from_be_bytes(bytes[at..at + 2].try_into().unwrap()));
+    let be32 = |at: usize| u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+    let mut at = 26;
+    at += 4 + be32(at);
+    at += 4 + be32(at);
+    if be32(at + 4) == 0 {
+        let global = at + 8;
+        let from = global + 4 + be32(global);
+        at = from
+            + bytes[from..]
+                .windows(8)
+                .position(|w| w == b"8BIMLr16")
+                .expect("an Lr16 block")
+            + 12;
+    } else {
+        at += 8;
+    }
+    let count = i16::from_be_bytes(bytes[at..at + 2].try_into().unwrap()).unsigned_abs();
+    at += 2;
+    let mut heads = Vec::new();
+    for _ in 0..count {
+        at += 16;
+        let n = be16(at);
+        at += 2;
+        let lengths: Vec<(i16, usize)> = (0..n)
+            .map(|k| {
+                let c = at + 6 * k;
+                let id = i16::from_be_bytes(bytes[c..c + 2].try_into().unwrap());
+                (id, be32(c + 2))
+            })
+            .collect();
+        at += 6 * n + 12;
+        let extra = at + 4;
+        at = extra + be32(at);
+        let mask = bytes[extra + 4..extra + 4 + be32(extra)].to_vec();
+        let ranges = extra + 4 + mask.len();
+        let name_at = ranges + 4 + be32(ranges);
+        let name_len = usize::from(bytes[name_at]);
+        let name = String::from_utf8_lossy(&bytes[name_at + 1..name_at + 1 + name_len]);
+        // The additional blocks follow the name, padded to four bytes.
+        let mut cursor = name_at + ((name_len + 4) & !3);
+        let mut blocks = Vec::new();
+        while cursor + 12 <= at {
+            let key: [u8; 4] = bytes[cursor + 4..cursor + 8].try_into().unwrap();
+            let len = be32(cursor + 8);
+            blocks.push((key, bytes[cursor + 12..cursor + 12 + len].to_vec()));
+            cursor += 12 + len + len % 2;
+        }
+        heads.push((name.into_owned(), mask, blocks, lengths));
+    }
+    let mut records = Vec::new();
+    for (name, mask, blocks, lengths) in heads {
+        let mut channels = Vec::new();
+        for (id, len) in lengths {
+            channels.push((id, bytes[at..at + len].to_vec()));
+            at += len;
+        }
+        records.push(FileRecord {
+            name,
+            mask,
+            blocks,
+            channels,
+        });
+    }
+    records
+}
+
+/// The record named `name` in the classic PSD `bytes`.
+fn file_record(bytes: &[u8], name: &str) -> FileRecord {
+    let records = file_records(bytes);
+    let names: Vec<String> = records.iter().map(|r| r.name.clone()).collect();
+    records
+        .into_iter()
+        .find(|r| r.name == name)
+        .unwrap_or_else(|| panic!("{name}: no record among {names:?}"))
+}
+
+/// The `vmsk` body of the record named `name` in the classic PSD `bytes`.
+fn vmsk_of(bytes: &[u8], name: &str) -> Vec<u8> {
+    file_record(bytes, name)
+        .blocks
+        .into_iter()
+        .find(|(key, _)| key == b"vmsk")
+        .unwrap_or_else(|| panic!("{name}: no vmsk"))
+        .1
+}
+
+/// The operation each subpath of a `vmsk` body names, by Adobe's layout:
+/// after the version and flags, 26-byte records, of which selector 0 or 3
+/// is a subpath's length record holding its operation word at byte 4 (0
+/// exclude, 1 unite, 2 subtract, 3 intersect).
+fn vmsk_ops(body: &[u8]) -> Vec<String> {
+    body[8..]
+        .chunks_exact(26)
+        .filter(|r| matches!(u16::from_be_bytes([r[0], r[1]]), 0 | 3))
+        .map(|r| match i16::from_be_bytes([r[4], r[5]]) {
+            0 => "exclude".to_string(),
+            1 => "unite".to_string(),
+            2 => "subtract".to_string(),
+            3 => "intersect".to_string(),
+            word => format!("word {word}"),
+        })
+        .collect()
+}
+
+/// The 8-bit PSD `bytes`' own rendering of the vector mask on the record
+/// named `name` (P), spread to the canvas: the record's `-2` channel over
+/// the mask body's rectangle (top, left, bottom, right), the body's default
+/// colour outside it. The channel is stored raw (compression 0) or as
+/// PackBits rows after a u16 byte count per row (compression 1).
+fn rendered(bytes: &[u8], name: &str) -> Vec<u8> {
+    let canvas_h = u32::from_be_bytes(bytes[14..18].try_into().unwrap()) as i32;
+    let canvas_w = u32::from_be_bytes(bytes[18..22].try_into().unwrap()) as i32;
+    let record = file_record(bytes, name);
+    let side = |at: usize| i32::from_be_bytes(record.mask[at..at + 4].try_into().unwrap());
+    let (top, left, bottom, right) = (side(0), side(4), side(8), side(12));
+    let default = record.mask[16];
+    let (w, h) = ((right - left) as usize, (bottom - top) as usize);
+    let data = &record
+        .channels
+        .iter()
+        .find(|(id, _)| *id == -2)
+        .unwrap_or_else(|| panic!("{name}: no -2 channel"))
+        .1;
+    let samples: Vec<u8> = match u16::from_be_bytes([data[0], data[1]]) {
+        0 => data[2..2 + w * h].to_vec(),
+        1 => {
+            let mut out = Vec::with_capacity(w * h);
+            let mut at = 2 + 2 * h;
+            for row in 0..h {
+                let end =
+                    at + usize::from(u16::from_be_bytes([data[2 + 2 * row], data[3 + 2 * row]]));
+                let start = out.len();
+                while at < end {
+                    let n = data[at] as i8;
+                    at += 1;
+                    if n >= 0 {
+                        let k = n as usize + 1;
+                        out.extend_from_slice(&data[at..at + k]);
+                        at += k;
+                    } else if n != -128 {
+                        out.extend(std::iter::repeat_n(data[at], (1 - i32::from(n)) as usize));
+                        at += 1;
+                    }
+                }
+                assert_eq!(out.len() - start, w, "{name}: row {row}");
+            }
+            out
+        }
+        other => panic!("{name}: compression {other}"),
+    };
+    (0..canvas_h)
+        .flat_map(|y| (0..canvas_w).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let (u, v) = (x - left, y - top);
+            if u >= 0 && v >= 0 && (u as usize) < w && (v as usize) < h {
+                samples[v as usize * w + u as usize]
+            } else {
+                default
+            }
+        })
+        .collect()
 }

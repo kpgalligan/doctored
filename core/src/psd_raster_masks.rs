@@ -365,7 +365,7 @@ impl<'a> MaskRecord<'a> {
         match self {
             Self::Absent => {}
             Self::FromPath => losses.push(format!(
-                "{target} has a vector mask Doctored does not keep as a path (its subpaths combine in a way one fill rule cannot hold, it starts from all pixels, or the document's paths reach their anchor cap); it is imported as a raster mask drawn from its path."
+                "{target} has a vector mask Doctored does not keep as a path (it starts from all pixels, holds a subpath of one anchor or an operation Doctored does not know, or the document's paths reach their anchor cap); it is imported as a raster mask drawn from its path."
             )),
             Self::Dropped(reason) => losses.push(format!(
                 "{target} has a {kind} or advanced mask metadata; layered import drops it: {reason}."
@@ -373,7 +373,7 @@ impl<'a> MaskRecord<'a> {
             Self::Ordinary(mask) => {
                 if mask.rendered {
                     losses.push(format!(
-                        "{target} has a vector mask Doctored does not keep as a path (its subpaths combine in a way one fill rule cannot hold, it starts from all pixels, or the document's paths reach their anchor cap); the mask the file rendered from it is imported as a raster mask."
+                        "{target} has a vector mask Doctored does not keep as a path (it starts from all pixels, holds a subpath of one anchor or an operation Doctored does not know, or the document's paths reach their anchor cap); the mask the file rendered from it is imported as a raster mask."
                     ));
                 }
                 let placement = if mask.position_relative_flag {

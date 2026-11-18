@@ -1,10 +1,10 @@
 # Per-subpath operations held on a path (ADR)
 
-- **Status:** Accepted; slices 1, 2 and 4 shipped (the kernel, the model and DRDC word 116, then the app,
-  MCP and the options bar). Slice 4 was built on `main` a80901d2, where slice 3 (the codecs) had not
-  landed: `psd_path_records::encode` still refuses a shape with `ops`, so slice 4 reads none of slice 3's
-  code. Slice 3 and the owner's hand check below are what remain of
-  [#19](https://github.com/kpgalligan/doctored/issues/19)'s item; "What a build owes" is the plan.
+- **Status:** Accepted; slices 1–4 shipped (the kernel; the model and DRDC word 116; the PSD and TIFF
+  codecs, a mixed-operation `vmsk` carried live; the app, MCP and the options bar). Slice 4 was built before
+  slice 3 landed and reads none of its code: the app hands the core a shape with `ops` and the codecs write
+  it. The bake rewrite HS-3 chose and the owner's hand check below are what remain of
+  [#19](https://github.com/kpgalligan/doctored/issues/19)'s item; "What a build owes" below is their plan.
 - **Date:** 2026-11-16
 - **Extends:** [v1-paths.md](v1-paths.md) (its `OPEN` item for #19).
 
@@ -13,10 +13,10 @@
 A path fills by ONE rule over all its subpaths: `PathShape.fill_rule`, nonzero or even-odd, applied to the
 winding the subpaths make together (`path_geometry`). A PSD or TIFF path, and a layer's `vmsk`, combine
 their subpaths instead by an operation word per subpath (`psd_path_records`: 0 exclude, 1 combine,
-2 subtract, 3 intersect). Doctored reads every-0 as even-odd and every-1 as nonzero and reports any other
-mix (`Decoded::combined`): a saved path keeps its outline under nonzero with a loss sentence; a `vmsk` is
-not carried as a live vector mask (`psd_paths::vmsk_shape`), so a shape layer keeps its pixels and a
-raster layer's mask is baked (`psd_vector_mask_bake`: each subpath drawn alone, combined per pixel by
+2 subtract, 3 intersect). Before slice 3, Doctored read every-0 as even-odd and every-1 as nonzero and
+reported any other mix: a saved path kept its outline under nonzero with a loss sentence; a `vmsk` was
+not carried as a live vector mask (`psd_paths::vmsk_shape`), so a shape layer kept its pixels and a
+raster layer's mask was baked (`psd_vector_mask_bake`: each subpath drawn alone, combined per pixel by
 `vector_mask_combine`). In the app, Combine Selected Subpaths and `combine_paths` produce new geometry
 (`PathCombine.swift`); nothing holds an operation.
 
@@ -116,10 +116,16 @@ Accepted.
     (under [#19](https://github.com/kpgalligan/doctored/issues/19)).
   - `landmark_region.rs` builds its own shapes, which never hold `ops`: unchanged.
   - `psd_vector_mask_bake.rs` draws each subpath as its own shape and folds them with
-    `vector_mask_combine`'s per-pixel product rule. The build replaces that with one coverage of the shape
-    with `ops` only if `core/tests/psd_authored_exchange.rs`'s comparison of every 16-bit bake with the
-    8-bit file's rendering, within one 8-bit step, still holds; the build measures it, and keeps the product
-    rule (and this decision's text) if it does not.
+    `vector_mask_combine`'s per-pixel product rule. Measured in slice 3 against the `authored_exchange`
+    files (`make t F=psd_authored_exchange T=raster_layers A=--nocapture`, bound 257 declared first): each
+    16-bit mask of `Vc`, `Vd`, `Vx` and `Ve` against the 8-bit file's own rendering of it (its `-2`
+    channel read from the file's bytes, × 257). One coverage of the shape with `ops` (the carried vector
+    mask, HS-2's routine): 0, 0, 0, 0. The product rule (`vmsk_bake` of the 16-bit record's `vmsk`):
+    0, 0, 0, 0. Every figure is within the bound, so HS-3 chooses the replacement: one coverage of the shape
+    with `ops` in place of the product fold, its own slice (below). Both rules read every sample of the four
+    exactly as the file's rendering, so these files do not tell the two apart. Until the rewrite the bake
+    serves only what is not carried: a mask that starts from all pixels, holds a one-anchor subpath beside
+    its operations, or passes the anchor cap; the files on disk hold none.
   - A path SHAPE layer's fill does not go through `PathShape`: the app hands `dr_artwork_path_coverage`
     the outline's verbs and points and one `even_odd` flag (`NativeArtwork.shape`). Holding `ops` on a path
     shape needs that export to take the operation list (the FFI lockstep) and HS-2's routine behind it.
@@ -152,19 +158,35 @@ Accepted.
   Shipped: a path payload is version 8 exactly when its outline holds `ops` (each subpath's `op` in the
   outline, omitted otherwise, so a version-7 payload keeps its bytes); 7 with an `op`, 8 without one on
   every subpath, and an unknown name decode as plain pixels.
-- **HS-6 — PSD and TIFF.** `psd_path_records::decode` keeps reading every-0 as even-odd and every-1 as
-  nonzero with no `ops` (every file that imports today imports the same); any other mix reads into `ops`
-  (0 exclude, 1 unite, 2 subtract, 3 intersect) instead of setting `combined`, with each subpath's region
-  under nonzero. `encode` writes each subpath's word from `ops`, and a shape without `ops` writes today's
-  bytes. `psd_paths::vmsk_shape` then carries a mixed-operation `vmsk` live (inside `MaskRoom`'s anchor
-  cap); an initial fill record of 1 is not HS-1's model and keeps today's handling (not carried; a raster
-  layer's mask baked, a saved path's loss sentence). The flat TIFF path tag (34377) shares the records, so
-  it follows. Checked against the `authored_exchange` files on disk, whose 8-bit twins carry a rendering of
-  each mask; whether the application that wrote them reads a Doctored-written mixed-operation `vmsk` back
-  as live needs a new take, which no batch may spend, so the build ships without that claim and says so.
-  - Until slice 3, `encode` refuses a shape with `ops`: a saved path holding them is not written to a PSD,
-    whose export report names it with its own sentence, nor to a flat TIFF, which keeps its "paths" loss;
-    a vector mask holding them is written as its baked pixels.
+- **HS-6 — PSD and TIFF** (built, slice 3). `psd_path_records::decode` keeps reading every-0 as even-odd
+  and every-1 (or no subpath) as nonzero with no `ops`, so every file that imported before imports the
+  same; any other list of known words reads into `ops` (0 exclude, 1 unite, 2 subtract, 3 intersect), each
+  subpath's region under nonzero; a word outside 0–3 keeps the outline under nonzero with no `ops` and a
+  sentence (`Decoded::unheld`). `encode` writes each subpath's word from `ops`
+  (`vector_mask_combine::word_of`), and a shape without `ops` writes the prior bytes. The flat TIFF path
+  tag (34377) shares the records and follows.
+  - **Even-odd.** A word names the operation on a region, not the rule the region is taken under, so
+    `ops` under even-odd is not written: the PSD export report names the path, and a flat TIFF keeps its
+    "paths" loss.
+  - **One operation everywhere.** Every `unite` is written as every word 1 and every `exclude` as every 0,
+    which read back as the nonzero or even-odd rule with no `ops` (`uniform_ops`); the two differ only where
+    a subpath's own winding cancels or doubles (HS-1). A saved path is written, with a sentence saying it
+    reopens under that rule, and a flat TIFF keeps "paths"; a vector mask is written as pixels.
+  - **One rule both ways** (`psd_paths::vmsk_holds`): a `vmsk` is carried, and a live vector mask written
+    as one, only when Doctored reads the same mask back: no `ops`, or `ops` under nonzero, not one
+    operation everywhere, with every subpath of two or more anchors (the bake skips a one-anchor subpath;
+    the fold would not). So a mixed-operation `vmsk` is carried live inside `MaskRoom`'s anchor cap, and any
+    other live mask keeps its baked pixels and the existing "written as pixels" sentence. An initial fill
+    record of 1 or the inverted flag is not HS-1's model and keeps the prior handling (not carried; a
+    raster layer's mask baked, a saved path's loss sentence).
+  - **Refusal by name.** A carried mask the rasterizer refuses to draw over its layer refuses the layered
+    open by the layer's name at both depths, as a baked one does (`psd_vector_mask_bake::undrawn`); the
+    byte open no longer opens that layer unmasked.
+  - Checked against the `authored_exchange` files on disk (`Vc`, `Vd`, `Vx`, `Ve` carried with the file's
+    operations at 8 and 16 bits, the 8-bit composite within 1 of the file's) and through Doctored's own
+    writer (`core/tests/psd_paths.rs`, `tiff_paths.rs`, `tiff_paths_modes.rs`). Whether the application
+    that wrote those files reads a Doctored-written mixed-operation `vmsk` back as live needs a take, which
+    slice 3 did not spend, so it makes no such claim.
 - **HS-7 — Surface.** Every MCP path tool that takes `subpaths` (`set_path`, `set_vector_mask`,
   `path_to_selection`, `fill_path`, `stroke_path`, and `add_shape_layer` / `edit_shape_layer` with kind
   `path`) takes `subpaths[i].op`, and `list_paths`, `get_vector_mask` and `get_shape_layer` read it back; a
@@ -194,14 +216,18 @@ Ordered slices, each with its own check, each landing green before the next:
    `PATH` table carrying it and the conditional word (HS-5). Checks: a black-box round trip through
    `dr_path_*` and the native save; a document with no `ops` written byte for byte as the prior writer's;
    the byte and typed vector-mask bakes of a shape with `ops` against HS-2's routine.
-3. **Codecs.** HS-6's decode and encode, `vmsk_shape` carrying a mixed-operation `vmsk`, and HS-3's
-   measured choice for `psd_vector_mask_bake`. Checks: `core/tests/psd_paths.rs` and
-   `psd_authored_exchange.rs` against the files on disk; every file that imports today imports the same.
-4. **App, MCP and drive.** `subpaths[i].op` parsing and read-back, the shape payload's version 8 and the
+3. **Codecs** (shipped). HS-6 as built and HS-3's measurement (its bullet). Checks: `core/tests/psd_paths.rs`,
+   `psd_authored_exchange.rs`, `tiff_paths.rs`, `tiff_paths_modes.rs`, and `path_shared_edge.rs`'s
+   intersect absent from rows a later subpath reaches.
+4. **App, MCP and drive** (shipped). `subpaths[i].op` parsing and read-back, the shape payload's version 8 and the
    stroke refusal (HS-4), the Path Selection options bar's control and its recorded steps, a colour mode's
    `tools` set where it lists the path tools, and the generated MCP reference. Check: a drive over MCP at
    8, 16 and 32 bits (each operation's coverage against `dr_path_coverage` of the equivalent combined
    path, save and reopen, undo, a replayed recorded step), plus jobs-probe rows for the options bar.
+5. **Bake rewrite** (HS-3's choice). `psd_vector_mask_bake` draws one coverage of the shape with `ops`
+   in place of the product fold: the fold's start for an initial fill of 1, the one-anchor skip, the
+   drawing caps without `charge`, `vector_mask_combine`'s accumulator deleted. Check:
+   `core/tests/psd_vector_mask_bake.rs`'s oracle rewritten, `psd_authored_exchange.rs`'s figures.
 
 Hand check (the owner's, still owed): the options bar's four operations on a real path, a vector mask and
 a path shape in a real window.

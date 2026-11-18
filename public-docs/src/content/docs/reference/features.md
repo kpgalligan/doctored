@@ -3321,9 +3321,10 @@ per-file losses. A vector mask (`vmsk`) opens as the layer's vector mask in
 every colour mode and at every depth — a shape layer as its fill layer under
 the path where the mode's open imports that fill (RGB and CMYK, a Solid Color
 fill at 32 bits), a raster layer with the user's own raster mask, when it has
-one, as the vector mask's raster part — unless its path starts from all
-pixels or subtracts, intersects or excludes its subpaths: on a raster layer
-it then opens as a raster mask (the mask the file rendered from it, or the
+one, as the vector mask's raster part, and a path that subtracts, intersects
+or excludes its subpaths keeping those operations — unless its path starts
+from all pixels or holds a one-anchor subpath beside its operations: on a
+raster layer it then opens as a raster mask (the mask the file rendered from it, or the
 path drawn under its operations), with a loss, and a shape layer keeps its
 stored pixels with a loss, as does a shape layer whose fill the mode does not
 import (Grayscale, Lab, a gradient or pattern at 32 bits); the

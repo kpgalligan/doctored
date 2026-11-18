@@ -872,25 +872,40 @@ fn psd_losses(doc: &DrDocument) -> Vec<String> {
         .collect()
 }
 
+/// A PSD path holds each subpath's operation as its word under the nonzero
+/// rule only: a path and a vector mask holding operations under it are
+/// written with no sentence; under even-odd the path is not written and the
+/// vector mask is written as pixels, each with its sentence.
 #[test]
-fn psd_export_names_a_path_and_a_vector_mask_holding_operations() {
-    let path_sentence = "Path “Held” holds per-subpath operations, which a PSD path written by this build does not carry; it is not written.";
+fn psd_export_writes_held_operations_only_under_the_nonzero_rule() {
+    let path_sentence = "Path “Held” holds per-subpath operations under the even-odd rule, which a PSD path cannot hold; it is not written.";
     let both = json!([held(&RECT, "unite"), held(&TRI, "subtract")]);
-    let doc = with_byte(&byte(W, H), &list(both.clone(), false));
-    let losses = psd_losses(&doc);
+    let nonzero = list(both, false);
+    let mut even = nonzero.clone();
+    even["paths"][0]["fill_rule"] = json!("evenodd");
+    let losses = psd_losses(&with_byte(&byte(W, H), &nonzero));
+    assert!(
+        !losses.iter().any(|l| l.starts_with("Path “Held”")),
+        "{losses:?}"
+    );
+    let losses = psd_losses(&with_byte(&byte(W, H), &even));
     assert!(losses.iter().any(|l| l == path_sentence), "{losses:?}");
-    let plain_doc = with_byte(&byte(W, H), &without_ops(&list(both, false)));
-    let losses = psd_losses(&plain_doc);
+    let losses = psd_losses(&with_byte(&byte(W, H), &without_ops(&even)));
     assert!(
         !losses.iter().any(|l| l.starts_with("Path “Held”")),
         "{losses:?}"
     );
 
-    let masked = set_byte_mask(&byte(W, H), 0, &shape(&polygons(2), &["unite", "subtract"]));
-    let name = masked.layers[0].name.clone();
-    let sentence = format!(
-        "The vector mask on “{name}” is written as pixels, an ordinary layer mask of its rendered shape; its path is not written."
-    );
-    let losses = psd_losses(&masked);
-    assert!(losses.contains(&sentence), "{losses:?}");
+    let mask = shape(&polygons(2), &["unite", "subtract"]);
+    let mut even_mask = mask.clone();
+    even_mask["fill_rule"] = json!("evenodd");
+    for (rule, shape, pixels) in [("nonzero", &mask, false), ("evenodd", &even_mask, true)] {
+        let masked = set_byte_mask(&byte(W, H), 0, shape);
+        let name = masked.layers[0].name.clone();
+        let sentence = format!(
+            "The vector mask on “{name}” is written as pixels, an ordinary layer mask of its rendered shape; its path is not written."
+        );
+        let losses = psd_losses(&masked);
+        assert_eq!(losses.contains(&sentence), pixels, "{rule}: {losses:?}");
+    }
 }

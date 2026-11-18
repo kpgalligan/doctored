@@ -17,19 +17,24 @@
 //! saved path whose records do not decode, whose shape the model refuses,
 //! whose name is empty, the work path's or another path's, or that is past
 //! the model's caps is dropped with its own sentence, and every other path
-//! is kept. A path that starts from all pixels (an inverted initial fill) or
-//! combines its subpaths in a way Doctored's one fill rule cannot hold is
-//! kept as its outline with a sentence. Export writes the work path as 1025
-//! and each saved path as 2000 + its index, its name in the resource's Pascal
-//! string (UTF-8; the model's 255-byte name cap is the Pascal string's own);
-//! a path whose coordinates leave the fixed-point range is not written, with
-//! a sentence, and neither is one holding per-subpath operations, which this
-//! build's writer does not carry yet (its own sentence; a vector mask holding
-//! them is written as pixels).
+//! is kept. A path whose subpaths combine by a mix of operations keeps them
+//! (`PathShape::ops`, `psd_path_records`). A path that starts from all pixels
+//! (an inverted initial fill) or names an operation word Doctored does not
+//! know is kept as its outline with a sentence. Export writes the work path
+//! as 1025 and each saved path as 2000 + its index, its name in the
+//! resource's Pascal string (UTF-8; the model's 255-byte name cap is the
+//! Pascal string's own), each subpath's operation word from `ops`; a path
+//! whose coordinates leave the fixed-point range is not written, with a
+//! sentence, and neither is one holding per-subpath operations under the
+//! even-odd rule, which a PSD path cannot hold (its own sentence). One
+//! holding `unite` or `exclude` on every subpath is written, as the words
+//! that read back as the nonzero or even-odd rule without its operations
+//! (`psd_path_records::uniform_ops`), with a sentence.
 //!
 //! **Vector masks.** A `vmsk` is that layer's vector mask (`set_vector_mask`),
 //! enabled and linked from its flags, when its path is one Doctored holds
-//! exactly ([`vmsk_shape`]), it fits the document's anchor cap beside the
+//! exactly ([`vmsk_shape`], per-subpath operations included: [`vmsk_holds`]),
+//! it fits the document's anchor cap beside the
 //! file's paths and the masks before it ([`MaskRoom`]), and its record's mask
 //! channels are a form the import reads (`psd_raster_masks::VectorMaskRole`):
 //! none, Photoshop's `-2` rendered from the path (dropped), or the user's own
@@ -45,10 +50,13 @@
 //! dropped with its sentence, and a shape layer keeps the pixels Photoshop
 //! stored, already masked. The decision is the record walk's
 //! (`psd_group_records::vector_mask_usable` and the role), so the report and
-//! every mode's open agree. The writers write a live
+//! every mode's open agree. A carried mask the rasterizer does not draw
+//! refuses the layered open by the layer's name, as a baked one does
+//! (`psd_vector_mask_bake::undrawn`). The writers write a live
 //! vector mask with NO raster part as a `vmsk` and no mask channel, the
-//! authored form; one with a raster part, or one a PSD path cannot hold,
-//! keeps its baked mask and a sentence.
+//! authored form, when a `vmsk` holds it so that Doctored reads the same
+//! mask back ([`vmsk_holds`], the one rule both directions call); one with a
+//! raster part, or any other, keeps its baked mask and a sentence.
 
 use std::collections::HashSet;
 
@@ -56,10 +64,10 @@ use crate::doc_path::{
     ClippingPath, PathEntry, PathKind, MAX_CLIPPING_TAIL_BYTES, MAX_PATHS, MAX_PATH_NAME_BYTES,
     WORK_PATH_NAME,
 };
-use crate::path_geometry::PathShape;
+use crate::path_geometry::{FillRule, PathShape, SubpathOp};
 use crate::psd_container::{resource_entries, Container};
 use crate::psd_export_encode::ResourceBlock;
-use crate::psd_path_records::{decode, decode_clipping, encode, encode_clipping};
+use crate::psd_path_records::{decode, decode_clipping, encode, encode_clipping, uniform_ops};
 
 /// The work path's resource.
 pub(crate) const WORK_PATH_RESOURCE: u16 = 1025;
@@ -120,8 +128,8 @@ pub(crate) fn run_paths(run: &[u8], canvas: (u32, u32)) -> (Vec<PathEntry>, Vec<
         if decoded.inverted {
             losses.push(format!("{label} starts from all pixels; Doctored keeps its outline, which fills the inside instead."));
         }
-        if decoded.combined {
-            losses.push(format!("{label} combines its subpaths by intersecting or subtracting them; Doctored keeps its outline under one fill rule (nonzero)."));
+        if decoded.unheld {
+            losses.push(format!("{label} names a subpath operation Doctored does not know; Doctored keeps its outline under one fill rule (nonzero)."));
         }
         // The shape first, so a path dropped for its shape claims no name.
         let shape = match decoded.shape.validated() {
@@ -246,8 +254,9 @@ pub(crate) fn resources(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<Resour
 }
 
 /// The export report's sentences for `entries`: each path [`resources`]
-/// does not write, and the clipping path that goes with it. A name always
-/// fits its Pascal string (module doc).
+/// does not write, and the clipping path that goes with it, and each path
+/// it writes as a fill rule in place of its operations (module doc). A name
+/// always fits its Pascal string (module doc).
 pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<String> {
     let mut losses = Vec::new();
     for entry in entries {
@@ -255,11 +264,20 @@ pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<St
             PathKind::Work => "The work path".to_string(),
             PathKind::Saved => format!("Path “{}”", entry.name),
         };
-        let lost = if entry.shape.ops.is_some() {
-            Some(format!("{label} holds per-subpath operations, which a PSD path written by this build does not carry; it is not written."))
+        let lost = if entry.shape.ops.is_some() && entry.shape.fill_rule == FillRule::EvenOdd {
+            Some(format!("{label} holds per-subpath operations under the even-odd rule, which a PSD path cannot hold; it is not written."))
         } else if encode(&entry.shape, canvas, false).is_err() {
             Some(format!("{label} reaches past the range a PSD path can hold (128 times the canvas); it is not written."))
         } else {
+            // Written: one operation on every subpath reopens as its rule.
+            let rule = match uniform_ops(&entry.shape) {
+                Some(SubpathOp::Unite) => Some(("unite", "nonzero")),
+                Some(SubpathOp::Exclude) => Some(("exclude", "even-odd")),
+                _ => None,
+            };
+            if let Some((op, rule)) = rule {
+                losses.push(format!("{label} holds {op} on every subpath, which a PSD path holds as its {rule} fill rule; it is written, and reopens under that rule without its operations."));
+            }
             None
         };
         if let Some(sentence) = lost {
@@ -275,12 +293,13 @@ pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<St
 }
 
 /// Whether every path of `entries` is written ([`resources`]) on a
-/// `canvas`: what a flat TIFF that carries the paths asks before it drops
-/// "paths" from its losses (`tiff_paths`).
+/// `canvas` and reads back as itself (none holds one operation on every
+/// subpath, `uniform_ops`): what a flat TIFF that carries the paths asks
+/// before it drops "paths" from its losses (`tiff_paths`).
 pub(crate) fn all_written(entries: &[PathEntry], canvas: (u32, u32)) -> bool {
-    entries
-        .iter()
-        .all(|entry| encode(&entry.shape, canvas, false).is_ok())
+    entries.iter().all(|entry| {
+        encode(&entry.shape, canvas, false).is_ok() && uniform_ops(&entry.shape).is_none()
+    })
 }
 
 /// The `vmsk` body of the record built layer `k` came from, when the walk
@@ -332,18 +351,36 @@ impl MaskRoom {
     }
 }
 
+/// Whether a `vmsk` holds `shape` so that Doctored reads the same mask back:
+/// a shape without `ops`; or one with `ops` under the nonzero rule (the
+/// only rule a PSD path's words hold them under, `psd_path_records`), not
+/// one operation on every subpath (`uniform_ops`, which reads back as a
+/// fill rule) and with every subpath of two or more anchors (the bake skips
+/// a subpath of one, `psd_vector_mask_bake`, which the fold would not). THE
+/// rule both directions call: [`vmsk_shape`] carries only such a mask and
+/// [`vmsk_body`] writes only such a mask.
+pub(crate) fn vmsk_holds(shape: &PathShape) -> bool {
+    shape.ops.is_none()
+        || (shape.fill_rule == FillRule::NonZero
+            && uniform_ops(shape).is_none()
+            && shape
+                .subpaths
+                .iter()
+                .all(|subpath| subpath.anchors.len() >= 2))
+}
+
 /// A `vmsk` body's shape and flags when Doctored holds its path exactly as a
-/// vector mask: it decodes, the model admits the shape, and the path neither
-/// starts from all pixels (flag bit 0, or an initial fill record of 1) nor
-/// combines its subpaths in a way one fill rule cannot hold
-/// (`Decoded::combined`: carried, a subtracted or intersected subpath would
-/// fill its whole outline). `None` for every other body.
+/// vector mask: it decodes, names only known operations
+/// (`Decoded::unheld`), the model admits the shape, a `vmsk` holds it
+/// ([`vmsk_holds`]), and the path does not start from all pixels (flag bit
+/// 0, or an initial fill record of 1). `None` for every other body.
 pub(crate) fn vmsk_shape(body: &[u8], canvas: (u32, u32)) -> Option<(PathShape, u32)> {
     let (decoded, flags) = crate::psd_path_records::decode_vmsk(body, canvas).ok()?;
-    if flags & 1 != 0 || decoded.inverted || decoded.combined {
+    if flags & 1 != 0 || decoded.inverted || decoded.unheld {
         return None;
     }
-    Some((decoded.shape.validated().ok()?, flags))
+    let shape = decoded.shape.validated().ok()?;
+    vmsk_holds(&shape).then_some((shape, flags))
 }
 
 /// The record a vector mask imported from `body` installs on a `canvas`
@@ -362,7 +399,10 @@ impl crate::doc::DrDocument {
     /// Entry `idx` with the vector mask of `body` installed, its flags the
     /// body's; the document unchanged when the body cannot be one. Installed
     /// past the layer's locks, which describe the file's layer, not an edit.
-    pub(crate) fn importing_vector_mask(self, idx: usize, body: &[u8]) -> Self {
+    /// `Err` is the rasterizer's refusal to draw it, by the layer's name
+    /// (`psd_vector_mask_bake::undrawn`): the walk carried the mask, so the
+    /// layer does not open unmasked instead.
+    pub(crate) fn importing_vector_mask(self, idx: usize, body: &[u8]) -> Result<Self, String> {
         let held = self.vector_mask_anchor_count()
             + self
                 .paths
@@ -371,12 +411,13 @@ impl crate::doc::DrDocument {
                 .map(|e| e.shape.anchor_count())
                 .sum::<usize>();
         let Some(layer) = self.layers.get(idx) else {
-            return self;
+            return Ok(self);
         };
         let Some((shape, enabled, linked)) = imported_shape(body, (self.width, self.height), held)
         else {
-            return self;
+            return Ok(self);
         };
+        let name = layer.name.clone();
         // The user's raster mask the file keeps beside the path (its `-3`
         // channel, `psd_raster_masks`), already attached, is the raster part.
         let record = crate::doc_vector_mask::VectorMaskRecord {
@@ -395,15 +436,22 @@ impl crate::doc::DrDocument {
             baked: None,
             baked_offset: (0, 0),
         };
-        self.installing_vector_mask(idx, record, crate::job_control::JobContext::NONE)
-            .unwrap_or(self)
+        let job = crate::job_control::JobContext::NONE;
+        match self.installing_vector_mask(idx, record, job) {
+            Ok(document) => Ok(document),
+            Err(reason) => {
+                job.check()?;
+                Err(crate::psd_vector_mask_bake::undrawn(&name, &reason))
+            }
+        }
     }
 }
 
 impl crate::precision_document::PrecisionDocument {
     /// The typed twin of `DrDocument::importing_vector_mask`, its bake
     /// admitted against `limit` / `other` (a refused admission refuses the
-    /// open, as every other import charge does).
+    /// open, as every other import charge does) and the rasterizer's refusal
+    /// by the layer's name.
     pub(crate) fn importing_vector_mask(
         self,
         index: usize,
@@ -423,6 +471,7 @@ impl crate::precision_document::PrecisionDocument {
         let Some((shape, enabled, linked)) = imported_shape(body, self.dimensions(), held) else {
             return Ok(self);
         };
+        let name = layer.name().to_string();
         let record = crate::precision_vector_mask::TypedVectorMaskRecord {
             layer_id,
             shape,
@@ -435,7 +484,13 @@ impl crate::precision_document::PrecisionDocument {
         };
         let job = crate::job_control::JobContext::NONE;
         self.admit_bake(index, &record, limit, other, job)?;
-        self.installing_vector_mask(index, record, job)
+        match self.installing_vector_mask(index, record, job) {
+            Ok(document) => Ok(document),
+            Err(reason) => {
+                job.check()?;
+                Err(crate::psd_vector_mask_bake::undrawn(&name, &reason))
+            }
+        }
     }
 }
 
@@ -468,13 +523,18 @@ pub(crate) fn stamp_vector_masks(
 }
 
 /// A layer's `vmsk` body for a live vector mask with no raster part, or
-/// `None` when it cannot be written as one (module doc).
+/// `None` when it cannot be written as one (module doc): a shape a `vmsk`
+/// does not hold so that Doctored reads it back ([`vmsk_holds`]), or one
+/// past the fixed-point range.
 pub(crate) fn vmsk_body(
     shape: &PathShape,
     enabled: bool,
     linked: bool,
     canvas: (u32, u32),
 ) -> Option<Vec<u8>> {
+    if !vmsk_holds(shape) {
+        return None;
+    }
     let flags = u32::from(!linked) << 1 | u32::from(!enabled) << 2;
     crate::psd_path_records::encode_vmsk(shape, canvas, flags).ok()
 }
