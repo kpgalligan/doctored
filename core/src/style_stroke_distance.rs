@@ -72,9 +72,9 @@
 //! one puts the take's disc Center 6 within one code (from 115) and cuts disc
 //! Center 3 at 50 % Fill from 80 to 43, the soft Center 4 at 50 % from 69 to
 //! 42 and take2's disc Center 4 at 50 % from 99 to 63, without worsening any
-//! row; what remains sits in `replace_under_band`. On a hard rect it is
-//! byte-identical to the old band at every half size 0.5…5 (the runner's
-//! GUARD). On a hard shape that is not a rect (a diagonal or curved edge of
+//! row; what remained was the composite ("Center's two halves"). On a hard
+//! rect it is byte-identical to the old band at every half size 0.5…5 (the
+//! runner's GUARD). On a hard shape that is not a rect (a diagonal or curved edge of
 //! coverage 0 and 255) the two measures differ wherever the nearest
 //! transparent pixel lies off-axis (the chamfer's √5 + 1 = 3.236 against the
 //! exact √10 = 3.162), so a Center stroke there moves; no take measured it.
@@ -91,6 +91,42 @@
 //! anti-aliased-contour band it replaced (`style_aa_band`) kept up to 10.2 /
 //! 0.93 at the band's inner edge on the discs. take 3's disc Inside 3 falls
 //! from 16 codes to 1.0 (from 115 before the fourth take).
+//!
+//! # Center's two halves
+//!
+//! A Center stroke's outer half lands in the Below group, so B0, the stack
+//! its inner half replaces over, already holds the outer half under a
+//! partial pixel. Landing the inner half's ink there at `c · o` stacked the
+//! two halves (at 50 % opacity 0.53 – 0.75 of the pixel where the stroke
+//! holds 0.5) and, below 100 % Fill, left part of the stack beneath where
+//! the stroke fills the pixel. [`inner_half_alpha`] lands it at the
+//! alpha that COMPLETES the stroke's share over the outer half's landed
+//! `ba`, `(min(1, (c + outer) · o) − ba) / (1 − ba)`, so the halves and the
+//! layer join as one disjoint union, the outside band's rule
+//! ([`band_under_layer`]) carried across the edge: the stroke holds
+//! `(outer + inner) · o` of the pixel, the layer `(c − inner) · f`, the stack
+//! the rest. Where the outer half has no coverage (every Inside stroke,
+//! every hard shape) the ink keeps `c · o`, and at `f = o` the two
+//! composites are one.
+//!
+//! A recorded take measured the match. Judged first on the rows already on
+//! disk (the fourth Stroke take's Center rows and takes 1 – 3's: every Fill
+//! 50 and 50 %-opacity row of Size 3 and up from a max of 17 – 63 codes to
+//! 1.02, the 8-bit 50 %-opacity rows keeping the opacity's byte in their
+//! mean), it was confirmed on `stroke_center_2_take.py`'s take1 (Photoshop
+//! 26.10.0; 288 rows on four pictures no earlier take showed: a half plane
+//! at coverage 0.2 – 0.8, a three-column soft edge, an r 23.25 disc and a
+//! rounded rect; Size 1 – 10, Fill 100 / 50 / 0, stroke opacity 100 / 50, 8
+//! and 16 bits): every row of Size 2 and up within 1.02 / 0.155 codes
+//! against the bound of 2 / 0.5 declared before it, where the stacked
+//! halves missed by up to 64. Size 1 (`n = 0.5`) does not meet it: there the
+//! two halves leave part of a partial pixel, and the take keeps the layer at
+//! `c · f · (1 − t)`, `t` the halves' coverage with the outside band knocked
+//! out as `grown − c`. That form, declared before the take, read all 288
+//! rows within the same 1.02 / 0.155; it is not built because over B0 it
+//! cannot be reached where the outer half lands at 1 under the layer (B0
+//! then holds no trace of the stack beneath), so it waits on keeping that
+//! stack beside B0 (#2).
 //!
 //! # The contour distance
 //!
@@ -278,6 +314,24 @@ pub(crate) fn band_under_layer(sa: f32, layer_alpha: f32) -> f32 {
         return sa;
     }
     (sa / (1.0 - layer_alpha)).min(1.0)
+}
+
+/// The alpha a Center stroke's inner half lands its ink with over B0 at a
+/// pixel its outer half also covers (module doc, "Center's two halves"):
+/// `shape_alpha` the pixel's shape coverage times the stroke's opacity,
+/// `outer_alpha` the outer half's coverage there times the opacity (before
+/// landing), `landed` the alpha the outer half landed with
+/// (`band_under_layer`). The ink COMPLETES the stroke's share of the pixel,
+/// `(min(1, shape_alpha + outer_alpha) − landed) / (1 − landed)`, so over B0
+/// (which already holds `landed`) the stroke holds `shape_alpha +
+/// outer_alpha` of it, never the two halves stacked; clamped to [0, 1], and
+/// 0 where the outer half already fills the pixel (`landed ≥ 1`).
+pub(crate) fn inner_half_alpha(shape_alpha: f32, outer_alpha: f32, landed: f32) -> f32 {
+    if landed < 1.0 {
+        (((shape_alpha + outer_alpha).min(1.0) - landed) / (1.0 - landed)).clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
 }
 
 /// The inside band at `size` px measured from the anti-aliased edge (module

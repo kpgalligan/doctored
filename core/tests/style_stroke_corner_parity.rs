@@ -32,16 +32,18 @@
 //! where 128 / 255 gives 151.094 and 0.5 gave 151.5), which was the 8-bit
 //! partial-Fill rows' one-code miss. So do take 3's disc Center 6 (the inner
 //! half measured from the anti-aliased edge, `inside_corner_band`) and its
-//! rect Center 6. The anti-aliased Inside rows take NA1 too
-//! (`inside_corner_band`, the Stroke confirm take's `Sn`): the disc Inside 3
-//! meets at 8 and 16 bits (from 16 codes, 115 before the fourth Stroke take;
-//! its band edge on the curved contour is NA1's), and the soft Inside 4 at
-//! 50 % meets at 16 bits (`MET_16`) and keeps 1.0 / 0.82 at 8.
+//! rect Center 6, and, since a Center stroke's halves and the layer join as
+//! one disjoint union (`style_stroke_distance`'s "Center's two halves"), its
+//! disc Center 3 at 50 % Fill (from 43 / 3.36 codes to 1.0 / 0.105) and, at
+//! 16 bits, take2's disc Center 4 and take 3's soft Center 4 at 50 % stroke
+//! opacity (from 63 and 42 codes to under 1). The anti-aliased Inside rows
+//! take NA1 too (`inside_corner_band`, the Stroke confirm take's `Sn`): the
+//! disc Inside 3 meets at 8 and 16 bits (from 16 codes, 115 before the
+//! fourth Stroke take; its band edge on the curved contour is NA1's), and
+//! the soft Inside 4 at 50 % meets at 16 bits (`MET_16`).
 //! The rest assert their own measured residual, never a wider number: the
-//! anti-aliased Center rows off the disc at 100 % and the disc Center 3 at
-//! 50 % Fill keep a residual in the inside band's replacement
-//! (`replace_under_band`), which no measured member fits, and the soft
-//! Inside 4 at 50 % keeps the stroke opacity's 8-bit quantization.
+//! three 8-bit rows at 50 % stroke opacity keep the opacity's byte (1.0 code
+//! on the band, means 0.52 – 0.82).
 
 use std::path::{Path, PathBuf};
 
@@ -356,8 +358,9 @@ fn the_take1_anti_aliased_shapes_meet_photoshop_at_8_and_16_bits() {
 type Row = (u32, &'static str, &'static str, u32, &'static str, f64, f64);
 
 /// take2's Outside rows and take 3's rows that meet the bound at both
-/// depths (module doc), the disc Inside 3 since the confirm take.
-const MET: [Row; 15] = [
+/// depths (module doc), the disc Inside 3 since the confirm take, the disc
+/// Center 3 at 50 % Fill since Center's halves join as one union.
+const MET: [Row; 16] = [
     (2, "disc", "outside", 2, "", 1.0, 1.0),
     (2, "disc", "outside", 4, "", 1.0, 1.0),
     (2, "disc", "outside", 7, "", 1.0, 1.0),
@@ -373,6 +376,7 @@ const MET: [Row; 15] = [
     (3, "disc", "center", 6, "", 1.0, 1.0),
     (3, "rect", "center", 6, "", 1.0, 1.0),
     (3, "disc", "inside", 3, "", 1.0, 1.0),
+    (3, "disc", "center", 3, "_fill50", 0.5, 1.0),
 ];
 
 #[test]
@@ -396,9 +400,15 @@ fn the_take2_and_take3_rows_meet_photoshop_at_8_and_16_bits() {
     }
 }
 
-/// take 3's rows that meet the bound at 16 bits only (module doc): the soft
-/// Inside 4 at 50 % on the anti-aliased band (its 8-bit twin is pinned).
-const MET_16: [Row; 1] = [(3, "soft", "inside", 4, "_op50", 1.0, 0.5)];
+/// The rows that meet the bound at 16 bits only (module doc), their 8-bit
+/// twins pinned at the stroke opacity's byte: the soft Inside 4 at 50 % on
+/// the anti-aliased band, take2's disc Center 4 and take 3's soft Center 4 at
+/// 50 %.
+const MET_16: [Row; 3] = [
+    (3, "soft", "inside", 4, "_op50", 1.0, 0.5),
+    (2, "disc", "center", 4, "_op50", 1.0, 0.5),
+    (3, "soft", "center", 4, "_op50", 1.0, 0.5),
+];
 
 /// take 3's Outside rows at 50 % and 30 % Fill meet the bound at 8 and 16
 /// bits, the 8-bit rows since the layer's Fill composites at its byte
@@ -426,6 +436,7 @@ fn the_remaining_rows_keep_their_measured_residual() {
     for ((take, doc, position, size, tag, fill, opacity), depth, (max_bound, mean_bound)) in PINNED
     {
         let (max, mean) = measure(take, doc, position, size, tag, fill, opacity, depth);
+        eprintln!("take {take} {doc} {position} {size}{tag} at {depth}: {max:.6} / {mean:.6}");
         assert!(
             max <= max_bound && mean <= mean_bound,
             "take {take} {doc} {position} {size}{tag} at {depth} bits: max {max:.3} \
@@ -435,38 +446,20 @@ fn the_remaining_rows_keep_their_measured_residual() {
 }
 
 // Measured on the shipped composite against the takes (max, mean in codes,
-// rounded up in the third decimal): the recorded #2 residual.
+// rounded up in the third decimal): the recorded #2 residual, every row an
+// 8-bit one at 50 % stroke opacity (the opacity's byte, 128 / 255 against
+// 0.5, on every band pixel).
 type Pinned = (Row, u32, (f64, f64));
-const PINNED: [Pinned; 7] = [
+const PINNED: [Pinned; 3] = [
     (
         (2, "disc", "center", 4, "_op50", 1.0, 0.5),
         8,
-        (63.001, 9.409),
-    ),
-    (
-        (2, "disc", "center", 4, "_op50", 1.0, 0.5),
-        16,
-        (62.756, 9.205),
+        (1.001, 0.656),
     ),
     (
         (3, "soft", "center", 4, "_op50", 1.0, 0.5),
         8,
-        (42.001, 10.969),
-    ),
-    (
-        (3, "soft", "center", 4, "_op50", 1.0, 0.5),
-        16,
-        (42.005, 10.719),
-    ),
-    (
-        (3, "disc", "center", 3, "_fill50", 0.5, 1.0),
-        8,
-        (43.001, 3.362),
-    ),
-    (
-        (3, "disc", "center", 3, "_fill50", 0.5, 1.0),
-        16,
-        (42.759, 6.939),
+        (1.001, 0.524),
     ),
     (
         (3, "soft", "inside", 4, "_op50", 1.0, 0.5),

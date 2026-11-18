@@ -68,7 +68,9 @@ use crate::cmyk_composite::{over_mode, tone_mix_mode, InkPixel};
 use crate::pattern_tile::InkSampler;
 use crate::precision_style_render::typed_coverage_byte;
 use crate::style_blend_if::source_weight_ink;
-use crate::style_composite::{contribution_alpha, mix_premultiplied_planes};
+use crate::style_composite::{
+    band_ink_alpha, contribution_alpha, mix_premultiplied_planes, outer_half,
+};
 use crate::style_effects::EffectKind;
 use crate::style_gradient::GradientSampler;
 use crate::style_inside_layer::{
@@ -376,7 +378,9 @@ fn direct(
             }
             let scale = c.opacity * opacity;
             if bands.contains(&j) {
-                replace_under_band_row(t, at, &planes.shape, c, ink, scale, band_b0);
+                let outer = outer_half(planes, c, styled.knockout);
+                let fill = styled.occluding_fill;
+                replace_under_band_row(t, at, &planes.shape, c, outer, ink, scale, fill, band_b0);
             } else if inside && c.kind == EffectKind::InnerShadow {
                 let fill = styled.occluding_fill;
                 inside_layer_row(t, at, &planes.shape, c, ink, scale, fill, ring_t0);
@@ -678,14 +682,18 @@ fn inside_layer_row(
 
 /// The inside band's REPLACEMENT on the row
 /// (`style_composite::replace_under_band_sample`, the master): with `s =
-/// band / shape`, `t = lerp(t, over(B0, band at shape·scale), s)`.
+/// band / shape`, `t = lerp(t, over(B0, band at band_ink_alpha), s)`;
+/// `outer` is the band's `style_composite::outer_half`.
+#[allow(clippy::too_many_arguments)]
 fn replace_under_band_row(
     t: &mut [InkPixel],
     at: &RowAt,
     shape: &Shape,
     c: &Contribution,
+    outer: Option<&Contribution>,
     ink: &InkColor,
     scale: f32,
+    occluding_fill: f32,
     band_b0: &[InkPixel],
 ) {
     // A band at opacity 0 still replaces (`Ocut`).
@@ -704,7 +712,7 @@ fn replace_under_band_row(
             continue;
         }
         let s = (f32::from(band) / f32::from(cov)).min(1.0);
-        let sa = f32::from(cov) / 255.0 * scale;
+        let sa = band_ink_alpha(shape, outer, (px, py), scale, occluding_fill);
         let mut replaced = band_b0[k];
         if sa > 0.0 {
             let cs = ink.at(px + shape.origin.0, py + shape.origin.1);

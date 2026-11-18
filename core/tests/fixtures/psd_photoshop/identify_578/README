@@ -108,6 +108,21 @@ Sn, Inside, by rule (i))
 sha256:
   351018a17e724f417355ee3552e0768c551b6f447da760e1aae008753f07395f  stroke_take5_profiles.json
 
+stroke_center2_profiles.json - Photoshop 26.10.0 Layer Style Stroke Center profiles on held-out
+anti-aliased pictures (all 288 rows of the Center Stroke take: Size 1, 2, 3, 5, 6, 10, Fill 100,
+50 and 0 %, stroke opacity 100 and 50 %, at 8 and 16 bits; a #ff0000 Normal stroke on a #00ff00
+layer over opaque #0000ff, on the half plane whose x = 256 column has coverage 0.2 / 0.4 / 0.6 /
+0.8, the same plane with the columns 256 - 258 at 0.75 / 0.5 / 0.25, the supersampled r = 23.25
+disc and a rounded rect; the r | g | b profile in 8-bit codes, with its gate) for
+core/tests/style_stroke_center_aa.rs (#2).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/stroke-center-2/take1/profiles.json
+Written by: scripts/photoshop-probe/stroke_center_2_take.py --fixtures (on a JUDGE SIZE2 for
+CuKs: every row of Size 2 and up within the bound, Cu built)
+
+sha256:
+  eba424374b11e26da2f0cc7836d1b471af3000e0eb0cf2237c778c4f008b668e  stroke_center2_profiles.json
+
 outer_glow_take34_profiles.json - Photoshop 26.10.0 Outer Glow profiles (the 80 rows of the
 third identify take: the half plane, the disc and the corner, Size 0 ... 32, Spread 0, 50,
 80, 100, Range 25, 50, 100; and the 96 `og4` rows of the fourth: the anti-aliased half plane

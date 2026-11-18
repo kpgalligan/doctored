@@ -39,7 +39,7 @@ use crate::regional_knockout::base_only_backdrop;
 use crate::style::{BlendIf, Knockout, LayerStyle};
 use crate::style_composite::{
     affected_window, composite_contribution_sample, composite_pixels_sample, mix_premultiplied,
-    occluding_fill, replace_under_band_sample, CompositeEnv, PixelPass,
+    occluding_fill, outer_half, replace_under_band_sample, CompositeEnv, PixelPass,
 };
 use crate::style_effects::EffectKind;
 use crate::style_inside_layer::{composite_inside_layer_sample, inside_layer_applies};
@@ -99,7 +99,8 @@ pub(crate) fn contributions_sample(
 /// placement inverted at `canvas_xy` exactly as [`contributions_sample`]
 /// inverts `composite_contribution`'s, then `replace_under_band_sample` over
 /// `b0`, the sample's own B0 (taken after the Below contributions, before the
-/// pixel pass). Index arithmetic only; shared with the typed tree.
+/// pixel pass), with the band's `style_composite::outer_half` and the layer's
+/// `occluding_fill`. Index arithmetic only; shared with the typed tree.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn band_sample(
     target: &mut [[f32; 4]],
@@ -107,10 +108,12 @@ pub(crate) fn band_sample(
     b0: [f32; 4],
     shape: &Shape,
     c: &PlaneContribution,
+    outer: Option<&PlaneContribution>,
     ink: &Ink,
     decode: InkDecode<'_>,
     offset: (i32, i32),
     opacity: f32,
+    occluding_fill: f32,
     canvas_xy: (i64, i64),
 ) {
     // `replace_under_band`'s early return: a band at opacity 0 still replaces.
@@ -129,10 +132,12 @@ pub(crate) fn band_sample(
         b0,
         shape,
         c,
+        outer,
         ink,
         decode,
         (px, py),
         scale,
+        occluding_fill,
         canvas_xy,
     );
 }
@@ -510,10 +515,12 @@ impl ResolvedNode<'_> {
                         b0,
                         &planes.shape,
                         c,
+                        outer_half(planes, c, style.knockout),
                         ink,
                         decode,
                         self.layer().offset,
                         opacity,
+                        style.occluding_fill,
                         canvas_xy,
                     );
                     continue;

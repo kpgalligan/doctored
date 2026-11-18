@@ -215,6 +215,8 @@ mod style_stacked;
 mod style_stroke;
 #[path = "style_stroke_aa_parity.rs"]
 mod style_stroke_aa_parity;
+#[path = "style_stroke_center_aa.rs"]
+mod style_stroke_center_aa;
 #[path = "style_stroke_corner_parity.rs"]
 mod style_stroke_corner_parity;
 #[path = "style_stroke_fill.rs"]

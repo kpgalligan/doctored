@@ -24,7 +24,7 @@ use crate::precision_style_render::{
     StyledPixels,
 };
 use crate::regional_knockout::{base_only_backdrop, isolated_env, unit_pass_sample16};
-use crate::style_composite::{mix_premultiplied_in, occluding_fill};
+use crate::style_composite::{mix_premultiplied_in, occluding_fill, outer_half};
 use crate::style_effects::EffectKind;
 use crate::style_inside_layer::inside_layer_applies;
 use crate::style_knockout::{backdrop_at, is_grouped_interior};
@@ -320,10 +320,12 @@ fn direct_sample16(
                     b0,
                     &planes.shape,
                     c,
+                    outer_half(planes, c, style.knockout),
                     ink,
                     decode,
                     offset,
                     opacity,
+                    occluding,
                     xy,
                 );
                 continue;

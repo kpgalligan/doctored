@@ -474,6 +474,43 @@ fn an_anti_aliased_inside_stroke_takes_the_anti_aliased_band_in_ink() {
 }
 
 #[test]
+fn an_anti_aliased_center_stroke_joins_its_halves_and_the_layer_in_ink() {
+    // #2: the Center Stroke's two halves and the layer join as a disjoint
+    // union of the pixel (`style_stroke_distance`'s module doc): the stroke
+    // holds `(outer + inner)·o`, the layer `(c − inner)·f`, the stack
+    // beneath the rest. Center 4's halves are Inside 2's and Outside 2's
+    // bands on this soft rect, read from their twins (Fill 0 over black, a
+    // white stroke: the twin's red is the band); the layer at Fill 50 %.
+    let coverage = soft_rect(W, H, RECT);
+    let half = |position: &str| {
+        let effect = json!({"type":"stroke","size":2,"position":position});
+        twin(W, H, &coverage, &twin_effect(&effect, None), (120.0, 30.0))
+    };
+    let (inner, outer) = (half("inside"), half("outside"));
+    let mut effect = json!({"type":"stroke","size":4,"position":"center"});
+    effect["ink"] = fractions(E1);
+    let style = json!({"fill_opacity": 0.5, "effects": [effect]});
+    let doc = styled(shaped(&coverage), 1, &style);
+    let f = crate::cmyk_structure_fixture::byte_unit(0.5);
+    let (e, src) = (percent(E1), percent(SOURCE));
+    assert_flat_all(doc, 2, "anti-aliased center stroke", |x, y| {
+        let i = (y * W + x) as usize;
+        let c = f64::from(coverage[i]) / 65535.0;
+        let inner = inner[i].min(c);
+        let (stroke, layer) = (outer[i] + inner, (c - inner) * f);
+        let b = column(x);
+        std::array::from_fn(|k| {
+            if k == 4 {
+                1.0
+            } else {
+                b[k] + stroke * (e[k] - b[k]) + layer * (src[k] - b[k])
+            }
+        })
+    });
+    free(doc);
+}
+
+#[test]
 fn a_styled_group_is_its_styled_child() {
     let coverage = soft_rect(W, H, RECT);
     let style = json!({"effects":[

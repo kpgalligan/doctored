@@ -68,8 +68,15 @@
 //!    typed path and every regional sample call); the bevel and anything
 //!    ranked after it composite over the result as before. No pass gains a
 //!    parameter, so the replacement is applied exactly once whatever step 3
-//!    was. Stacked strokes are several bands: B0 is kept once over
-//!    their union, and each band in render order replaces over that same B0
+//!    was. A Center stroke's inner half lands over B0, which already holds
+//!    its outer half ([`outer_half`], landed in step 2), so where both
+//!    halves cover a pixel its ink lands at the alpha that COMPLETES the
+//!    stroke's share rather than stacking on it ([`band_ink_alpha`],
+//!    `style_stroke_distance`'s "Center's two halves"): halves and layer
+//!    join as one disjoint union. Under a knockout B0 holds no outer half
+//!    and the ink keeps `shape · opacity`. Stacked strokes are several
+//!    bands: B0 is kept once over their union, and each band in render
+//!    order replaces over that same B0
 //!    (measured against Photoshop, `stacked-effects-557/take1`), so a later
 //!    band hides an earlier one where it lands.
 //!    The INNER SHADOW composites inside the layer on its partial-alpha
@@ -186,7 +193,7 @@ use crate::style_knockout;
 use crate::style_render::{
     Contribution, Ink, InkDecode, Placement, RenderContext, RenderedEffects, Shape, StyleColors,
 };
-use crate::style_stroke_distance::band_under_layer;
+use crate::style_stroke_distance::{band_under_layer, inner_half_alpha};
 
 /// What every composite reads beyond the layers: the global light every
 /// "use global light" effect resolves against, the document canvas size
@@ -677,8 +684,10 @@ fn composite_direct_into(
                     rel,
                     &planes.shape,
                     c,
+                    outer_half(planes, c, style.knockout),
                     b0,
                     opacity,
+                    occluding,
                     env.style_colors(),
                     env.job,
                 )?,
@@ -936,12 +945,64 @@ impl BandBackdrop {
     }
 }
 
+/// The outer half of the Center stroke whose inner half is the inside band
+/// `band` (module doc, step 4): the Below Stroke contribution of the same
+/// effect instance over a same-size plane. `None` for an Inside stroke (no
+/// Below half), a Center stroke at opacity 0 (its outer half is not
+/// emitted), and under any knockout, whose B0 is the backdrop the layer
+/// punches to and holds no outer half. Resolved once per band, outside the
+/// pixel loop.
+pub(crate) fn outer_half<'a>(
+    planes: &'a RenderedEffects,
+    band: &Contribution,
+    knockout: Knockout,
+) -> Option<&'a Contribution> {
+    if knockout != Knockout::None
+        || band.kind != EffectKind::Stroke
+        || band.placement != Placement::Interior
+    {
+        return None;
+    }
+    planes.below.iter().find(|c| {
+        c.kind == EffectKind::Stroke
+            && c.instance == band.instance
+            && c.coverage.len() == band.coverage.len()
+    })
+}
+
+/// The ONE home of the inside band's ink alpha at plane pixel `plane_xy`
+/// (module doc, step 4): `shape / 255 · scale` where the band has no outer
+/// half or the outer half has no coverage there (every Inside stroke, every
+/// pixel off a Center stroke's partial edge); else
+/// `style_stroke_distance::inner_half_alpha`, the alpha that completes the
+/// stroke's share of the pixel over B0, with the outer half's landed alpha
+/// from [`contribution_alpha`] (its coverage, `scale` and `occluding_fill`).
+/// A non-Normal stroke blend takes the same alpha; no take measured one.
+#[inline]
+pub(crate) fn band_ink_alpha(
+    shape: &Shape,
+    outer: Option<&Contribution>,
+    plane_xy: (i64, i64),
+    scale: f32,
+    occluding_fill: f32,
+) -> f32 {
+    let (px, py) = plane_xy;
+    let i = shape.idx(px as u32, py as u32);
+    let sa = f32::from(shape.coverage[i]) / 255.0 * scale;
+    let Some(outer) = outer.filter(|o| o.coverage[i] != 0) else {
+        return sa;
+    };
+    let outer_alpha = f32::from(outer.coverage[i]) / 255.0 * scale;
+    let landed = contribution_alpha(shape, outer, plane_xy, scale, occluding_fill);
+    inner_half_alpha(sa, outer_alpha, landed)
+}
+
 /// One plane pixel of the inside band's REPLACEMENT (module doc, step 4),
 /// statement for statement — the one body the byte and typed direct paths
 /// and every regional sample call. With `s = band / shape` (0 where the
 /// shape is 0) the target `X` (step 3 and the interiors ranked before the
 /// band) becomes the premultiplied `lerp(X, Y, s)`, `Y = over(B0, ink at
-/// shape / 255 · scale)` with the band's own blend: at `s = 1` the band sits
+/// [`band_ink_alpha`])` with the band's own blend: at `s = 1` the band sits
 /// over B0 alone, at `s = 0` the pixel is untouched. The share is the band's
 /// part of the shape, so a gradient stroke's stop opacity (already in the
 /// stored band) leaves the layer in place under a transparent stop. The mix
@@ -949,7 +1010,8 @@ impl BandBackdrop {
 /// 16 bits, and at 32 bits it must keep extended-range colour.
 /// The caller guarantees what `composite_contribution_sample`'s does, but
 /// for `scale`, which may be 0 (a band at opacity 0 shows B0 — `Ocut`).
-/// `decode` is the scene's (`StyleColors::decode`).
+/// `outer` is the band's [`outer_half`], `occluding_fill` the layer's
+/// [`occluding_fill`]; `decode` is the scene's (`StyleColors::decode`).
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub(crate) fn replace_under_band_sample(
@@ -958,10 +1020,12 @@ pub(crate) fn replace_under_band_sample(
     b0: [f32; 4],
     shape: &Shape,
     c: &Contribution,
+    outer: Option<&Contribution>,
     ink: &Ink,
     decode: InkDecode<'_>,
     plane_xy: (i64, i64),
     scale: f32,
+    occluding_fill: f32,
     canvas_xy: (i64, i64),
 ) {
     let (px, py) = plane_xy;
@@ -972,7 +1036,7 @@ pub(crate) fn replace_under_band_sample(
         return;
     }
     let s = (f32::from(band) / f32::from(cov)).min(1.0);
-    let sa = f32::from(cov) / 255.0 * scale;
+    let sa = band_ink_alpha(shape, outer, plane_xy, scale, occluding_fill);
     let mut y = [b0];
     if sa > 0.0 {
         let cs = decode.apply(ink.color.at(px + shape.origin.0, py + shape.origin.1));
@@ -983,7 +1047,8 @@ pub(crate) fn replace_under_band_sample(
 
 /// `composite_contribution`'s loop over the band with
 /// [`replace_under_band_sample`] as its body; `b0` is the band's
-/// [`BandBackdrop`] over this same target.
+/// [`BandBackdrop`] over this same target, `outer` its [`outer_half`] and
+/// `occluding_fill` the layer's [`occluding_fill`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn replace_under_band(
     target: &mut [[f32; 4]],
@@ -993,8 +1058,10 @@ pub(crate) fn replace_under_band(
     rel: (i32, i32),
     shape: &Shape,
     c: &Contribution,
+    outer: Option<&Contribution>,
     b0: &BandBackdrop,
     opacity_scale: f32,
+    occluding_fill: f32,
     colors: StyleColors<'_>,
     job: JobContext<'_>,
 ) -> Result<(), String> {
@@ -1037,10 +1104,12 @@ pub(crate) fn replace_under_band(
                 under,
                 shape,
                 c,
+                outer,
                 &ink,
                 decode,
                 (px, py),
                 scale,
+                occluding_fill,
                 canvas_xy,
             );
         }

@@ -79,8 +79,8 @@ use crate::style::{BlendIf, Effect, GlobalLight, LayerStyle};
 use crate::style_blend_if::{source_weight_16, source_weight_float};
 use crate::style_composite::{
     affected_window, backdrop_store_bytes, below_landing, clip_pass_shape, composite_contribution,
-    mix_premultiplied_in, occluding_fill, replace_under_band, ring_backdrop, style_grown,
-    BackdropSnapshot, BandBackdrop, CompositeEnv, Cut,
+    mix_premultiplied_in, occluding_fill, outer_half, replace_under_band, ring_backdrop,
+    style_grown, BackdropSnapshot, BandBackdrop, CompositeEnv, Cut,
 };
 use crate::style_effects::EffectKind;
 use crate::style_float::FloatStyle;
@@ -773,8 +773,10 @@ fn composite_direct_into(
                     rel,
                     &planes.shape,
                     c,
+                    outer_half(planes, c, layer.style.knockout),
                     b0,
                     opacity,
+                    occluding,
                     env.style_colors(),
                     job,
                 )?,

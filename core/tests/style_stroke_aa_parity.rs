@@ -9,8 +9,8 @@
 //! `stroke_take5_profiles.json`, all 160 rows of the confirm take
 //! (`stroke_aa_578_confirm5.py`, Inside only), written by the confirm
 //! runner's `--fixtures` on its JUDGE SHIP for `Sn` (NA1 / `o · c`, rule
-//! (i)). Center was KEEP in the fourth take, so its rows measure today's
-//! Center, which already took NA1.
+//! (i)). Its Center rows measure the shipped Center: NA1's inner half, the
+//! halves and the layer joined as one union (`style_stroke_center_aa.rs`).
 //!
 //! Each row is rebuilt as its runner builds it: a #00ff00 layer over opaque
 //! #0000ff whose alpha is the take's picture, at the row's Fill, with a
@@ -154,7 +154,7 @@ fn profile5(shape: &str, w: u32, h: u32, codes: &[[f64; 3]]) -> Vec<f64> {
 
 /// `(max, mean)` of `ours` against a fixture row in 8-bit codes over its
 /// gate.
-fn score(name: &str, ours: &[f64], observed: &Value) -> (f64, f64) {
+pub(crate) fn score(name: &str, ours: &[f64], observed: &Value) -> (f64, f64) {
     let ps: Vec<f64> = observed["values"]
         .as_array()
         .expect("values")
@@ -210,7 +210,7 @@ fn measure5(name: &str, observed: &Value) -> (f64, f64) {
 }
 
 /// Every row of `file` against the bound or its pin (module doc).
-fn check_rows(
+pub(crate) fn check_rows(
     file: &str,
     count: usize,
     pinned: &[(&str, f64, f64)],
@@ -260,32 +260,20 @@ fn check_rows(
 
 // Measured on the shipped kernel against the take, max and mean in codes
 // rounded up in the third decimal: every row here misses 2 / 0.5. All are
-// Center rows (today's kernel, `Ca` KEEP): Size 1 (JUDGE's bin: no declared
-// pair reads it) and every Fill 50 % row (Photoshop fills the partial pixel
-// with the whole stroke, `o`; the replacement draws `o · c`). Every Inside
-// row meets on NA1 (`Sn`), the disc included, and so does every Center Fill
-// 100 % row of Size 3, 4 and 8.
+// Center rows at Size 1, where the two halves leave part of the partial
+// pixel and Photoshop keeps a share of the layer there. Every Inside row
+// meets on NA1 (`Sn`), the disc included, and so does every Center row of
+// Size 3, 4 and 8, the Fill 50 % rows since Center's halves and the layer
+// join as one union (`style_stroke_distance`'s "Center's two halves").
 const PINNED: &[(&str, f64, f64)] = &[
     ("sk4_aadisc_c_s1_f100_16", 7.520, 0.417),
     ("sk4_aadisc_c_s1_f100_8", 7.587, 0.413),
-    ("sk4_aadisc_c_s1_f50_16", 12.372, 0.646),
-    ("sk4_aadisc_c_s1_f50_8", 12.449, 0.644),
-    ("sk4_aadisc_c_s3_f50_16", 17.010, 0.974),
-    ("sk4_aadisc_c_s3_f50_8", 17.001, 0.967),
-    ("sk4_aadisc_c_s4_f50_16", 17.010, 0.967),
-    ("sk4_aadisc_c_s4_f50_8", 17.001, 0.961),
-    ("sk4_aadisc_c_s8_f50_16", 17.010, 0.969),
-    ("sk4_aadisc_c_s8_f50_8", 17.001, 0.964),
+    ("sk4_aadisc_c_s1_f50_16", 4.803, 0.294),
+    ("sk4_aadisc_c_s1_f50_8", 4.801, 0.271),
     ("sk4_aahalf_c_s1_f100_16", 16.829, 0.283),
     ("sk4_aahalf_c_s1_f100_8", 17.001, 0.278),
-    ("sk4_aahalf_c_s1_f50_16", 42.444, 0.670),
-    ("sk4_aahalf_c_s1_f50_8", 42.001, 0.659),
-    ("sk4_aahalf_c_s3_f50_16", 42.444, 0.889),
-    ("sk4_aahalf_c_s3_f50_8", 42.001, 0.874),
-    ("sk4_aahalf_c_s4_f50_16", 42.444, 0.889),
-    ("sk4_aahalf_c_s4_f50_8", 42.001, 0.874),
-    ("sk4_aahalf_c_s8_f50_16", 42.444, 0.888),
-    ("sk4_aahalf_c_s8_f50_8", 42.001, 0.874),
+    ("sk4_aahalf_c_s1_f50_16", 16.004, 0.218),
+    ("sk4_aahalf_c_s1_f50_8", 16.001, 0.207),
 ];
 
 #[test]
@@ -308,11 +296,11 @@ fn every_take5_stroke_row_meets_the_bound_or_its_measured_residual() {
 /// The oracle's margin around the canvas, past every reach these sizes have,
 /// so the oracle's band sees the transparent outside as the kernel's padded
 /// plane does.
-const PAD: usize = 8;
+pub(crate) const PAD: usize = 8;
 
 /// The pictures of `style_inner_glow_aa_parity.rs` (the master copies):
 /// a 40 × 32 supersampled r = 9 disc at (20, 16).
-fn oracle_disc() -> (u32, u32, Vec<u8>) {
+pub(crate) fn oracle_disc() -> (u32, u32, Vec<u8>) {
     let a = supersampled(40, 32, |x, y| {
         (x - 20.0).powi(2) + (y - 16.0).powi(2) <= 81.0
     });
@@ -326,7 +314,7 @@ fn oracle_disc() -> (u32, u32, Vec<u8>) {
 /// A 40 × 32 straight edge with three levels: the rect x in [4, 20), y in
 /// [4, 28) opaque, its x = 20 column at 64 / 128 / 192 over y [4, 12) /
 /// [12, 20) / [20, 28).
-fn oracle_edge() -> (u32, u32, Vec<u8>) {
+pub(crate) fn oracle_edge() -> (u32, u32, Vec<u8>) {
     let (w, h) = (40u32, 32u32);
     let a = (0..h)
         .flat_map(|y| (0..w).map(move |x| (x, y)))
@@ -344,7 +332,7 @@ fn oracle_edge() -> (u32, u32, Vec<u8>) {
 /// A 48 × 32 rect whose alpha ramps linearly over 12 px: the outer rect [2,
 /// 46) × [2, 30), alpha `clamp(m / 12)` with `m` the pixel centre's distance
 /// inside its nearest side.
-fn oracle_ramp() -> (u32, u32, Vec<u8>) {
+pub(crate) fn oracle_ramp() -> (u32, u32, Vec<u8>) {
     let (w, h) = (48u32, 32u32);
     let a = (0..h)
         .flat_map(|y| (0..w).map(move |x| (x, y)))
@@ -360,7 +348,7 @@ fn oracle_ramp() -> (u32, u32, Vec<u8>) {
 /// The 5 × 5 chamfer's path length between two pixel centres `(dx, dy)`
 /// apart in closed form (steps 1, √2, √5): with `a = max(|dx|, |dy|)` and
 /// `b = min`, `(a − 2b) + b√5` when `a ≥ 2b`, else `(a − b)√5 + (2b − a)√2`.
-fn chamfer(dx: i64, dy: i64) -> f64 {
+pub(crate) fn chamfer(dx: i64, dy: i64) -> f64 {
     let (a, b) = (dx.abs().max(dy.abs()) as f64, dx.abs().min(dy.abs()) as f64);
     if a >= 2.0 * b {
         (a - 2.0 * b) + b * 5f64.sqrt()
@@ -461,26 +449,29 @@ fn the_inside_band_matches_a_brute_force_oracle() {
 
 #[test]
 fn the_member_draws_one_share_at_16_and_32_bits() {
-    // One row per shipped regime: Inside (`Sn`); Center did not ship.
+    // One row per shipped regime: Inside (`Sn`) and Center (its halves and
+    // the layer as one union), both below 100 % Fill.
     let (w, h, a) = take4_coverage("aahalf");
-    let s = style("inside", 4, 0.5);
-    let c16 = profile(
-        "aahalf",
-        w,
-        &render_rgb_alpha(16, w, h, &a, SOURCE, BACKDROP, &s),
-    );
-    let c32 = profile(
-        "aahalf",
-        w,
-        &render_rgb_alpha(32, w, h, &a, SOURCE, BACKDROP, &s),
-    );
     let worst = |x: &[f64], y: &[f64]| {
         x.iter()
             .zip(y)
             .map(|(p, q)| (p - q).abs())
             .fold(0.0f64, f64::max)
     };
-    let d32 = worst(&c32, &c16);
-    eprintln!("inside: 32 vs 16 {d32:.4}");
-    assert!(d32 <= 1.0, "inside: 32 bits {d32} codes from 16 bits");
+    for position in ["inside", "center"] {
+        let s = style(position, 4, 0.5);
+        let c16 = profile(
+            "aahalf",
+            w,
+            &render_rgb_alpha(16, w, h, &a, SOURCE, BACKDROP, &s),
+        );
+        let c32 = profile(
+            "aahalf",
+            w,
+            &render_rgb_alpha(32, w, h, &a, SOURCE, BACKDROP, &s),
+        );
+        let d32 = worst(&c32, &c16);
+        eprintln!("{position}: 32 vs 16 {d32:.4}");
+        assert!(d32 <= 1.0, "{position}: 32 bits {d32} codes from 16 bits");
+    }
 }

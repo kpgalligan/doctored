@@ -412,7 +412,7 @@ Detail belongs in the source file's own header comment.
 - `style_matte.rs` — KERNEL: the effects' box-pair law (`law_split`, `law_matte_with_job`, `LawBand`) for shadows, glows and satin, and `Matte` (satin at Size 0; Spread 100 %).
 - `style_fx_satin.rs` — Satin: the law's matte at spread 0, the two shifted copies each contour-mapped, `|C(a) − C(b)|`, invert, × coverage.
 - `style_fx_pattern_overlay.rs` — KERNEL: the Pattern Overlay renderer (one Interior contribution; coverage × tile alpha; layer coordinates only).
-- `style_stroke_distance.rs` — KERNEL: the 5×5 chamfer, `outside_corner_band`, `band_under_layer`, `inside_corner_band` (Center, AA Inside), Shape Burst's 8-neighbour `contour_distance`.
+- `style_stroke_distance.rs` — KERNEL: 5×5 chamfer, `outside_corner_band`, `band_under_layer`, `inside_corner_band` (Center, AA Inside), `inner_half_alpha`, Shape Burst's `contour_distance`.
 - `style_aa_band.rs` — KERNEL: the Inner Glow law's band measured from the anti-aliased contour: `b_full`, `b_part` (partial pixels), their max.
 - `opacity_byte.rs` — KERNEL leaf: the byte Opacity and Fill below 32 bits (measured), `code` / `quantized` / `composite` / `joint` (both bytes' product); composites and PSD bytes read it.
 - `style_stroke_fill.rs` — KERNEL: the Stroke's Shape Burst field (`burst_t`, `burst_field`) and its gradient box grown by the band's reach.

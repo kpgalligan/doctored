@@ -15,8 +15,10 @@
 //! ([`render32_alpha`]); its pictures are [`take4_coverage`], which the
 //! fourth Stroke take shares (`style_stroke_aa_parity.rs`, coloured layers
 //! read on all three channels through [`render_rgb_alpha`]); the Stroke
-//! confirm take's pictures are [`take5_coverage`], binned by [`take5_bin`];
-//! the effect-kernels-578-p3 identify take's are [`p3_coverage`]
+//! confirm take's pictures are [`take5_coverage`], binned by [`take5_bin`],
+//! and the Center Stroke take's [`center2_coverage`], binned by
+//! [`center2_bin`] (`style_stroke_center_aa.rs`); the effect-kernels-578-p3
+//! identify take's are [`p3_coverage`]
 //! (`style_effect_kernels_578_p3_take.rs`), and the effect-kernels-578-p4
 //! takes' [`p4_coverage`] (`style_effect_kernels_578_p4_take.rs`).
 
@@ -382,6 +384,88 @@ pub(crate) fn take5_coverage(shape: &str) -> (u32, u32, Vec<f64>) {
 /// `floor(−sdf)` at the pixel centre (`stroke_aa_578_confirm5.bins_of`).
 pub(crate) fn take5_bin(shape: &str, x: u32, y: u32) -> i32 {
     (-take5_sdf(shape, f64::from(x) + 0.5, f64::from(y) + 0.5)).floor() as i32
+}
+
+/// The Center Stroke take's `cnhalf` bands: (coverage, y0, y1) of the x =
+/// 256 column (`stroke_center_2_take.HALF_COVERAGES`, `BAND_SPANS`).
+const CENTER2_BANDS: [(f64, u32, u32); 4] = [
+    (0.2, 32, 192),
+    (0.4, 192, 352),
+    (0.6, 352, 512),
+    (0.8, 512, 672),
+];
+
+/// The signed distance (negative inside) of a Center Stroke take curved
+/// shape at continuous `(x, y)` (`stroke_center_2_take.sdf`): `cndisc23`
+/// the r 23.25 disc at (48.25, 47.5), `cnrrect` the exact rounded-box
+/// distance (centre (64, 48), half extents (41.25, 26.5), corner radius
+/// 11.75).
+fn center2_sdf(shape: &str, x: f64, y: f64) -> f64 {
+    match shape {
+        "cndisc23" => (x - 48.25).hypot(y - 47.5) - 23.25,
+        "cnrrect" => {
+            let r = 11.75;
+            let qx = (x - 64.0).abs() - (41.25 - r);
+            let qy = (y - 48.0).abs() - (26.5 - r);
+            qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - r
+        }
+        _ => panic!("unknown shape {shape}"),
+    }
+}
+
+/// The Center Stroke take's picture size and coverage
+/// (`stroke_center_2_take.alpha_of`, PICTURES A): `cnhalf` 320 × 704, the
+/// rect x in [32, 256), y in [32, 672), its x = 256 column at 0.2 / 0.4 /
+/// 0.6 / 0.8 ([`CENTER2_BANDS`]); `cnsoft` the same rect with the columns
+/// 256, 257, 258 at 0.75 / 0.5 / 0.25 over y [32, 672); the curved shapes
+/// ([`center2_sdf`]) 8 × 8 supersampled, `cndisc23` 96², `cnrrect` 128 × 96.
+pub(crate) fn center2_coverage(shape: &str) -> (u32, u32, Vec<f64>) {
+    match shape {
+        "cnhalf" | "cnsoft" => {
+            let (w, h) = (320u32, 704u32);
+            let soft = shape == "cnsoft";
+            let a = (0..h)
+                .flat_map(|y| (0..w).map(move |x| (x, y)))
+                .map(|(x, y)| {
+                    if !(32..672).contains(&y) {
+                        return 0.0;
+                    }
+                    if (32..256).contains(&x) {
+                        return 1.0;
+                    }
+                    match (soft, x) {
+                        (true, 256) => 0.75,
+                        (true, 257) => 0.5,
+                        (true, 258) => 0.25,
+                        (false, 256) => CENTER2_BANDS
+                            .iter()
+                            .find(|&&(_, y0, y1)| (y0..y1).contains(&y))
+                            .map_or(0.0, |&(c, _, _)| c),
+                        _ => 0.0,
+                    }
+                })
+                .collect();
+            (w, h, a)
+        }
+        _ => {
+            let (w, h) = match shape {
+                "cndisc23" => (96u32, 96u32),
+                "cnrrect" => (128, 96),
+                _ => panic!("unknown shape {shape}"),
+            };
+            (
+                w,
+                h,
+                supersampled(w, h, |x, y| center2_sdf(shape, x, y) <= 0.0),
+            )
+        }
+    }
+}
+
+/// A Center Stroke take curved shape's profile bin of pixel `(x, y)`:
+/// `floor(−sdf)` at the pixel centre (`stroke_center_2_take.bins_of`).
+pub(crate) fn center2_bin(shape: &str, x: u32, y: u32) -> i32 {
+    (-center2_sdf(shape, f64::from(x) + 0.5, f64::from(y) + 0.5)).floor() as i32
 }
 
 /// sRGB's decode of one encoded unit sample (the 32-bit records are linear).

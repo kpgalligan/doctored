@@ -70,13 +70,14 @@
 //!   take2's anti-aliased disc Center row ranks it above the old seeds). The
 //!   inner half is `style_stroke_distance::inside_corner_band`, measured from
 //!   the anti-aliased edge (#2: the take's disc Center 6 within one code
-//!   where the 50 % threshold missed by 115; take2's disc Center 4 at 50 %
-//!   keeps 63 and disc Center 3 at 50 % Fill 43, residuals of the inside
-//!   band's replacement; identical on a hard rect). The fourth Stroke take
-//!   kept it: Photoshop's Center fills its partial pixels with the whole
-//!   stroke (`o`, not `o · c`), which the one replacement body
-//!   (`style_composite::replace_under_band_sample`) cannot give Center alone
-//!   while Inside reads `o · c`. Inside on an anti-aliased shape takes the
+//!   where the 50 % threshold missed by 115; identical on a hard rect).
+//!   Where both halves cover a partial pixel, the inner half's ink lands
+//!   over the outer half already in B0 at the alpha that completes the
+//!   stroke's share of the pixel (`style_composite::band_ink_alpha`,
+//!   `style_stroke_distance`'s "Center's two halves"), so the halves and the
+//!   layer join as one disjoint union at any Fill and stroke opacity; the
+//!   one replacement body serves Inside unchanged, `o · c`, since an Inside
+//!   stroke has no outer half. Inside on an anti-aliased shape takes the
 //!   same kernel, so Center's inner half and that Inside band are one band.
 //!
 //! On a binary shape the Inside band is `style_plane_ops::inside_stroke_band`,
