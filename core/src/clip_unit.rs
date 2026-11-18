@@ -8,8 +8,8 @@
 //!
 //! * `Open`, once after the base renders: the buffer's alpha becomes its
 //!   share of the unit's FOOTPRINT `f` (the base's alpha × mask, no Fill or
-//!   Blend If weight), `r = min(a / f, 1)` — 1 for a plain base, the Fill or
-//!   Blend If weight for a weighted one, 0 outside the footprint.
+//!   Blend If weight), `r = min(a / f, 1)` — 1 for a plain base, the Blend If
+//!   weight for a weighted one, 0 outside the footprint.
 //! * `Settle`, after each member: `r` clamped to `[0, 1]`, 0 outside.
 //! * `Close`, after the last member: the alpha becomes `f · r`.
 //!
@@ -18,11 +18,27 @@
 //! `f` shows the member at its own strength instead of the old rule's (the
 //! alpha forced back to `f` after an absolute W3C step, which boosted the
 //! member by `1 / f`; #2 take1: Normal 11 codes off Photoshop at 8 bits).
-//! A weighted base keeps its weight RELATIVE to the footprint (Photoshop's
-//! Fill on a clip base). At `f = 1` the steps are identities on the old rule's
-//! numbers (`Open` gives the old alpha, the W3C step at alpha 1 returns 1,
-//! `Close` multiplies by 1), so every opaque-base unit renders bit for bit as
-//! before.
+//! A Blend If weighted base keeps its weight RELATIVE to the footprint. At
+//! `f = 1` the steps are identities on the old rule's numbers (`Open` gives
+//! the old alpha, the W3C step at alpha 1 returns 1, `Close` multiplies by
+//! 1), so every opaque-base unit renders bit for bit as before.
+//!
+//! CL3, a base below 100 % Fill: the unit pays the base's Fill ONCE, as a
+//! whole. With a visible member the unit is built as at Fill 1 (the base's
+//! pixels enter the buffer at Fill 1, the members land on them by the steps
+//! above) and the FINISHED unit lands on its backdrop through the base's
+//! mode at its alpha × the joint weight of the Fill and the Opacity
+//! (`opacity_byte::joint`), so a Fill 0 unit lands nothing. A unit with no
+//! visible member keeps the Fill on the base's own pixels, as an unclipped
+//! layer does. [`unit_fill`] is the one statement of the rule; every member
+//! loop that holds base pixels (byte, typed, float, regional, CMYK, direct
+//! and routed) reads it. A recorded take measured it at 8 and 16 bits
+//! (`clip_base_fill_2_take.py` take1, in the private archive). An ADJUSTMENT
+//! base is outside it: it puts no pixels in the unit, and its Fill weighs
+//! the adjustment alone (`interior_into`, `tone_interior`). Routed (a
+//! knockout or grouped interiors), its interior frame is the unit's pixels,
+//! and its members never open the unit, so unless D6 groups it the frame
+//! keeps its Fill.
 
 /// One step of the rule (module doc).
 #[derive(Clone, Copy)]
@@ -42,6 +58,22 @@ pub(crate) fn clip_alpha(alpha: f32, footprint: f32, step: ClipStep) -> f32 {
         ClipStep::Settle if footprint <= 0.0 => 0.0,
         ClipStep::Settle => alpha.clamp(0.0, 1.0),
         ClipStep::Close => footprint.max(0.0) * alpha,
+    }
+}
+
+/// CL3 (module doc): `(fill_in, fill_out)`, the Fill the base's pixels enter
+/// the unit with and the Fill the finished unit lands with. `opened` = the
+/// unit has a visible member over a pixel base, never over an adjustment's
+/// frame (or, routed, its grouped interiors moved in): `(1, fill)`; else
+/// `(fill, 1)`. `fill` is the value the composite already
+/// reads (`opacity_byte::composite`), so a direct landing weighs
+/// `joint(fill_out, opacity)` and a routed one `q = fill_out · min(1, U.a /
+/// s)`.
+pub(crate) fn unit_fill(fill: f32, opened: bool) -> (f32, f32) {
+    if opened {
+        (1.0, fill)
+    } else {
+        (fill, 1.0)
     }
 }
 

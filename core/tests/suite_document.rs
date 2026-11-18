@@ -60,6 +60,8 @@ mod canvas_rotation;
 mod channel_scale_offset;
 #[path = "channel_tests.rs"]
 mod channel_tests;
+#[path = "clip_base_fill.rs"]
+mod clip_base_fill;
 #[path = "clip_display.rs"]
 mod clip_display;
 #[path = "clip_unit_frozen.rs"]

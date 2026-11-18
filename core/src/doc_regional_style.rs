@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 use crate::blend::{blend_kind_byte, composite_source_into, BlendMode};
 use crate::blend_fill::fill_blend_byte;
-use crate::clip_unit::{clip_alpha, ClipStep};
+use crate::clip_unit::{clip_alpha, unit_fill, ClipStep};
 use crate::doc::Layer;
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_group::{self, RenderBudget};
@@ -412,9 +412,15 @@ impl ResolvedNode<'_> {
         } else {
             match steps {
                 None => self.pixel_pass(
-                    target, ti, under, opacity, self.blend, pixel, transfer, canvas_xy,
+                    target, ti, under, opacity, self.blend, style.fill, pixel, transfer, canvas_xy,
                 ),
                 Some(steps) => {
+                    // Open only with a member step; a stop leaves it open
+                    // (`doc_regional_sample::sample_clip_until`).
+                    let opened = !steps.is_empty();
+                    // CL3 (`clip_unit::unit_fill`): an opened unit takes the
+                    // base at Fill 1 and lands with the Fill.
+                    let (fill_in, fill_out) = unit_fill(style.fill, opened);
                     let mut buf = [[0.0f32; 4]];
                     self.pixel_pass(
                         &mut buf,
@@ -422,6 +428,7 @@ impl ResolvedNode<'_> {
                         under,
                         1.0,
                         BlendMode::Normal,
+                        fill_in,
                         pixel,
                         transfer,
                         canvas_xy,
@@ -429,10 +436,7 @@ impl ResolvedNode<'_> {
                     let a = buf[0][3];
                     let limit = self.footprint_limit(pixel, canvas_xy);
                     // `clip_unit`'s Open against the footprint (#2).
-                    // Open only with a member step; a stop leaves it open
-                    // (`doc_regional_sample::sample_clip_until`).
                     let footprint = limit.unwrap_or(a);
-                    let opened = !steps.is_empty();
                     if opened {
                         buf[0][3] = clip_alpha(buf[0][3], footprint, ClipStep::Open);
                     }
@@ -471,7 +475,7 @@ impl ResolvedNode<'_> {
                         buf[0][3] = clip_alpha(buf[0][3], footprint, ClipStep::Close);
                     }
                     let src = buf[0];
-                    let sa = src[3] * opacity;
+                    let sa = src[3] * crate::opacity_byte::joint(fill_out, opacity, false);
                     if sa > 0.0 {
                         composite_source_into(
                             target,
@@ -547,9 +551,10 @@ impl ResolvedNode<'_> {
         }
     }
 
-    /// `composite_pixels_into`'s sample for an admitted style: nothing outside
-    /// the (synthetic) layer's rect, the early return on a zero fill or
-    /// opacity, then `composite_pixels_sample` with the Blend If reading
+    /// `composite_pixels_into`'s sample for an admitted style at `fill` (the
+    /// style's own, or an opened clip unit's `clip_unit::unit_fill`): nothing
+    /// outside the (synthetic) layer's rect, the early return on a zero fill
+    /// or opacity, then `composite_pixels_sample` with the Blend If reading
     /// `under`.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn pixel_pass(
@@ -559,6 +564,7 @@ impl ResolvedNode<'_> {
         under: [f32; 4],
         opacity: f32,
         mode: BlendMode,
+        fill: f32,
         pixel: Option<[u8; 4]>,
         transfer: Option<&ByteTransfer>,
         canvas_xy: (i64, i64),
@@ -567,19 +573,19 @@ impl ResolvedNode<'_> {
             return;
         };
         // `composite_pixels_into`'s early return.
-        if style.fill <= 0.0 || opacity <= 0.0 {
+        if fill <= 0.0 || opacity <= 0.0 {
             return;
         }
         let coverage = self
             .mask_byte(canvas_xy)
             .map_or(1.0, |m| f32::from(m) / 255.0);
         let pass = PixelPass {
-            joint: crate::opacity_byte::joint(style.fill, opacity, false),
+            joint: crate::opacity_byte::joint(fill, opacity, false),
             blend_if: style.blend_if.as_ref(),
             kind: blend_kind_byte(mode, transfer.is_none()),
             direct: mode == BlendMode::Normal,
             opacity,
-            fill_blend: fill_blend_byte(mode, style.fill, transfer.is_none()),
+            fill_blend: fill_blend_byte(mode, fill, transfer.is_none()),
             transfer,
         };
         composite_pixels_sample(target, ti, &px, 0, coverage, under, &pass, canvas_xy);

@@ -42,10 +42,13 @@
 //! by expanding both): so a layer with `Knockout::None` composites byte for
 //! byte what it always did, and the routing below never engages for it. With
 //! `q = 1` under Normal it equals the plain render for ANY `B0`, so a soft
-//! edge gets no fringe. A clip BASE with visible members uses today's unit
-//! buffer `U` (its own pixels at fill, each member frozen to the footprint
-//! `s`): `K = over(B0, U.rgb, min(1, U.a/s), M)`, same mix. Dissolve tosses
-//! its coin on `q`.
+//! edge gets no fringe. A clip BASE with visible members uses the unit
+//! buffer `U` (its own pixels at Fill 1, each member frozen to the footprint
+//! `s`) and pays its Fill once on the whole unit (`clip_unit`'s CL3,
+//! `clip_unit::unit_fill`): `K = over(B0, U.rgb, q, M)` with `q =
+//! fill·min(1, U.a/s)`, same mix. A styled adjustment's frame is outside
+//! CL3: unless D6 groups it, it enters `U` at its Fill and lands at `min(1,
+//! U.a/s)`. Dissolve tosses its coin on `q`.
 //!
 //! # D4 — where the hole stops
 //!
@@ -118,7 +121,8 @@
 //! the full, regional and budget paths — Photoshop renders `Multiply(base,
 //! overlay)` over the whole base footprint, the member's rectangle included
 //! (`knockout_bottom/interior_on_clip_base_{8,16}.png`). Fill < 1 on such a
-//! base pays the fill once by the unit, as D6 does, and is unmeasured.
+//! base pays the fill once by the unit, as D6 does, and so does a knockout
+//! base's unit with a visible member (`clip_unit`'s CL3).
 //! The member LOOP inside [`composite_interior_unit_into`] reads the
 //! resolved members, because that one IS a contribution question.
 //!
@@ -220,7 +224,7 @@
 //! members); P7-39 then LIFTED the narrowing at both depths, and its PSD disclosures went with it.
 
 use crate::blend::{blend_kind_byte, composite_source_into, BlendMode};
-use crate::clip_unit::{clip_pass, ClipStep};
+use crate::clip_unit::{clip_pass, unit_fill, ClipStep};
 use crate::doc::{composite_layer_into, sane_opacity, DrDocument, Layer, LayerKind};
 use crate::doc_group::{composite_level_into, RenderBudget, Unit};
 use crate::style::{BlendIf, Knockout, LayerStyle};
@@ -621,6 +625,10 @@ pub(crate) fn composite_projection_into(
 /// TARGET where there is no snapshot, and this pass's target is the unit
 /// buffer rather than the accumulator. `style_composite` widens the snapshot
 /// rect for exactly that reason.
+///
+/// `adjusted`: `layer` is a styled ADJUSTMENT's interior frame
+/// (`style_adjustment`), which CL3 leaves out: its visible members do not
+/// open the unit, so the frame keeps its Fill (`clip_unit::unit_fill`).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn composite_interior_unit_into(
     acc: &mut [[f32; 4]],
@@ -634,20 +642,21 @@ pub(crate) fn composite_interior_unit_into(
     env: CompositeEnv<'_>,
     planes: Option<&RenderedEffects>,
     blend_if: Option<(&BlendIf, Option<&BackdropSnapshot>)>,
+    adjusted: bool,
 ) -> Result<(), String> {
     let rel = (
         saturating_i32(i64::from(layer.offset.0) - i64::from(origin.0)),
         saturating_i32(i64::from(layer.offset.1) - i64::from(origin.1)),
     );
     let grouped = grouped_interior(style, planes);
-    // D6: with the grouped interiors inside the unit the pixels enter at fill
-    // 1 and the fill is paid ONCE by the whole unit; otherwise the pixels
-    // carry it themselves, which is D3's `q = fill·w` and today's arithmetic.
-    let (fill_in, fill_out) = if grouped {
-        (1.0, crate::opacity_byte::quantized(style.fill_opacity))
-    } else {
-        (style.fill_opacity, 1.0)
-    };
+    // D6 and CL3 (`clip_unit::unit_fill`): with the grouped interiors or a
+    // visible member over a pixel base inside the unit the pixels enter at
+    // fill 1 and the fill is paid ONCE by the whole unit; otherwise the
+    // pixels carry it themselves, which is D3's `q = fill·w`.
+    let (fill_in, fill_out) = unit_fill(
+        crate::opacity_byte::quantized(style.fill_opacity),
+        grouped || (!adjusted && group.iter().any(|l| l.visible)),
+    );
     env.job.check()?;
     let mut unit = vec![[0.0f32; 4]; acc.len()];
     env.job.check()?;

@@ -13,7 +13,7 @@
 //! module doc.
 
 use crate::blend::{composite_source_into, BlendMode};
-use crate::clip_unit::{clip_alpha, ClipStep};
+use crate::clip_unit::{clip_alpha, unit_fill, ClipStep};
 use crate::doc::MAX_PIXELS;
 use crate::doc_regional_style::{band_sample, contributions_sample, inside_sample};
 use crate::lab_blend::fill_in;
@@ -182,24 +182,34 @@ fn direct_sample16(
         _ => return Err(UNSTYLABLE.into()),
     };
     let coverage = node.mask.as_ref().map_or(1.0, |m| m.at(xy.0, xy.1));
-    let pass = |mode: BlendMode, opacity: f32| PixelPass16 {
-        joint: crate::opacity_byte::joint(style.fill, opacity, env.float),
+    let pass = |mode: BlendMode, opacity: f32, fill: f32| PixelPass16 {
+        joint: crate::opacity_byte::joint(fill, opacity, env.float),
         blend_if: layer.blend_if.as_ref(),
         kind: env.kind(mode),
         direct: mode == BlendMode::Normal,
         opacity,
         float: env.float,
-        fill_blend: fill_in(mode, style.fill, env.float, env.lab()),
+        fill_blend: fill_in(mode, fill, env.float, env.lab()),
         transfer: env.transfer,
         // A raster's pixel is its stored sample; a group's is composited.
         stored: matches!(layer.kind, Kind::Raster { .. }),
     };
-    // `composite_pixels_into`'s early return, then its sample.
-    let pixel_pass = |target: &mut [[f32; 4]], ti: usize, mode: BlendMode, opacity: f32| match pixel
-    {
-        Some((px, _)) if style.fill > 0.0 && opacity > 0.0 => {
-            composite_pixels_sample16(target, ti, px, coverage, under, &pass(mode, opacity), xy)
-        }
+    // `composite_pixels_into`'s early return, then its sample, at `fill`
+    // (the style's own, or an opened clip unit's `clip_unit::unit_fill`).
+    let pixel_pass = |target: &mut [[f32; 4]],
+                      ti: usize,
+                      mode: BlendMode,
+                      opacity: f32,
+                      fill: f32| match pixel {
+        Some((px, _)) if fill > 0.0 && opacity > 0.0 => composite_pixels_sample16(
+            target,
+            ti,
+            px,
+            coverage,
+            under,
+            &pass(mode, opacity, fill),
+            xy,
+        ),
         _ => Ok(()),
     };
     // The footprint a clip base clamps its members to: the planes' shape,
@@ -244,10 +254,13 @@ fn direct_sample16(
             target, ti, node, style, opacity, pixel, coverage, under, limit, env, xy, stop,
         )?;
     } else if node.members.is_empty() {
-        pixel_pass(target, ti, layer.blend_mode, opacity)?;
+        pixel_pass(target, ti, layer.blend_mode, opacity, style.fill)?;
     } else {
+        // CL3 (`clip_unit::unit_fill`): the unit, opened by its members,
+        // takes the base at Fill 1 and lands with the Fill.
+        let (fill_in, fill_out) = unit_fill(style.fill, true);
         let mut buf = [[0.0f32; 4]];
-        pixel_pass(&mut buf, 0, BlendMode::Normal, 1.0)?;
+        pixel_pass(&mut buf, 0, BlendMode::Normal, 1.0, fill_in)?;
         let a = buf[0][3];
         // `clip_unit`'s Open against the footprint (#2), then D4's
         // clipped-member rule, the STYLED base's loop: the base-only sample
@@ -274,7 +287,7 @@ fn direct_sample16(
         }
         buf[0][3] = clip_alpha(buf[0][3], footprint, ClipStep::Close);
         let src = buf[0];
-        let sa = src[3] * opacity;
+        let sa = src[3] * crate::opacity_byte::joint(fill_out, opacity, env.float);
         if sa > 0.0 {
             composite_source_into(
                 target,

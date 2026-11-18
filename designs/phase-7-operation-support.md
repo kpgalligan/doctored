@@ -177,4 +177,5 @@ issues; this matrix states only what works today.
   `.doctored` word 113; at RGB 8/16 first, and since 2026-11-12 in the Gray, Lab, CMYK and 32-bit float PSD
   codecs too (`psd_typed_exchange`).
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — `blend_interior_as_group` on a clip base below 100 %
-  Fill.
+  Fill: its unit pays the Fill once (CL3, measured without effects); an adjustment base or a special-mode base there
+  is unqualified.

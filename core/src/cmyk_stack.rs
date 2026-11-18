@@ -32,13 +32,13 @@
 //! * A CLIP UNIT — an unclipped record with the visible clipped records
 //!   directly above it in its level (`precision_document::render_layers`'
 //!   grouping): the base is drawn into a transparent buffer at Normal and
-//!   full opacity with `alpha × mask × fill`, its FOOTPRINT is
-//!   `alpha × mask` without the fill, each member composites onto the
-//!   buffer with the base's alpha frozen relative to the footprint
-//!   (`clip_unit`'s Open / Settle / Close, #2), and the buffer composites
-//!   once through the base's mode at the base's opacity — the styled clip
-//!   base's rule in `precision_style_render`, so the base's Fill stays
-//!   relative and a member shows inside the base's unfilled alpha. A Pass
+//!   full opacity with `alpha × mask` at Fill 1, its FOOTPRINT is
+//!   `alpha × mask`, each member composites onto the buffer with the base's
+//!   alpha frozen relative to the footprint (`clip_unit`'s Open / Settle /
+//!   Close, #2), and the buffer composites once through the base's mode at
+//!   the joint weight of the base's Fill and Opacity — the styled clip
+//!   base's rule in `precision_style_render`, so the whole unit pays the
+//!   base's Fill once (`clip_unit`'s CL3) and a Fill 0 unit shows nothing. A Pass
 //!   Through base with a visible member, and a clipped Pass Through member,
 //!   composite as isolated groups; a clipped record with no base below it in
 //!   its level composites as if unclipped; a hidden base drops its whole
@@ -81,7 +81,7 @@
 //! which every plan that builds a stack adds.
 
 use crate::blend::BlendMode;
-use crate::clip_unit::{clip_pass, ClipStep};
+use crate::clip_unit::{clip_pass, unit_fill, ClipStep};
 use crate::cmyk_adjust::CmykAdjustment;
 use crate::cmyk_composite::{gate, over, over_mode, tone_mix_mode, unit, InkPixel};
 use crate::cmyk_document::CmykPolicy;
@@ -896,7 +896,7 @@ fn composite_entry(
             buf.fill([0.0; 5]);
             footprint.resize(acc.len(), 0.0);
             footprint.fill(0.0);
-            let (opacity, mode) = draw_base(base, y, span, buf, footprint, capture);
+            let (opacity, fill_out, mode) = draw_base(base, y, span, buf, footprint, capture);
             // `clip_unit`'s Open (#2), then D4: a member punches to the
             // buffer after the base alone drew (opened).
             clip_pass(buf, footprint, ClipStep::Open);
@@ -917,11 +917,13 @@ fn composite_entry(
                 clip_pass(buf, footprint, ClipStep::Settle);
             }
             clip_pass(buf, footprint, ClipStep::Close);
+            // CL3: the finished unit lands with the base's Fill and Opacity.
+            let w = crate::opacity_byte::joint(fill_out, opacity, false);
             for (k, (dst, src)) in acc.iter_mut().zip(buf.iter()).enumerate() {
                 over_mode(
                     dst,
                     [src[0], src[1], src[2], src[3]],
-                    src[4] * opacity,
+                    src[4] * w,
                     mode,
                     (span.at(k), y),
                 );
@@ -988,10 +990,11 @@ fn composite_entry(
 }
 
 /// A clip unit's base into the transparent `buf` at Normal and full
-/// opacity with its fill, its footprint (alpha × mask, no fill) into
-/// `footprint` (module doc); answers the opacity and mode the finished
-/// buffer composites with. An adjustment base has no pixels of its own, so
-/// its footprint is empty and the unit shows nothing.
+/// opacity at Fill 1, its footprint (alpha × mask, no fill) into
+/// `footprint` (module doc); answers the opacity, the Fill and the mode the
+/// finished buffer composites with (`clip_unit::unit_fill`: a unit here
+/// always holds a visible member). An adjustment base has no pixels of its
+/// own, so its footprint is empty and the unit shows nothing.
 fn draw_base(
     base: &mut Entry<'_>,
     y: i64,
@@ -999,7 +1002,7 @@ fn draw_base(
     buf: &mut [InkPixel],
     footprint: &mut [f32],
     capture: &mut Option<Capture>,
-) -> (f32, BlendMode) {
+) -> (f32, f32, BlendMode) {
     match base {
         Entry::Raster {
             image,
@@ -1010,7 +1013,7 @@ fn draw_base(
             mask,
             ..
         } => {
-            let fill = *fill;
+            let (fill_in, fill_out) = unit_fill(*fill, true);
             raster_span(
                 image,
                 *offset,
@@ -1021,10 +1024,10 @@ fn draw_base(
                 |k, src, coverage| {
                     let shape = unit(src[4]) * coverage;
                     footprint[k] = shape;
-                    over(&mut buf[k], ink(src), shape * fill);
+                    over(&mut buf[k], ink(src), shape * fill_in);
                 },
             );
-            (*opacity, *mode)
+            (*opacity, fill_out, *mode)
         }
         Entry::Group {
             children,
@@ -1035,21 +1038,26 @@ fn draw_base(
             buf: inner,
             ..
         } => {
+            let (fill_in, fill_out) = unit_fill(*fill, true);
             inner.resize(buf.len(), [0.0; 5]);
             inner.fill([0.0; 5]);
             composite_level(children, y, span, inner, KnockoutSeed::NONE, capture);
             for (k, src) in inner.iter().enumerate() {
                 let shape = src[4] * coverage_at(mask, span.at(k), y);
                 footprint[k] = shape;
-                over(&mut buf[k], [src[0], src[1], src[2], src[3]], shape * *fill);
+                over(
+                    &mut buf[k],
+                    [src[0], src[1], src[2], src[3]],
+                    shape * fill_in,
+                );
             }
-            (*opacity, *mode)
+            (*opacity, fill_out, *mode)
         }
-        Entry::Tone { opacity, mode, .. } => (*opacity, *mode),
+        Entry::Tone { opacity, mode, .. } => (*opacity, 1.0, *mode),
         // `level` isolates a base Pass Through group, routes a styled base to
         // `Entry::Styled`, and a unit is never a base; none is reachable.
-        Entry::Pass { opacity, .. } => (*opacity, BlendMode::Normal),
-        Entry::Styled { styled, .. } => (styled.opacity, styled.mode),
-        Entry::Clip { .. } => (0.0, BlendMode::Normal),
+        Entry::Pass { opacity, .. } => (*opacity, 1.0, BlendMode::Normal),
+        Entry::Styled { styled, .. } => (styled.opacity, 1.0, styled.mode),
+        Entry::Clip { .. } => (0.0, 1.0, BlendMode::Normal),
     }
 }

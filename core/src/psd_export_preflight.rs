@@ -1217,12 +1217,35 @@ fn mode_names<'a>(entries: impl Iterator<Item = &'a ExportEntry>) -> Vec<String>
     names
 }
 
+/// The base modes whose clip unit below 100 % Fill is still unqualified (#2,
+/// `clip_base_fill_2_take.py` take1's `bspecial` tiles: CL3 63-128 codes off
+/// Photoshop at 8 bits on each).
+const CLIP_FILL_UNQUALIFIED: &[BlendMode] = &[
+    BlendMode::ColorBurn,
+    BlendMode::LinearBurn,
+    BlendMode::ColorDodge,
+    BlendMode::Addition,
+    BlendMode::VividLight,
+    BlendMode::LinearLight,
+    BlendMode::Difference,
+    BlendMode::HardMix,
+];
+
 /// The layered mode's blend and clipping observations: the modes outside
 /// the claim, the Fill-limited modes used below 100 % Fill, Dissolve's
-/// pattern, a clipping base below 100 % Fill (#2 take2's `c_fill`: no
-/// declared clip rule met Photoshop there, 128 codes apart) and a clipped
-/// group, which Photoshop reads unclipped from every record form Doctored
-/// can write and will not create itself (#2 take2 and take3).
+/// pattern, the clipping bases below 100 % Fill that are not qualified, and
+/// a clipped group, which Photoshop reads unclipped from every record form
+/// Doctored can write and will not create itself (#2 take2 and take3).
+///
+/// A pixel clipping base below 100 % Fill is built on CL3
+/// (`clip_unit::unit_fill`: the unit pays the Fill once, as a whole), which
+/// a recorded take measured (`clip_base_fill_2_take.py` take1: within 1 code
+/// at 8 bits and 0.01 at 16 on every Fill 0 / 25 / 75 % tile, two members, a
+/// unit in a group, Opacity 60 % and a Multiply, Screen, Overlay or
+/// Luminosity base), so it gets no sentence — unless its mode is one of
+/// [`CLIP_FILL_UNQUALIFIED`], whose units that take did not meet. An
+/// ADJUSTMENT clipping base puts no pixels in the unit and keeps its Fill on
+/// the adjustment alone: neither measured nor moved, it keeps its sentence.
 fn blend_observations(inventory: &ExportInventory, observations: &mut Vec<String>) {
     let entries = &inventory.entries;
     if inventory.cmyk {
@@ -1265,14 +1288,22 @@ fn blend_observations(inventory: &ExportInventory, observations: &mut Vec<String
         );
     }
     for entry in entries {
-        if entry
+        if !entry
             .style
             .as_ref()
             .is_some_and(|s| s.clip_base && s.fill_opacity < 1.0)
         {
+            continue;
+        }
+        if entry.adjustment.is_some() {
             observations.push(format!(
-                "Layer “{}” is a clipping base below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
+                "Adjustment layer “{}” is a clipping base below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
                 entry.name
+            ));
+        } else if CLIP_FILL_UNQUALIFIED.contains(&entry.blend) {
+            observations.push(format!(
+                "Layer “{}” is a clipping base in {:?} below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
+                entry.name, entry.blend
             ));
         }
     }

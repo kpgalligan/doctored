@@ -11,8 +11,9 @@
 //! the K and Darker/Lighter Color rules of `cmyk_composite`'s module doc,
 //! Photoshop's group semantics (an isolated group's own buffer, a Pass
 //! Through group gated back by opacity × mask) and its clip-unit rule (the
-//! base drawn at Normal with its Fill, footprint alpha × mask, members
-//! clamped to it, the unit composited by the base's mode and opacity).
+//! base drawn at Normal at Fill 1, footprint alpha × mask, members frozen to
+//! it, the unit composited by the base's mode at its alpha × the joint
+//! weight of the base's Fill and Opacity, #2's CL3).
 
 #![allow(dead_code)]
 
@@ -713,12 +714,13 @@ pub fn level(layers: &[PrecisionDocumentLayer], x: i64, y: i64, acc: &mut Ink) {
                         None => ([0.0; 4], 0.0),
                     }
                 };
-                // Photoshop's clip rule (#2): the members land on the base
-                // with its alpha frozen RELATIVE to the footprint — the base
-                // at its Fill share of it, each member over that, the result
-                // scaled back onto the footprint.
+                // The clip rule (#2, CL2 and CL3): the unit is built at Fill
+                // 1 — the base over the whole footprint, each member over it
+                // with the alpha frozen, the result scaled back onto the
+                // footprint — and the finished unit lands at its alpha times
+                // the base's Fill and Opacity as one joint weight.
                 let mut buf = [0.0; 5];
-                over(&mut buf, ink, footprint * fill_of(base), BlendMode::Normal);
+                over(&mut buf, ink, footprint, BlendMode::Normal);
                 buf[4] = if footprint > 0.0 {
                     (buf[4] / footprint).min(1.0)
                 } else {
@@ -736,7 +738,8 @@ pub fn level(layers: &[PrecisionDocumentLayer], x: i64, y: i64, acc: &mut Ink) {
                 } else {
                     base.blend_mode()
                 };
-                over(acc, ink4(buf), buf[4] * byte_unit(base.opacity()), mode);
+                let w = crate::common::joint_unit(fill_of(base), byte_unit(base.opacity()));
+                over(acc, ink4(buf), buf[4] * w, mode);
             }
         }
         i = end;

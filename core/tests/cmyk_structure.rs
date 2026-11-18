@@ -161,8 +161,8 @@ fn clip_units_composite_as_the_oracle() {
     doc = opacity(doc, "D", 0.5);
     assert_composite(doc, 2, "pass-through base");
     free(doc);
-    // A raster base at Fill 0.5 under a mask: its members show inside its
-    // whole alpha, its own pixels at half strength.
+    // A raster base at Fill 0.5 under a mask: the unit is built at Fill 1
+    // and the whole of it lands at half strength (#2's CL3).
     let mut doc = six();
     doc = fill(doc, "A", 0.5);
     doc = mask(doc, "A", 5);

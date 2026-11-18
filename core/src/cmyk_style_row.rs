@@ -62,7 +62,7 @@
 //! at its own alpha (`Adjusted16::interior_frame`).
 
 use crate::blend::BlendMode;
-use crate::clip_unit::{clip_alpha, ClipStep};
+use crate::clip_unit::{clip_alpha, unit_fill, ClipStep};
 use crate::cmyk_adjust::CmykAdjustment;
 use crate::cmyk_composite::{over_mode, tone_mix_mode, InkPixel};
 use crate::pattern_tile::InkSampler;
@@ -345,16 +345,11 @@ fn direct(
             t, at, styled, opacity, pixel, members, blend_if, unit, alphas, &backdrop,
         );
     } else if let Some((count, render)) = members {
+        // CL3 (`clip_unit::unit_fill`): an opened unit takes the base at
+        // Fill 1 and lands with the Fill.
+        let (fill_in, fill_out) = unit_fill(styled.fill, count > 0);
         unit.fill(TRANSPARENT);
-        pixels_row(
-            unit,
-            at,
-            pixel,
-            styled.fill,
-            blend_if,
-            BlendMode::Normal,
-            1.0,
-        );
+        pixels_row(unit, at, pixel, fill_in, blend_if, BlendMode::Normal, 1.0);
         // `clip_unit`'s Open / Settle / Close (#2).
         clip_footprint(unit, at, styled, pixel, ClipStep::Open);
         for i in 0..count {
@@ -362,8 +357,9 @@ fn direct(
             clip_footprint(unit, at, styled, pixel, ClipStep::Settle);
         }
         clip_footprint(unit, at, styled, pixel, ClipStep::Close);
+        let w = crate::opacity_byte::joint(fill_out, opacity, false);
         for (k, (dst, src)) in t.iter_mut().zip(unit.iter()).enumerate() {
-            let sa = src[4] * opacity;
+            let sa = src[4] * w;
             if sa > 0.0 {
                 let xy = (at.x0 + k as i64 * at.step, at.y);
                 over_mode(dst, [src[0], src[1], src[2], src[3]], sa, styled.mode, xy);
@@ -475,7 +471,9 @@ fn tone_interior(
 }
 
 /// D3's unit pass (`style_knockout::composite_interior_unit_into`, the
-/// master): the pixels at Normal into `unit` (fill 1 when grouped, D6),
+/// master): the pixels at Normal into `unit` (fill 1 when grouped, D6, or
+/// opened by a visible member over a record's own pixels, `clip_unit`'s
+/// CL3; a toned frame keeps its Fill),
 /// the clip members onto it with its alpha frozen relative to the footprint
 /// (`clip_unit`, #2), the grouped contributions with
 /// the unit's alpha restored after each, then per pixel `K =
@@ -493,11 +491,13 @@ fn unit_pass(
     alphas: &mut [InkPixel],
     backdrop: &dyn Fn(&[InkPixel], usize) -> InkPixel,
 ) {
-    let (fill_in, fill_out) = if styled.grouped {
-        (1.0, styled.fill)
-    } else {
-        (styled.fill, 1.0)
-    };
+    // D6 and CL3 (`clip_unit::unit_fill`): with the grouped interiors or a
+    // visible member over the record's own pixels inside the unit the pixels
+    // enter at Fill 1 and the Fill is paid once by the whole unit. An
+    // adjustment's toned frame is outside CL3.
+    let opened = styled.grouped
+        || (styled.tone.is_none() && members.as_ref().is_some_and(|(count, _)| *count > 0));
+    let (fill_in, fill_out) = unit_fill(styled.fill, opened);
     unit.fill(TRANSPARENT);
     pixels_row(unit, at, pixel, fill_in, blend_if, BlendMode::Normal, 1.0);
     if let Some((count, render)) = members {

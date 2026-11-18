@@ -319,17 +319,21 @@ fn a_styled_clip_base_matches_the_projection() {
     let fill_blend_if = format!("{{\"fill_opacity\":0.5,{BLEND_IF_GRAY}}}");
     let doc = styled(&clip_stack(), 1, &fill_blend_if);
     assert_regions_match_with(&doc, "fill + blend if base", &around((3, 2), 19, 13));
-    // Fill 0: the base's pixels vanish but its SHAPE still clips the members,
-    // which therefore show inside it.
+    // Fill 0: the unit pays the base's Fill once, as a whole (#2's CL3), so
+    // a Fill 0 unit lands nothing — the render with the base hidden, which
+    // drops the unit with it.
     let zero = styled(&clip_stack(), 1, "{\"fill_opacity\":0}");
     let mut hidden = zero.clone();
     hidden.layers[1].visible = false;
-    assert_ne!(
-        full(&zero),
-        full(&hidden),
-        "the members show inside the shape"
-    );
+    assert_eq!(full(&zero), full(&hidden), "a Fill 0 unit lands nothing");
     assert_regions_match_with(&zero, "fill 0 base", &around((3, 2), 19, 13));
+    // Fill 0.5 at Opacity 0.7: the unit shows.
+    let mut half = styled(&clip_stack(), 1, "{\"fill_opacity\":0.5}");
+    half.layers[1].opacity = 0.7;
+    let mut hidden = half.clone();
+    hidden.layers[1].visible = false;
+    assert_ne!(full(&half), full(&hidden), "the unit shows");
+    assert_regions_match_with(&half, "fill 0.5 base at 0.7", &around((3, 2), 19, 13));
     // A Dissolve base.
     let mut dissolve = doc.clone();
     dissolve.layers[1].blend = BlendMode::Dissolve;

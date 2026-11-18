@@ -96,7 +96,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use crate::blend::{composite_source_into, BlendMode};
-use crate::clip_unit::{clip_pass, ClipStep};
+use crate::clip_unit::{clip_pass, unit_fill, ClipStep};
 use crate::doc::sane_opacity;
 use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
@@ -438,6 +438,8 @@ pub(crate) fn render_projection(
 /// read in f32 from the layer's own samples, never from the u8 coverage plane
 /// — the plane is rounded to 1/255 and the mix weight would then be a code out
 /// on a soft edge, which is the whole thing D3's "no fringe" claim rests on.
+/// `adjusted`: `layer` is a styled ADJUSTMENT's interior frame, which CL3
+/// leaves out (the byte statement's).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn composite_interior_unit_into(
     acc: &mut [[f32; 4]],
@@ -450,6 +452,7 @@ pub(crate) fn composite_interior_unit_into(
     opacity: f32,
     members: Members<'_>,
     job: JobContext<'_>,
+    adjusted: bool,
 ) -> Result<(), String> {
     let (acc_w, acc_h) = dims;
     let style: &LayerStyle = layer.style;
@@ -459,17 +462,14 @@ pub(crate) fn composite_interior_unit_into(
         saturating_i32(i64::from(offset.1) - i64::from(origin.1)),
     );
     let grouped = grouped_interior(style, planes);
-    // D6: with the grouped interiors inside the unit the pixels enter at fill
-    // 1 and the fill is paid ONCE by the whole unit; otherwise the pixels
-    // carry it themselves, which is D3's `q = fill·w`.
-    let (fill_in, fill_out) = if grouped {
-        (
-            1.0,
-            crate::opacity_byte::composite(style.fill_opacity, env.float),
-        )
-    } else {
-        (style.fill_opacity, 1.0)
-    };
+    // D6 and CL3 (`clip_unit::unit_fill`): with the grouped interiors or a
+    // visible member over a pixel base inside the unit the pixels enter at
+    // fill 1 and the fill is paid ONCE by the whole unit; otherwise the
+    // pixels carry it themselves, which is D3's `q = fill·w`.
+    let (fill_in, fill_out) = unit_fill(
+        crate::opacity_byte::composite(style.fill_opacity, env.float),
+        grouped || (!adjusted && members.as_ref().is_some_and(|(count, _)| *count > 0)),
+    );
     let mut unit: Vec<[f32; 4]> = crate::precision_image::reserved_vec(acc.len())?;
     unit.resize(acc.len(), [0.0; 4]);
     composite_pixels_into(

@@ -765,14 +765,15 @@ fn styled_clip_base_at_fill_matches_the_source_over_chain() {
             let in_base = (3..9).contains(&x) && (2..6).contains(&y);
             let in_member = (1..5).contains(&x);
             let want = if in_base {
-                // Buffer: base pixels at [blue, 0.4]; the member source-over
-                // at 0.5; alpha clamped to the shape (1); then Normal onto
-                // white at opacity 1.
-                let mut buf = [0.0, 0.0, 1.0, 0.4];
+                // CL3 (#2): the unit built at Fill 1 — base pixels at [blue,
+                // 1], the member source-over at 0.5, the alpha frozen at the
+                // shape (1) — then Normal onto white at the Fill's byte
+                // (102 / 255), paid once by the whole unit.
+                let mut buf = [0.0, 0.0, 1.0, 1.0];
                 if in_member {
                     buf = ref_composite(buf, to_unit(RED), 0.5, BLEND_NORMAL);
-                    buf[3] = buf[3].min(1.0);
                 }
+                buf[3] = byte_unit(0.4) as f32;
                 quantized(ref_composite(white, buf, 1.0, BLEND_NORMAL))
             } else {
                 WHITE
@@ -1160,20 +1161,32 @@ fn styled_clip_bases_render_one_shadow_and_confine_their_members() {
             }
         }
     }
-    // A base at fill 0 with an opaque member: the member shows inside the
-    // shape and nothing outside; the knocked-out shadow stays outside too.
+    // A base at fill 0 with an opaque member: the unit pays the Fill once,
+    // as a whole (CL3), so it lands nothing and every pixel is the render
+    // with the member hidden — the backdrop inside the shape, where the
+    // shadow is knocked out, and the shadow outside it.
     let hollow = styled(&grouped, 1, &format!("{{\"fill_opacity\":0,{}", &json[1..]));
     let flat = hollow.flattened().unwrap();
+    let hidden = hollow
+        .with_layer_visible(2, false)
+        .unwrap()
+        .flattened()
+        .unwrap();
     for y in 0..CANVAS.1 {
         for x in 0..CANVAS.0 {
             let (xi, yi) = (i64::from(x), i64::from(y));
             let want = if in_rect(RECT, (0, 0), xi, yi) {
-                GREEN
+                WHITE
             } else if in_rect(RECT, (-3, 0), xi, yi) {
                 shadow
             } else {
                 WHITE
             };
+            assert_eq!(
+                px(&flat, x, y),
+                px(&hidden, x, y),
+                "fill 0 base ({x},{y}): the render with the member hidden"
+            );
             assert_eq!(px(&flat, x, y), want, "fill 0 base ({x},{y})");
         }
     }

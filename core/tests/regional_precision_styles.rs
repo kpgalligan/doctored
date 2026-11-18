@@ -504,6 +504,8 @@ fn a_styled_u16_clip_base_clamps_to_its_shape() {
     let fill = format!("{{\"fill_opacity\":0.3,{BLEND_IF_GRAY}}}");
     let d = doc(clip_layers(BlendMode::Multiply, 0.6, &fill));
     assert_regions_match_with(&d, "fill-only base", &around((6, 5), 19, 13, 1));
+    // A Fill 0 base: its unit pays the Fill as a whole (#2's CL3) and lands
+    // nothing; the Fill 0.3 base above is the unit that shows.
     let d = doc(clip_layers(BlendMode::Normal, 1.0, "{\"fill_opacity\":0}"));
     assert_regions_match(&d, "fill 0 base");
 }

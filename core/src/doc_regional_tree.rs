@@ -462,8 +462,10 @@ impl ResolvedNode<'_> {
                     );
                     return;
                 }
-                if self.style.is_some() {
-                    self.pixel_pass(target, ti, under, opacity, mode, pixel, transfer, canvas_xy);
+                if let Some(fill) = self.style.as_ref().map(|s| s.fill) {
+                    self.pixel_pass(
+                        target, ti, under, opacity, mode, fill, pixel, transfer, canvas_xy,
+                    );
                     return;
                 }
                 let Some(px) = pixel else {

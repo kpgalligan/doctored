@@ -30,10 +30,11 @@
 //!   package model on ONE canvas-sized copy of the accumulator (the direct
 //!   path at opacity 1, `mix_premultiplied` back over the affected window
 //!   only) — no strips. A styled clip BASE draws its pixels into a private
-//!   buffer at Normal / 1 with `fill × weight`, its footprint is the SHAPE
-//!   (`clip_pass_shape`), and the members land with the base's alpha frozen
-//!   (`clip_unit`'s Open / Settle / Close) — the loop lives HERE so the
-//!   per-member step is the byte one.
+//!   buffer at Normal / 1 with `weight` (Fill 1 once a member is visible,
+//!   `clip_unit`'s CL3: the finished unit lands at `joint(fill, opacity)`),
+//!   its footprint is the SHAPE (`clip_pass_shape`), and the members land
+//!   with the base's alpha frozen (`clip_unit`'s Open / Settle / Close) — the
+//!   loop lives HERE so the per-member step is the byte one.
 //!
 //! Scratch is planned by [`style_scratch`] from what the u8 renderer
 //! actually allocates, because the typed plan is a hard gate.
@@ -63,7 +64,7 @@ use std::sync::Arc;
 use crate::authored_color::AuthoredColors;
 use crate::blend::{composite_buffer_into, composite_source_into, BlendKind, BlendMode};
 use crate::blend_fill::FillBlend;
-use crate::clip_unit::{clip_pass, ClipStep};
+use crate::clip_unit::{clip_pass, unit_fill, ClipStep};
 use crate::doc::MAX_PIXELS;
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
@@ -641,6 +642,7 @@ fn composite_direct_into(
             opacity,
             members,
             job,
+            layer.adjusted.is_some(),
         )?;
     } else {
         match members {
@@ -664,6 +666,12 @@ fn composite_direct_into(
             Some((count, render_member)) => {
                 let mut buf: Vec<[f32; 4]> = reserved_vec(acc.len())?;
                 buf.resize(acc.len(), [0.0; 4]);
+                // CL3 (`clip_unit::unit_fill`): an opened unit takes the base
+                // at Fill 1 and lands with the Fill.
+                let (fill_in, fill_out) = unit_fill(
+                    crate::opacity_byte::composite(layer.style.fill_opacity, env.float),
+                    count > 0,
+                );
                 // An adjustment base puts no pixels in the unit: its interior
                 // meets the members' buffer below.
                 if layer.adjusted.is_none() {
@@ -672,7 +680,7 @@ fn composite_direct_into(
                         dims,
                         origin,
                         layer,
-                        layer.style.fill_opacity,
+                        fill_in,
                         blend_if,
                         BlendMode::Normal,
                         1.0,
@@ -736,7 +744,7 @@ fn composite_direct_into(
                         acc_h,
                         origin,
                         env.kind(layer.blend),
-                        opacity,
+                        crate::opacity_byte::joint(fill_out, opacity, env.float),
                         job,
                     )?,
                 }

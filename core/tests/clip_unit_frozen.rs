@@ -1,9 +1,9 @@
 //! #2's clip rule (CL2, Photoshop's clipping, ruling 1): a clipped member
 //! composites onto its base with the base's alpha FROZEN — over a base pixel
 //! at alpha `F` the colour becomes `lerp(Cb, B(Cb, Cs), sa)` and the alpha
-//! stays `F` (Fill 1); a base whose own pixels carry a Fill below 1 keeps
-//! that Fill RELATIVE to the footprint (the members onto the base colour at
-//! alpha `fill`, the result scaled back onto `F`). The oracle is written here
+//! stays `F` (Fill 1); a base below 100 % Fill pays that Fill ONCE, on the
+//! whole unit (CL3: the unit built as at Fill 1, landed at `F · fill`;
+//! `clip_base_fill.rs` holds the rest of that rule). The oracle is written here
 //! in f64 from that statement and the W3C blend table, never read off the
 //! implementation, and run through `DrDocument` (8 bits) and
 //! `PrecisionDocument` (16 bits and 32-bit float) at base alphas 128 and 64
@@ -70,30 +70,21 @@ fn over(dst: [f64; 4], cs: [f64; 3], sa: f64, mode: BlendMode) -> [f64; 4] {
 /// One clipped member: straight colour, alpha × opacity, mode.
 type Member = ([f64; 3], f64, BlendMode);
 
-/// The clip unit's buffer (module doc): the base colour at footprint `f`
-/// with its own Fill `fill`, each member onto it with the alpha frozen.
+/// The clip unit's buffer as it lands (module doc): the base colour at
+/// footprint `f`, each member onto it with the alpha frozen —
+/// `lerp(Cb, B(Cb, Cs), sa)` — and the base's Fill `fill` paid once by the
+/// whole unit, its alpha `f · fill` (CL3; at Fill 1 the alpha is `f`).
 fn unit(base: [f64; 3], f: f64, fill: f64, members: &[Member]) -> [f64; 4] {
     if f <= 0.0 {
         return [0.0; 4];
     }
-    if fill >= 1.0 {
-        // `lerp(Cb, B(Cb, Cs), sa)`, the alpha kept at `f`.
-        let mut c = base;
-        for &(cs, sa, mode) in members {
-            for k in 0..3 {
-                c[k] += (blend(mode, c[k], cs[k]) - c[k]) * sa;
-            }
-        }
-        return [c[0], c[1], c[2], f];
-    }
-    // The relative rule: the base colour at alpha `fill`, each member by
-    // the W3C step, the result's alpha scaled onto the footprint.
-    let mut px = [base[0], base[1], base[2], fill];
+    let mut c = base;
     for &(cs, sa, mode) in members {
-        px = over(px, cs, sa, mode);
+        for k in 0..3 {
+            c[k] += (blend(mode, c[k], cs[k]) - c[k]) * sa;
+        }
     }
-    px[3] *= f;
-    px
+    [c[0], c[1], c[2], f * fill]
 }
 
 fn unit8(c: [u8; 3]) -> [f64; 3] {
@@ -446,8 +437,9 @@ fn a_group_base_and_a_unit_inside_a_normal_group_follow_the_same_rule() {
 }
 
 #[test]
-fn a_fill_50_base_keeps_its_fill_relative_to_the_footprint() {
-    // The base's Fill composites at its byte, 128 / 255 (#2).
+fn a_fill_50_base_pays_its_fill_on_the_whole_unit() {
+    // The base's Fill composites at its byte, 128 / 255 (#2), once, on the
+    // finished unit (CL3).
     for pair in PAIRS {
         let got = byte_pixels(&byte_doc(pair, 0.5));
         for (x, &a) in BASE_ALPHAS.iter().enumerate() {

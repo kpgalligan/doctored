@@ -1062,8 +1062,10 @@ fn legacy_fill_modes_always_write_iopa_on_pixel_records() {
 /// (Difference; Vivid Light and Linear Light) are named nowhere; an OUT mode
 /// (Dissolve) is named as unqualified in Photoshop; a full-Fill mode below
 /// 100 % Fill (Hard Mix; Vivid Light and Linear Light) is named; Dissolve's
-/// pattern, a clipping base below 100 % Fill and a clipped group each get
-/// their own sentence.
+/// pattern, an ADJUSTMENT clipping base below 100 % Fill, a pixel one in a
+/// mode the clip-base Fill take did not meet (Color Burn) and a clipped
+/// group each get their own sentence; any other pixel clipping base below
+/// 100 % Fill gets none (CL3, `clip_base_fill_2_take.py` take1).
 #[test]
 fn blend_observations_follow_the_qualified_tables() {
     let mut doc = round_trip_source();
@@ -1096,13 +1098,31 @@ fn blend_observations_follow_the_qualified_tables() {
     let clip = index(&doc, "Clip");
     doc.layers[clip].blend = BlendMode::LighterColor;
     doc.layers[clip].style = fill(0.6);
+    // A Levels ADJUSTMENT clipping base at Fill 50 % with one clipped pixel
+    // layer, on top.
+    let mut doc = doc
+        .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), "Tone")
+        .expect("tone");
+    let tone = doc.layers.len() - 1;
+    doc.layers[tone].meta =
+        Some(common::adjust_meta("levels", "{\"black\":0.1,\"gamma\":1.6}").into());
+    doc.layers[tone].style = fill(0.5);
+    let mut doc = doc
+        .adding_image_layer(
+            tone,
+            RgbaImage::from_pixel(2, 2, Rgba([200, 40, 90, 255])),
+            "Tinted",
+        )
+        .expect("tinted");
+    let tinted = doc.layers.len() - 1;
+    doc.layers[tinted].clipped = true;
 
     let observations = strings(&export_report(&doc, LAYERS), "observations");
     for sentence in [
         "Blend modes outside the qualified set are used (Dissolve); they are written with Photoshop keys; their appearance in Photoshop is not qualified.",
         "Blend modes qualified in Photoshop only at 100 % Fill are used below it (HardMix); their appearance in Photoshop is not qualified there.",
         "Dissolve's dither is Doctored's own; Photoshop draws its own pattern at the same density.",
-        "Layer “Base” is a clipping base below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
+        "Adjustment layer “Tone” is a clipping base below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
         "Group “Outer” is clipped; it reopens here clipped, but Photoshop reads a clipped group as unclipped and composites it over every layer beneath it.",
     ] {
         assert!(
@@ -1110,6 +1130,22 @@ fn blend_observations_follow_the_qualified_tables() {
             "{sentence}\n{observations:#?}"
         );
     }
+    // "Base", a pixel clipping base at Fill 50 %, is built on CL3.
+    assert!(
+        !observations
+            .iter()
+            .any(|o| o.contains("“Base”") && o.contains("is a clipping base")),
+        "a pixel clipping base below 100 % Fill is qualified: {observations:#?}"
+    );
+    // In a mode whose unit the take did not meet, it is named.
+    let mut burn = doc.clone();
+    burn.layers[base].blend = BlendMode::ColorBurn;
+    let observations = strings(&export_report(&burn, LAYERS), "observations");
+    let sentence = "Layer “Base” is a clipping base in ColorBurn below 100 % Fill; the layers clipped to it are not qualified in Photoshop.";
+    assert!(
+        observations.iter().any(|o| o == sentence),
+        "{sentence}\n{observations:#?}"
+    );
     for qualified in [
         "Overlay",
         "Difference",

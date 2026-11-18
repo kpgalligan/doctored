@@ -15,7 +15,7 @@
 
 use crate::adjust::Adjustment;
 use crate::blend::{blend_kind_byte, composite_source_into, gate_source_into, BlendMode};
-use crate::clip_unit::{clip_alpha, ClipStep};
+use crate::clip_unit::{clip_alpha, unit_fill, ClipStep};
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_regional_tree::{ResolvedLevel, ResolvedNode, ResolvedStep, ResolvedUnit, Source};
 use crate::regional_guide::{Holds, PreparedGuide};
@@ -405,7 +405,9 @@ impl ResolvedUnit<'_> {
     /// footprint: a styled base's shape, else its alpha). With `stop` the unit
     /// buffer at that member's cursor is left in `acc[ai]`; without it
     /// `acc[ai]` is reset to `under` and the buffer composited with the
-    /// base's mode and opacity (`composite_buffer_into`'s statement).
+    /// base's mode at the joint weight of its Fill and opacity
+    /// (`composite_buffer_into`'s statement; an opened fill-only base's pass
+    /// runs at Fill 1, `clip_unit`'s CL3).
     /// Ordinary sampling passes `under == acc[ai]`, so the reset is a no-op.
     /// A base with planes or a routed style (13A-4b-ii-b-2) is
     /// `composite_styled_into`'s: `acc[ai] = under`, then `styled_sample`
@@ -442,29 +444,55 @@ impl ResolvedUnit<'_> {
             );
             return;
         }
+        // Only a run with a member step opens the unit (`style_composite`'s
+        // `any(visible)`); a stop leaves it OPEN, the buffer a member at that
+        // cursor composites onto in the reference.
+        let opened = !self.steps.is_empty();
+        // A fill-only base's own pass (`composite`'s styled arm; planes and
+        // routed styles took the branch above). An unstyled base's Fill is
+        // 1, and an adjustment base keeps its own rule.
+        let styled_fill = match base.source {
+            Source::Raster
+            | Source::Isolated(..)
+            | Source::Staged(..)
+            | Source::Materialized(_) => base.style.as_ref().map(|s| s.fill),
+            _ => None,
+        };
+        // CL3 (`clip_unit::unit_fill`): an opened unit takes the base at
+        // Fill 1 and lands with the Fill.
+        let (fill_in, fill_out) = unit_fill(styled_fill.unwrap_or(1.0), opened);
         let mut buf = [[0.0f32; 4]];
-        base.composite(
-            &mut buf,
-            0,
-            under,
-            1.0,
-            BlendMode::Normal,
-            pixel,
-            knockout,
-            transfer,
-            canvas_xy,
-        );
+        match styled_fill {
+            Some(_) => base.pixel_pass(
+                &mut buf,
+                0,
+                under,
+                1.0,
+                BlendMode::Normal,
+                fill_in,
+                pixel,
+                transfer,
+                canvas_xy,
+            ),
+            None => base.composite(
+                &mut buf,
+                0,
+                under,
+                1.0,
+                BlendMode::Normal,
+                pixel,
+                knockout,
+                transfer,
+                canvas_xy,
+            ),
+        }
         let a = buf[0][3];
         let limit = base
             .shaped
             .then(|| f32::from(base.shape_byte(pixel, canvas_xy)) / 255.0);
         // `clip_unit`'s footprint: the styled base's shape, else the base's
         // own alpha (#2: the members land with the base's alpha frozen).
-        // Only a run with a member step opens the unit (`style_composite`'s
-        // `any(visible)`); a stop leaves it OPEN, the buffer a member at that
-        // cursor composites onto in the reference.
         let footprint = limit.unwrap_or(a);
-        let opened = !self.steps.is_empty();
         if opened {
             buf[0][3] = clip_alpha(buf[0][3], footprint, ClipStep::Open);
         }
@@ -506,7 +534,7 @@ impl ResolvedUnit<'_> {
         }
         acc[ai] = under;
         let src = buf[0];
-        let sa = src[3] * opacity;
+        let sa = src[3] * crate::opacity_byte::joint(fill_out, opacity, false);
         if sa > 0.0 {
             composite_source_into(
                 acc,

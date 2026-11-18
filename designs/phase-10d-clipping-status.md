@@ -26,6 +26,10 @@ snapshots/recovery, the shared UI/MCP/Actions path and 16-bit PSD in both direct
   no longer composite absolutely and get forced back; `clip_unit.rs` (Open / Settle / Close, every byte, typed, float,
   regional and CMYK member loop) composites them onto the base with its alpha frozen, relative to the same footprint.
   An opaque base renders bit for bit as before.
+- **CL3 ([#2](https://github.com/kpgalligan/doctored/issues/2), `clip_base_fill_2_take.py` take1):** a base below 100 % Fill
+  pays it once, on the whole unit: with a visible member the unit is built at Fill 1 and lands at `joint(fill, opacity)`
+  (`clip_unit::unit_fill`, every member loop above), so a Fill 0 unit lands nothing. An adjustment base keeps its Fill
+  on the adjustment alone (unmeasured; its export sentence stays).
 - **Special bases:** an adjustment base has an empty footprint (members contribute nothing, as in byte documents); a
   Pass Through base with a visible member, and a Pass Through member that has a base, convert to isolated Normal
   groups (the byte `is_isolated` rule); a base with no contributing member takes the plain path unchanged.

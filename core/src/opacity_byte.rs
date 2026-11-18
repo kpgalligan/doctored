@@ -77,9 +77,12 @@ pub(crate) fn composite(unit: f32, float: bool) -> f32 {
 /// already reads ([`composite`]), so at either one 1 this returns the other
 /// unchanged and every single-component composite is the byte rule above.
 /// Effects, which the Fill does not scale, read the opacity alone; a
-/// package, a clip unit or a routed knockout unit (`style_knockout`,
+/// package or a routed knockout unit (`style_knockout`,
 /// `precision_style_knockout`) pays the Fill inside its buffer and the
-/// opacity on the buffer, two separate products, and never meets this.
+/// opacity on the buffer, two separate products, and never meets this. A
+/// clip unit with a visible member meets it: the finished unit lands at
+/// `joint(fill, opacity)` (`clip_unit`'s CL3, which a recorded take measured
+/// against the unrounded product on its Opacity 60 % tiles).
 ///
 /// FITTED on effects-578 take1's `both_50` (Opacity 50 % and Fill 50 %),
 /// which reads 64 / 255 = `round(128 · 128 / 255) / 255` (0 / 0 codes at 8

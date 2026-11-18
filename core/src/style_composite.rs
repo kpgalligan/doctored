@@ -37,10 +37,14 @@
 //!    allocation the unstyled clip group makes today, a pre-existing cost —
 //!    then each visible member through `composite_layer_into` onto the base
 //!    with its alpha frozen relative to the SHAPE (`clip_unit`'s Open /
-//!    Settle / Close, #2; the footprint is the shape at fill 1, so a base
-//!    at 0 % fill still confines its members and its Fill stays relative), and
+//!    Settle / Close, #2; the footprint is the shape at fill 1), and
 //!    finally composites the buffer with the layer's blend mode through
-//!    `blend::composite_buffer_into`. A styled ADJUSTMENT has no
+//!    `blend::composite_buffer_into`. The base's Fill is paid once by the
+//!    whole unit (`clip_unit`'s CL3, `clip_unit::unit_fill`): once a member
+//!    is visible the base's pixels enter the buffer at Fill 1 and the
+//!    buffer lands at `joint(fill, opacity)`, so a Fill 0 unit lands
+//!    nothing; with no visible member the pixels carry the Fill themselves.
+//!    A styled ADJUSTMENT has no
 //!    pixels: its adjustment is applied in place here instead, after its
 //!    own Below group (`style_adjustment`).
 //!    Before step 3 draws anything, the accumulator under an inside band
@@ -168,7 +172,7 @@ use crate::blend::{
     blend_kind_byte, composite_buffer_into, composite_source_into, BlendKind, BlendMode,
 };
 use crate::blend_fill::{fill_blend_byte, FillBlend};
-use crate::clip_unit::{clip_alpha, clip_pass, ClipStep};
+use crate::clip_unit::{clip_alpha, clip_pass, unit_fill, ClipStep};
 use crate::doc::{composite_layer_into, DrDocument, Layer};
 use crate::doc_evaluation::{encoded_view, ByteTransfer};
 use crate::job_control::JobContext;
@@ -512,7 +516,18 @@ fn composite_direct_into(
             .transpose()?;
         let pixels = interior.as_ref().unwrap_or(layer);
         style_knockout::composite_interior_unit_into(
-            acc, acc_w, acc_h, origin, pixels, group, style, opacity, env, planes, blend_if,
+            acc,
+            acc_w,
+            acc_h,
+            origin,
+            pixels,
+            group,
+            style,
+            opacity,
+            env,
+            planes,
+            blend_if,
+            adjusted.is_some(),
         )?;
     } else if group.is_empty() {
         match adjusted {
@@ -544,6 +559,15 @@ fn composite_direct_into(
         }
     } else {
         let mut buf = vec![[0.0f32; 4]; acc.len()];
+        // Only a visible member opens the unit: a run of hidden members
+        // leaves the base's pass exactly as it rendered.
+        let opened = group.iter().any(|l| l.visible);
+        // CL3 (`clip_unit::unit_fill`): an opened unit takes the base at Fill
+        // 1 and lands with the Fill.
+        let (fill_in, fill_out) = unit_fill(
+            crate::opacity_byte::composite(style.fill_opacity, false),
+            opened,
+        );
         // An adjustment base puts no pixels in the unit: its interior meets
         // the members' buffer below.
         if adjusted.is_none() {
@@ -553,7 +577,7 @@ fn composite_direct_into(
                 acc_h,
                 origin,
                 layer,
-                style.fill_opacity,
+                fill_in,
                 blend_if,
                 BlendMode::Normal,
                 1.0,
@@ -590,9 +614,6 @@ fn composite_direct_into(
                 Ok(())
             }
         };
-        // Only a visible member opens the unit: a run of hidden members
-        // leaves the base's pass exactly as it rendered.
-        let opened = group.iter().any(|l| l.visible);
         if opened {
             clip(&mut buf, ClipStep::Open)?;
         }
@@ -627,7 +648,7 @@ fn composite_direct_into(
                 acc_h,
                 origin,
                 blend_kind_byte(layer.blend, env.transfer.is_none()),
-                opacity,
+                crate::opacity_byte::joint(fill_out, opacity, false),
                 env.job,
             )?,
         }

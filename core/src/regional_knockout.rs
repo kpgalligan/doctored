@@ -42,7 +42,7 @@
 
 use crate::blend::{blend_kind, blend_kind_byte, composite_source_into, BlendMode};
 use crate::blend_fill::fill_blend;
-use crate::clip_unit::{clip_alpha, ClipStep};
+use crate::clip_unit::{clip_alpha, unit_fill, ClipStep};
 use crate::doc::MAX_PIXELS;
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_regional_style::contributions_sample;
@@ -62,7 +62,8 @@ impl ResolvedNode<'_> {
     /// `target[ti]`: nothing outside the (synthetic) layer's rect (the mix
     /// loop covers the layer rect only) or where the shape `s = alpha·mask`
     /// is 0; the pixel pass into a transparent unit sample at the unit's fill
-    /// (1 under D6), its Blend If reading `under` — the full-rect snapshot's
+    /// (1 under D6 or with a visible member, `clip_unit::unit_fill`), its
+    /// Blend If reading `under` — the full-rect snapshot's
     /// value; then — a clip base whose run holds a visible member (`steps`
     /// non-empty) — each member onto the unit with the base-only sample as
     /// BOTH its backdrops when some member asks for one, the alpha clamped to
@@ -105,13 +106,11 @@ impl ResolvedNode<'_> {
             // where the shape is 0 it mixes nothing.
             return;
         }
-        // D6: with the grouped interiors inside the unit the pixels enter at
-        // fill 1 and the fill is paid once by the whole unit.
-        let (fill_in, fill_out) = if style.grouped {
-            (1.0, style.fill)
-        } else {
-            (style.fill, 1.0)
-        };
+        // D6 and CL3 (`clip_unit::unit_fill`): with the grouped interiors or
+        // a visible member inside the unit the pixels enter at fill 1 and the
+        // fill is paid once by the whole unit.
+        let opened = style.grouped || steps.is_some_and(|steps| !steps.is_empty());
+        let (fill_in, fill_out) = unit_fill(style.fill, opened);
         let mut unit = [[0.0f32; 4]];
         // `composite_pixels_into`'s early return, then its sample.
         if let Some(px) = pixel.filter(|_| s > 0.0 && fill_in > 0.0) {
@@ -281,11 +280,8 @@ pub(crate) fn unit_pass_sample16(
         // where the shape is 0 it mixes nothing.
         return Ok(());
     }
-    let (fill_in, fill_out) = if style.grouped {
-        (1.0, style.fill)
-    } else {
-        (style.fill, 1.0)
-    };
+    // D6 and CL3 (`clip_unit::unit_fill`), as the byte sample.
+    let (fill_in, fill_out) = unit_fill(style.fill, style.grouped || !node.members.is_empty());
     let mut unit = [[0.0f32; 4]];
     if let Some((px, _)) = pixel.filter(|_| s > 0.0 && fill_in > 0.0) {
         let pass = PixelPass16 {
