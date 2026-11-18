@@ -351,6 +351,124 @@ fn a_masked_adjustment_is_confined_to_its_extent() {
     }
 }
 
+// ------------------------------------------------ masks across tile seams --
+
+/// The tile-seam canvas: a 300×290 mask at (37, 11) has its tile seam (mask
+/// column and row 256, canvas x 293 and y 267) mid-canvas, and its last tile
+/// column (44 wide) and tile row (34 high) are partial.
+const SEAM_W: u32 = 600;
+const SEAM_H: u32 = 540;
+const SEAM_OFFSET: (i32, i32) = (37, 11);
+const SEAM_MASK: (u32, u32) = (300, 290);
+
+fn seam_base() -> DrDocument {
+    DrDocument::from_pixels(RgbaImage::from_fn(SEAM_W, SEAM_H, |x, y| {
+        Rgba([
+            (x * 7 + y * 3) as u8,
+            (x ^ y) as u8,
+            (y * 5 + 11) as u8,
+            255,
+        ])
+    }))
+}
+
+fn seam_top(w: u32, h: u32) -> RgbaImage {
+    RgbaImage::from_fn(w, h, |x, y| {
+        Rgba([
+            (x * 37 + y * 11) as u8,
+            (x * 5 + y) as u8,
+            (y * 23 + 7) as u8,
+            (40 + (x * 13 + y * 29) % 216) as u8,
+        ])
+    })
+}
+
+/// A gradient with a hard hole whose rows do not repeat every 256 (`gradient`'s
+/// `y·9` does), so a read from the wrong tile row answers a different byte.
+fn seam_gradient(w: u32, h: u32) -> GrayImage {
+    GrayImage::from_fn(w, h, |x, y| {
+        if x == w / 2 && y == h / 2 {
+            Luma([0])
+        } else {
+            Luma([((x * 255) / (w - 1)) as u8 ^ ((y * 7) % 251) as u8])
+        }
+    })
+}
+
+/// Windows across the mask's tile seam, at its four corners, and a 1-wide
+/// column and a 1-high row across the seam (in the full and in the partial
+/// tile column, on the mask's last row and past its right edge).
+fn seam_windows() -> Vec<(u32, u32, u32, u32)> {
+    let (sx, sy) = (37 + 256, 11 + 256);
+    let (right, bottom) = (37 + 300, 11 + 290);
+    vec![
+        (sx - 5, sy - 4, 11, 9),
+        (sx - 40, sy - 30, 90, 70),
+        (250, 30, 100, 20),
+        (60, sy - 10, 30, 20),
+        (100, sy - 20, 1, 40),
+        (sx + 20, sy - 20, 1, 40),
+        (sx - 30, 200, 60, 1),
+        (sx - 30, bottom - 1, 80, 1),
+        (right - 10, 100, 20, 200),
+        (34, 9, 6, 5),
+        (right - 3, 9, 6, 5),
+        (34, bottom - 2, 6, 5),
+        (right - 3, bottom - 2, 6, 5),
+    ]
+}
+
+/// A canvas-sized translucent top layer over the seam mask, so both outside
+/// coverages show; and the top layer aligned with an unfeathered density-1
+/// mask, which the reference reads raw, row by row (`GrayRaster::row`).
+#[test]
+fn a_mask_across_tile_seams_matches_the_projection() {
+    let canvas = with_raster(
+        &seam_base(),
+        seam_top(SEAM_W, SEAM_H),
+        (0, 0),
+        BlendMode::Normal,
+        0.9,
+    );
+    let (mw, mh) = SEAM_MASK;
+    let mut cases = Vec::new();
+    for outside in [0u8, 255] {
+        for density in [1.0, 0.5] {
+            cases.push((
+                format!("outside {outside} density {density}"),
+                masked(
+                    &canvas,
+                    1,
+                    seam_gradient(mw, mh),
+                    SEAM_OFFSET,
+                    density,
+                    0.0,
+                    outside,
+                ),
+            ));
+        }
+    }
+    cases.push((
+        "feather 6 (a contiguous derived plane)".into(),
+        masked(&canvas, 1, seam_gradient(mw, mh), SEAM_OFFSET, 1.0, 6.0, 0),
+    ));
+    let aligned = with_raster(
+        &seam_base(),
+        seam_top(mw, mh),
+        SEAM_OFFSET,
+        BlendMode::Normal,
+        0.9,
+    );
+    cases.push((
+        "aligned, read raw by the reference".into(),
+        masked(&aligned, 1, seam_gradient(mw, mh), SEAM_OFFSET, 1.0, 0.0, 0),
+    ));
+    let windows = seam_windows();
+    for (what, doc) in cases {
+        assert_regions_match_with(&doc, &what, &windows);
+    }
+}
+
 // ------------------------------------------------------------ clip units --
 
 /// Background, a Multiply base at (3, 2), and above it a raster Multiply 0.6

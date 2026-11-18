@@ -412,6 +412,165 @@ fn a_disabled_mask_and_a_masked_adjustment_match_at_u16() {
     }
 }
 
+// ------------------------------------------------ masks across tile seams --
+
+/// The tile-seam canvas: a 300×290 mask at (37, 11) has its tile seam (mask
+/// column and row 256, canvas x 293 and y 267) mid-canvas, and its last tile
+/// column (44 wide) and tile row (34 high) are partial. `gradient`'s rows do
+/// not repeat every 256 (`y·2311` mod 65536), so a read from the wrong tile
+/// answers a different code.
+const SEAM_W: u32 = 600;
+const SEAM_H: u32 = 540;
+const SEAM_OFFSET: (i32, i32) = (37, 11);
+const SEAM_MASK: (u32, u32) = (300, 290);
+
+fn seam_doc(layers: Vec<Layer>) -> PrecisionDocument {
+    PrecisionDocument::from_parts(
+        SEAM_W,
+        SEAM_H,
+        profile(),
+        Metadata::default(),
+        Resolution::default(),
+        layers,
+    )
+    .unwrap()
+}
+
+/// Windows across the mask's tile seam, at its four corners, and a 1-wide
+/// column and a 1-high row across the seam (in the full and in the partial
+/// tile column, on the mask's last row and past its right edge).
+fn seam_windows() -> Vec<(u32, u32, u32, u32)> {
+    let (sx, sy) = (37 + 256, 11 + 256);
+    let (right, bottom) = (37 + 300, 11 + 290);
+    vec![
+        (sx - 5, sy - 4, 11, 9),
+        (sx - 40, sy - 30, 90, 70),
+        (250, 30, 100, 20),
+        (60, sy - 10, 30, 20),
+        (100, sy - 20, 1, 40),
+        (sx + 20, sy - 20, 1, 40),
+        (sx - 30, 200, 60, 1),
+        (sx - 30, bottom - 1, 80, 1),
+        (right - 10, 100, 20, 200),
+        (34, 9, 6, 5),
+        (right - 3, 9, 6, 5),
+        (34, bottom - 2, 6, 5),
+        (right - 3, bottom - 2, 6, 5),
+    ]
+}
+
+#[test]
+fn a_mask_across_tile_seams_matches_at_u16() {
+    let (mw, mh) = SEAM_MASK;
+    let mut cases = Vec::new();
+    for outside in [0u8, 255] {
+        for density in [1.0, 0.5] {
+            cases.push((
+                format!("outside {outside} density {density}"),
+                mask(
+                    mw,
+                    mh,
+                    gradient(mw, mh),
+                    SEAM_OFFSET,
+                    density,
+                    0.0,
+                    outside,
+                    true,
+                ),
+            ));
+        }
+    }
+    cases.push((
+        "feather 6".to_string(),
+        mask(mw, mh, gradient(mw, mh), SEAM_OFFSET, 1.0, 6.0, 0, true),
+    ));
+    let windows = seam_windows();
+    for (what, m) in cases {
+        let base =
+            Layer::raster("Base", image16(SEAM_W, SEAM_H, 1, false), (0, 0), 1.0, true).unwrap();
+        let top = Layer::raster(
+            "Masked",
+            image16(SEAM_W, SEAM_H, 5, true),
+            (0, 0),
+            0.9,
+            true,
+        )
+        .unwrap()
+        .with_mask(Some(m));
+        assert_regions_match_with(&seam_doc(vec![base, top]), &what, &windows);
+    }
+}
+
+/// The typed full frame reads masks through the same `PreparedMask::at` as
+/// the regional tree, so it is no independent reference for the read. Here
+/// the oracle is the test's own mask vector: one opaque canvas-sized layer
+/// over nothing, Normal, opacity 1, an unfeathered density-1 mask, so every
+/// alpha code IS the coverage — `values[my·300 + mx]` inside the mask,
+/// `outside_coverage × 257` beyond it — in the projection and in every
+/// regional window.
+#[test]
+fn an_opaque_layer_alpha_is_the_seam_mask_coverage_by_index_arithmetic() {
+    let (mw, mh) = SEAM_MASK;
+    let values = gradient(mw, mh);
+    for outside in [0u8, 255] {
+        let layer = Layer::raster(
+            "Opaque",
+            image16(SEAM_W, SEAM_H, 3, false),
+            (0, 0),
+            1.0,
+            true,
+        )
+        .unwrap()
+        .with_mask(Some(mask(
+            mw,
+            mh,
+            values.clone(),
+            SEAM_OFFSET,
+            1.0,
+            0.0,
+            outside,
+            true,
+        )));
+        let d = seam_doc(vec![layer]);
+        let alpha = |x: u32, y: u32| -> u32 {
+            let mx = i64::from(x) - i64::from(SEAM_OFFSET.0);
+            let my = i64::from(y) - i64::from(SEAM_OFFSET.1);
+            if mx >= 0 && my >= 0 && mx < i64::from(mw) && my < i64::from(mh) {
+                u32::from(values[(my * i64::from(mw) + mx) as usize])
+            } else {
+                u32::from(outside) * 257
+            }
+        };
+        let (cw, ch, reference) = full(&d);
+        assert_eq!((cw, ch), (SEAM_W, SEAM_H));
+        for y in 0..ch {
+            for x in 0..cw {
+                assert_eq!(
+                    reference[((y * cw + x) * 4 + 3) as usize],
+                    alpha(x, y),
+                    "projection, outside {outside}, at ({x}, {y})"
+                );
+            }
+        }
+        for window in seam_windows() {
+            let (x0, y0, _, _) = window;
+            for step in [1, 2, 7] {
+                let (ow, oh, got) = region(&d, window, step)
+                    .unwrap_or_else(|e| panic!("outside {outside}: {window:?}/{step}: {e}"));
+                for j in 0..oh {
+                    for i in 0..ow {
+                        assert_eq!(
+                            got[((j * ow + i) * 4 + 3) as usize],
+                            alpha(x0 + i * step, y0 + j * step),
+                            "window {window:?}/{step}, outside {outside}, cell ({i}, {j})"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------ clip units --
 
 /// Base, a Multiply base at (3, 2), a raster Multiply 0.6 member and a levels

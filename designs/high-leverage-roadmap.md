@@ -66,9 +66,9 @@ usual FFI three-file lockstep.
   ([removal ADR](convert-to-smart-object-status.md)).
 - `DONE` — Linear-light compositing as a per-document evaluation policy (11E, every operator since
   2026-11-12); per-layer blend/composite-space axes are not built.
-- `DONE` — The shared immutable tile store (13B-1, `core/src/tile_store.rs`). The rest of the tiled backing is
-  [#10](https://github.com/kpgalligan/doctored/issues/10) and the canvas display through the regional render
-  path is [#9](https://github.com/kpgalligan/doctored/issues/9); mipmaps are not planned.
+- `DONE` — The shared immutable tile store (13B-1, `core/src/tile_store.rs`), with masks, channels, the history
+  budget and the cache registry on it (13B-4, -5, -6 and -9, by 2026-11-18). The canvas display through the regional
+  render path is [#9](https://github.com/kpgalligan/doctored/issues/9); mipmaps are not planned.
 - `DONE` — Move and Transform Selected Pixels rather than a whole layer: Move-tool floats, ⌘T and ⌥⌘T, the ⌥
   duplicates and Transform Again, on layers, masks, alpha channels and colour channels at 8, 16 and 32 bits
   (`core/src/selected_pixels*.rs`, `core/src/selected_plane.rs`, `app/Sources/MoveFloat.swift`).

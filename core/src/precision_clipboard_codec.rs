@@ -107,6 +107,8 @@ use crate::precision_image::{
     PrecisionStorage, BOOKKEEPING_BYTES,
 };
 use crate::precision_quantize::PrecisionDither;
+#[cfg(target_endian = "little")]
+use crate::tile_store::Sample;
 
 pub(crate) const MAGIC: &[u8; 4] = b"RZCB";
 /// The version this build writes.
@@ -140,6 +142,18 @@ pub struct ClipboardPayload {
     pub(crate) tone_map: Option<ToneMap>,
     /// The host's editable record (v3), validated by [`validate_section`].
     pub(crate) editable: Option<Arc<str>>,
+}
+
+/// A run's samples as their in-memory bytes: on a little-endian target, the
+/// RZCB stream's little-endian samples (`float_native::put_samples` is the
+/// master pattern).
+#[cfg(target_endian = "little")]
+fn le_run_bytes<S: Sample>(run: &[S]) -> &[u8] {
+    // SAFETY: every `Sample` (`tile_store`, sealed) is a primitive or an
+    // array of primitives, so it has no padding and any initialized memory
+    // reads as `u8`; the slice covers exactly the run's `size_of_val` bytes
+    // and borrows `run` for its lifetime.
+    unsafe { std::slice::from_raw_parts(run.as_ptr().cast::<u8>(), std::mem::size_of_val(run)) }
 }
 
 fn storage_name(storage: PrecisionStorage) -> &'static str {
@@ -460,14 +474,27 @@ impl ClipboardPayload {
         let section_len =
             u32::try_from(section.len()).map_err(|_| "clipboard editable section is too large")?;
         out.extend_from_slice(&section_len.to_le_bytes());
+        // On a little-endian target a run's own bytes ARE the stream's LE
+        // samples, so each run lands with one append (`le_run_bytes`);
+        // elsewhere each sample is swapped.
         if let Some(runs) = self.image.runs_rgba16() {
             for run in runs {
+                #[cfg(target_endian = "little")]
+                {
+                    out.extend_from_slice(le_run_bytes(run));
+                }
+                #[cfg(not(target_endian = "little"))]
                 for v in run.as_flattened() {
                     out.extend_from_slice(&v.to_le_bytes());
                 }
             }
         } else if let Some(runs) = self.image.runs_rgba32() {
             for run in runs {
+                #[cfg(target_endian = "little")]
+                {
+                    out.extend_from_slice(le_run_bytes(run));
+                }
+                #[cfg(not(target_endian = "little"))]
                 for v in run.as_flattened() {
                     out.extend_from_slice(&v.to_le_bytes());
                 }

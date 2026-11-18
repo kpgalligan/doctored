@@ -3,8 +3,8 @@
 - **Status:** Accepted — the settled record as of 2026-11-17: each shipped run's contract and the decisions in force,
   condensed from the shipped companion when it reached its cap. The phase is open:
   [phase-13b-tiled-status.md](phase-13b-tiled-status.md) keeps the state, the survey, the plan, the handed items,
-  `## Open items` and the runs shipped since, under [#9](https://github.com/kpgalligan/doctored/issues/9),
-  [#10](https://github.com/kpgalligan/doctored/issues/10) and [#11](https://github.com/kpgalligan/doctored/issues/11).
+  `## Open items` and the runs shipped since, under [#9](https://github.com/kpgalligan/doctored/issues/9) and
+  [#11](https://github.com/kpgalligan/doctored/issues/11).
 - **Originals:** [archive/phase-13b-tiled-shipped.md](../archive/phase-13b-tiled-shipped.md) (the shipped companion
   through 13B-9b) and [archive/2026-10/phase-13b-tiled-status.md](../archive/2026-10/phase-13b-tiled-status.md) (the
   first status doc: every `Owns` / `Exit` cell, all 198 decisions, the verification records).
@@ -300,14 +300,21 @@ per-row checks). That tile layout's 5.5 ms
 (30 % of the call) covers the miss (14 % of it). The staging copy is not the cause (removing it moved the median
 −4 % to +4 % over nine alternated sets); the change is kept for its memory: the whole-layer Copy's peak is its
 payload, 48,029,392 for 48,000,000 at 16 bits (96,005,480 before, `make t F=rect_read_memory T=a_whole_layer_copy
-A=--nocapture`).
+A=--nocapture`). Since a later 2026-11-18 batch the encode appends each run's bytes in one move on a little-endian
+target (`float_native::put_samples`'s pattern), `ms_encode` 11.56 → 2.10 and the warm `copy_layer` 18.72 → 10.42 ms
+(`copy_split` and `clipboard`, base and tip alternated, medians of 5, 1-minute load 47.0 at the start, 14.3 to 15.1
+later, after a build, every `sha256` equal); the 1.16 × bound stands.
 
 **Typed latency bounds** (`latency`; 1.10 × the median, rounded up to 0.1 ms, `LATENCY_BOUNDS_MS`): `typed/dab` 97.6 ms
 the 8 dabs / 11.8 ms the median dab, `typed/dab_blend` 98.4 / 12.4, `typed/projection` 399.2 cold / 344.0 warm,
 `typed/save` 219.5, `typed/projection_masked` 465.6 / 427.2, `regional_window` 24.5 / 22.9, `regional_window_masked`
-29.7 / 29.2; the run after printed `MET` on every line. A canvas mask costs the typed projection 3.15 ns a mask
-sample (1.24 ×) and the byte regional window 5.44 ns (1.27 ×): the per-sample tile lookup; a row cursor is open
-([#10](https://github.com/kpgalligan/doctored/issues/10)).
+29.7 / 29.2; the run after printed `MET` on every line. A canvas mask costs the typed projection 3.25 ns a mask
+sample (1.25 ×, masked warm 388.5 ms) and the byte regional window 5.34 ns (1.27 ×, 26.5 ms), each mask sample one
+`TilePlane::sample_at` lookup (2026-11-18, the same `latency` command, base and a cursor build alternated, medians of
+5, 1-minute load 15.3 at the start, 8.1 to 11.3 later). A one-tile cursor in its place (each read's owner keeping
+the last tile's `Arc` and origin, bit-equal to the lookup across tile seams) cost more on the typed read, 3.85 ns
+(1.30 ×, 400.9 ms, the five-run ranges apart), and was not faster on the byte read, 5.85 ns (1.29 ×, 27.2 ms, the
+ranges overlapping), so the per-sample lookup stays and no bound moved.
 
 **The view cap is 256 MiB** (`views`, declared: stay 1 GiB if a 48 MP u16 miss exceeds 50 ms): a miss costs 7.7 ms
 (24 MP 8-bit, 96 MB), 17.5 (48 MP 8-bit), 16.2 (24 MP u16) and 31.5 (48 MP u16, 384 MB); a hit 0.0002. A 10-layer 24

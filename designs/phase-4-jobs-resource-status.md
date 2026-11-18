@@ -1,6 +1,6 @@
 # Phase 4 — jobs and resource foundations (ADR)
 
-- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11))
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** Phase 4 (4A–4D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09; issue records added through October 2026
 - **Originals:** [archive/phase-4-jobs-resource-status.md](../archive/phase-4-jobs-resource-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-4-jobs-resource-status.md](../archive/2026-10/phase-4-jobs-resource-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `968e0ee` (Phase 3 was `f34201b`)
@@ -229,11 +229,13 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   boundaries. RAW (CIRAWFilter) and movie-frame (AVFoundation) decodes are host calls with no cancel inside: they are
   cancelled before and after each camera or frame stage.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader regional processing: the canvas display and
-  the UI previews still render the full frame (13B-7); the guided sampling plates are 13B-9's ([#10](https://github.com/kpgalligan/doctored/issues/10)).
-- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: the regional sampling
-  plates (13B-9), the contiguous-view bound and the missed bounds (masks, channels and typed mask planes are on
-  tiles since 13B-4; the measured history budget and the bounded cache registry shipped as 13B-5 and 13B-6,
-  2026-11-15).
+  the UI previews still render the full frame (13B-7); the guided sampling plates stay full-frame, closed by
+  statement in 13B-9c (2026-11-17).
+- `DONE` (2026-11-18) — Tiled document storage: the regional sampling plates shipped with 13B-9 and the guided ones
+  were closed by statement (13B-9c, 2026-11-17); the contiguous-view bound (256 MiB), the missed bounds and the typed
+  latency bounds landed in cd1a5c82; the mask reads keep their per-sample tile lookup, a one-tile cursor measured
+  slower (2026-11-18). Masks, channels and typed mask planes are on tiles since 13B-4; the measured history budget and
+  the bounded cache registry shipped as 13B-5 and 13B-6, 2026-11-15.
 - `DONE` — Higher precision storage — Phase 7 (typed 16-bit) and 11F (float).
 - `DONE` — Budgeted history and recovery — Phase 5 ([phase-5-recovery-history-status.md](phase-5-recovery-history-status.md)).
 - `DONE` — "Comprehensive legacy-operation admission": `RasterResources.shared.admit` now guards 113 call

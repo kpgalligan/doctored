@@ -1,6 +1,6 @@
 # GIMP architecture study — lessons and capability catalog (ADR)
 
-- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19), [#34](https://github.com/kpgalligan/doctored/issues/34)). The study has no work items of its own; those are the catalog gaps that have an issue.
+- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#9](https://github.com/kpgalligan/doctored/issues/9), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19), [#34](https://github.com/kpgalligan/doctored/issues/34)). The study has no work items of its own; those are the catalog gaps that have an issue.
 - **Phase / dates:** pre-plan architecture study of the GIMP 3.3 development tree, 2026-08-10
 - **Original:** [archive/gimp-image-manipulation-capabilities.md](../archive/gimp-image-manipulation-capabilities.md) — the full 14-section study with per-section implementation notes
 - **Key commits:** `bc949f5` (study); it seeded [high-leverage-roadmap.md](high-leverage-roadmap.md) (`4f56283`) and [next-features.md](next-features.md) (`d0b0d26`)
@@ -73,8 +73,9 @@ The study records no to-do items of its own. Catalog gaps and where they stand:
   space axes stay catalog inventory (the §3 row), with no owner.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Lazy projection: the canvas display drawn
   through the regional render path (§4).
-- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo and the rest of the tiled
-  backing (§12, §13).
+- `DONE` (2026-11-18) — Tiled undo and the tiled backing (§12, §13): layer pixels, masks and channels on
+  shared tiles, the measured history budget and the cache registry ([13B ADR](phase-13b-tiled.md)); on-disk
+  tile sharing and spilling are 13C's ([#11](https://github.com/kpgalligan/doctored/issues/11)).
 - `DONE` — Bézier paths, the Pen, the Paths panel and vector masks ([ADR](v1-paths.md)).
 - `DONE` — Text on a path (§11; [ADR](type-on-a-path.md)).
 - `DONE` — Liquify, and Smudge and the other per-dab retouch brushes at 8 and 16 bits
