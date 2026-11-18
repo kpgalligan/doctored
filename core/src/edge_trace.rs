@@ -77,7 +77,7 @@
 //! Frequency's fasten distance and the Douglas–Peucker output. Every numeric choice's why is in
 //! this `//!` doc or `edge_trace_cost`'s. Deterministic: it reads `image` and writes only the
 //! map's memo of its samples; tests `core/tests/edge_trace.rs` and `edge_trace_cost.rs` (the
-//! timing probe runs in `make cancel-bench`).
+//! timing probes run in `make cancel-bench`).
 
 use crate::edge_map::{DrEdgeMap, EdgeSamples};
 use crate::edge_trace_corridor::{corridor, pixel_of, trail_distance, Corridor, NONE, STEPS};
@@ -89,7 +89,8 @@ use serde_json::Value;
 /// Corridor pixels per pointer move the host fastens against before tracing
 /// further (`DR_EDGE_TRACE_WORK_BUDGET` in the C header, which hosts read).
 /// 2¹⁷ px: the `make cancel-bench` probe holds one trace of a corridor this
-/// size under its declared 16 ms (one frame), so hover tracing keeps pace.
+/// size through a warm edge map (the session's, once it holds the corridor's
+/// samples) under its declared 16 ms (one frame), so hover tracing keeps pace.
 pub(crate) const WORK_BUDGET: u64 = 131_072;
 /// The largest corridor a single trace accepts: eight work budgets, room for
 /// the one long segment a host may send past the budget (a straight click

@@ -5,11 +5,14 @@
 //! Oracles are geometric (distances to the drawn shapes), never golden paths;
 //! each exact vertex is derived from the cost rule in a comment beside it
 //! (the rule's own oracle is `edge_trace_cost.rs`).
-//! The `#[ignore]`d probe times one budget-sized trace for `make cancel-bench`;
-//! its bound is declared before measuring and never widened.
+//! The `#[ignore]`d probes time budget-sized traces for `make cancel-bench`:
+//! one with no edge map (a map's first trace), and five through a warm map
+//! (the session's hover trace); their bounds are declared before measuring
+//! and never widened.
 
 use crate::edge_trace_support::{
-    as_f64, image, raw_call, refusal, samples, segment_distance, trace, Image, Traced,
+    as_f64, image, raw_call, refusal, samples, segment_distance, trace, trace_through, Image, Map,
+    Traced,
 };
 use std::time::Instant;
 
@@ -545,19 +548,22 @@ fn the_header_states_the_work_budget() {
     assert_eq!(value, WORK_BUDGET);
 }
 
-#[test]
-#[ignore = "make cancel-bench: a wall-clock verdict"]
-fn a_budget_sized_winding_trace_fits_a_frame() {
-    // One hover trace at the work budget must finish inside a 60 Hz frame.
-    const BOUND_MS: f64 = 16.0;
-    const SIZE: u32 = 2048;
-    // A deterministic texture, so edge strength varies everywhere.
-    let img = image(SIZE, SIZE, |x, y| {
+/// The side of the winding probes' square picture, in pixels.
+const WINDING_SIZE: u32 = 2048;
+
+/// The winding probes' picture: a deterministic texture, so edge strength
+/// varies everywhere.
+fn winding_texture() -> Image {
+    image(WINDING_SIZE, WINDING_SIZE, |x, y| {
         let v = (x.wrapping_mul(2_654_435_761) ^ y.wrapping_mul(40_503)) >> 24;
         let v = v as u8 / 4 + if (x / 37 + y / 23) % 2 == 0 { 40 } else { 160 };
         [v, v, v, 255]
-    });
-    // A sine wave of 4,000 vertices 0.5 px apart along the curve.
+    })
+}
+
+/// The winding probes' request at `width`: a sine wave of 4,000 vertices
+/// 0.5 px apart along the curve, a snap end, Frequency 0.
+fn winding_request(width: f64) -> String {
     let mut trail = Vec::with_capacity(4000);
     let (mut x, mut y) = (24.0f64, 1024.0f64);
     let wave = |x: f64| 1024.0 + 60.0 * (x / 40.0).sin();
@@ -567,26 +573,36 @@ fn a_budget_sized_winding_trace_fits_a_frame() {
         x += 0.5 / (1.0 + slope * slope).sqrt();
         y = wave(x);
     }
-    let width = WIDTH_FOR_BUDGET;
-    let json = format!(
+    format!(
         r#"{{"from":[24,1024],"trail":[{}],"end":"snap","width":{width},"frequency":0}}"#,
         trail.join(",")
-    );
-    let warm = trace(&img, &json).unwrap();
-    let share = warm.corridor as f64 / WORK_BUDGET as f64;
+    )
+}
+
+#[test]
+#[ignore = "make cancel-bench: a wall-clock verdict"]
+fn a_budget_sized_winding_trace_fits_a_frame() {
+    // A map's first trace (no edge map) at the work budget, bounded by one
+    // 60 Hz frame.
+    const BOUND_MS: f64 = 16.0;
+    let img = winding_texture();
+    let width = WIDTH_FOR_BUDGET;
+    let json = winding_request(width);
+    let first = trace(&img, &json).unwrap();
+    let share = first.corridor as f64 / WORK_BUDGET as f64;
     assert!(
         (0.9..=1.0).contains(&share),
         "corridor {} is {share:.3} of the budget",
-        warm.corridor
+        first.corridor
     );
     let start = Instant::now();
     let timed = trace(&img, &json).unwrap();
     let ms = start.elapsed().as_secs_f64() * 1e3;
-    assert_eq!(timed.points, warm.points);
+    assert_eq!(timed.points, first.points);
     eprintln!(
-        "edge trace ({SIZE}×{SIZE} texture, 4000-vertex sine trail 0.5 px apart, width \
-         {width}): corridor {} px ({:.1}% of the {WORK_BUDGET}-px budget), {} vertices, \
-         {ms:.3} ms; bound {BOUND_MS} ms; {}",
+        "edge trace ({WINDING_SIZE}×{WINDING_SIZE} texture, 4000-vertex sine trail 0.5 px \
+         apart, width {width}): corridor {} px ({:.1}% of the {WORK_BUDGET}-px budget), {} \
+         vertices, {ms:.3} ms; bound {BOUND_MS} ms; {}",
         timed.corridor,
         share * 100.0,
         timed.points.len(),
@@ -594,5 +610,58 @@ fn a_budget_sized_winding_trace_fits_a_frame() {
     );
 }
 
-/// Tuned so the probe's corridor is 90–100 % of the work budget.
+/// Tuned so the winding probes' corridor is 90–100 % of the work budget.
 const WIDTH_FOR_BUDGET: f64 = 30.0;
+
+/// The traces each warm probe times through its filled map.
+const WARM_TRACES: usize = 5;
+
+/// Traces [`winding_request`] at `width` once through a fresh edge map of
+/// `img`, which fills the map, then times [`WARM_TRACES`] more through it and
+/// prints the slowest against `bound_ms`. The corridor must be 90–100 % of
+/// `budget`, and each timed trace must return the fill's result and compute
+/// no sample (the map's count is unchanged), so the timings are of the warm
+/// path alone.
+fn warm_probe(img: &Image, budget: u64, width: f64, label: &str, bound_ms: f64) {
+    let json = winding_request(width);
+    let map = Map::of(img);
+    let fill = trace_through(img, map.0, &json).unwrap();
+    let share = fill.corridor as f64 / budget as f64;
+    assert!(
+        (0.9..=1.0).contains(&share),
+        "width {width}: corridor {} is {share:.3} of {budget} px",
+        fill.corridor
+    );
+    let cached = map.cached();
+    let mut times = Vec::with_capacity(WARM_TRACES);
+    for _ in 0..WARM_TRACES {
+        let start = Instant::now();
+        let timed = trace_through(img, map.0, &json).unwrap();
+        times.push(start.elapsed().as_secs_f64() * 1e3);
+        assert_eq!(timed.points, fill.points);
+        assert_eq!((timed.fasten, timed.corridor), (fill.fasten, fill.corridor));
+        assert_eq!(map.cached(), cached, "a timed trace computed samples");
+    }
+    let min = times.iter().copied().fold(f64::INFINITY, f64::min);
+    let max = times.iter().copied().fold(0.0, f64::max);
+    eprintln!(
+        "edge trace through a warm map ({WINDING_SIZE}×{WINDING_SIZE} texture, 4000-vertex sine \
+         trail 0.5 px apart, width {width}, {label}): corridor {} px ({:.1}% of {budget} px), {} \
+         vertices, {WARM_TRACES} traces {min:.3}–{max:.3} ms, slowest {max:.3} ms; bound \
+         {bound_ms} ms; {}",
+        fill.corridor,
+        share * 100.0,
+        fill.points.len(),
+        if max <= bound_ms { "PASS" } else { "MISS" }
+    );
+}
+
+#[test]
+#[ignore = "make cancel-bench: a wall-clock verdict"]
+fn a_budget_sized_winding_trace_through_a_warm_map_fits_a_frame() {
+    // A hover trace at the work budget through the session's edge map, once
+    // the map holds the corridor's samples, must finish inside a 60 Hz frame.
+    const BOUND_MS: f64 = 16.0;
+    let img = winding_texture();
+    warm_probe(&img, WORK_BUDGET, WIDTH_FOR_BUDGET, "the budget", BOUND_MS);
+}

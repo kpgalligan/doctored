@@ -121,6 +121,8 @@ Shipped: `CompositeEnv::job` through the byte reference chain, live only from `r
 
 Shipped: per-row polling inside the style and knockout primitives; the probes moved to `core/tests/common/probe.rs`. Home: `regional.rs` (CANCELLATION MODEL). What stays one unit is bounded by `T_f + c_copy`.
 
+The primitive-rows bench calibrates over the materialization chain alone (`common::probe::past_the_chain`); idle `make cancel-bench` 2026-11-18 (1-min load 7.86): c_row 7.855 µs (n_chain 37791, t_chain 296.9 ms; September 8.231 and 7.832 µs), PASS at j = 1, 3, 5, 7.
+
 ## 13A-5b-iii-a contract deltas
 
 Shipped: byte staged-path progress (the stage-0 and D5 snapshot fills report; the guide build reports inside its range). Home: `regional.rs` (CANCELLATION MODEL). One-unit bounds calibrate on the worker's own checkpoint `Timeline`.

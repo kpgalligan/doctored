@@ -120,7 +120,10 @@ pixel path inside the corridor within Width of the trail.
 - **Edge map.** The samples come from a per-capture map (`../core/src/edge_map.rs`, `dr_edge_map_create`) that the
   host's Magnetic Lasso session holds: it fills 16×16 tiles on first touch, so a pointer move computes no sample a
   previous one computed, and holds at most 8,388,608 samples (64 MB), past which it starts afresh. A trace is the
-  same with any map of its image or none; a call with none builds one for itself. `WORK_BUDGET` stays 131,072.
+  same with any map of its image or none; a call with none builds one for itself. `WORK_BUDGET` stays 131,072: on
+  2026-11-18, idle `make cancel-bench` (1-min load 7.86 before, 8.68 after), a cold budget-sized trace took 17.847 ms
+  (over the 16 ms frame), one through a warm map 14.512 ms (slowest of five, inside it), and a warm 262,144-px trace
+  30.412 ms, over it.
 
 ## Magnetic Lasso input
 The session is `../app/Sources/MagneticLassoSession.swift`; the canvas half `ImageCanvasView+MagneticLasso.swift`.

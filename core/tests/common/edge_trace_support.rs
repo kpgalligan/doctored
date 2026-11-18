@@ -1,5 +1,5 @@
 //! The Magnetic Lasso tracer's test helpers (`dr_selection_trace_edge`):
-//! an owned image handle, the raw call with every output observed (with no
+//! an owned image handle and edge map, the raw call with every output observed (with no
 //! edge map, or through one), the traced vertices and the polyline sampled
 //! every 0.25 px. Shared by `edge_trace.rs`, `edge_trace_cost.rs` and
 //! `edge_trace_placement.rs`.

@@ -5340,7 +5340,8 @@ bool dr_selection_quick(const DrDocument *doc, const DrImage *source,
  * simplification over the placed points (0.25 px for a located vertex,
  * 0.5 px for a pixel centre).
  * DR_EDGE_TRACE_WORK_BUDGET is the corridor the host fastens against
- * per pointer move, so one hover trace stays inside a frame. */
+ * per pointer move, so a hover trace through the session's edge map, once it
+ * holds the corridor's samples, stays inside a frame. */
 #define DR_EDGE_TRACE_WORK_BUDGET 131072  /* per-move corridor px the host fastens against */
 bool dr_selection_trace_edge(const DrImage *source, DrEdgeMap *map, const char *params,
     float *out_points, size_t capacity, size_t *out_count, int32_t *out_fasten,

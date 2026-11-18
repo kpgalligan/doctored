@@ -117,7 +117,8 @@ struct MagneticLassoSession {
     private let edgeMap: RasterEdgeMap
 
     /// The corridor pixels one pointer move may cost before the session
-    /// fastens and starts afresh — the core's own figure, so one hover trace
+    /// fastens and starts afresh — the core's own figure, so a hover trace
+    /// through the session's edge map, once it holds the corridor's samples,
     /// stays inside a frame.
     static let workBudget = Double(DR_EDGE_TRACE_WORK_BUDGET)
     /// The closed outline's vertex limit, `select_freehand`'s.
