@@ -41,6 +41,7 @@ use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_duotone::dr_precision_doc_set_duotone;
 use doctored_core::ffi_gray::dr_precision_doc_convert_to_gray;
 use doctored_core::ffi_lab::dr_precision_doc_new_lab;
+use doctored_core::ffi_precision_conversion::dr_precision_doc_promote_to_float;
 use doctored_core::ffi_psd::{
     dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_psd_export_report,
     dr_precision_doc_save_psd,
@@ -117,6 +118,7 @@ const LIMIT: u64 = 64 << 30;
 /// `DrLayeredContainer`'s PSD and TIFF, and `PsdExportMode`'s Layers and
 /// Flattened.
 const PSD: i32 = 0;
+const PSB: i32 = 1;
 const TIFF: i32 = 2;
 const LAYERS: i32 = 0;
 const FLATTENED: i32 = 1;
@@ -152,10 +154,10 @@ fn plan_of(report: &Value) -> usize {
 }
 
 fn name(container: i32) -> &'static str {
-    if container == TIFF {
-        "TIFF"
-    } else {
-        "PSD"
+    match container {
+        TIFF => "TIFF",
+        PSB => "PSB",
+        _ => "PSD",
     }
 }
 
@@ -302,6 +304,33 @@ fn gray_doc(w: u32, h: u32, layers: usize, depth: u32, spot: bool) -> PrecisionD
     } else {
         gray
     }
+}
+
+/// [`rgb_doc`] promoted to 32-bit float and converted to Grayscale (Dot Gain
+/// 20 %): a 32-bit Gray document of `layers` full-canvas layers.
+fn gray32_doc(w: u32, h: u32, layers: usize) -> PrecisionDocument {
+    let rgb = rgb_doc(w, h, layers, false);
+    let mut error = ptr::null_mut();
+    let float =
+        unsafe { dr_precision_doc_promote_to_float(&rgb, LIMIT, 0, ptr::null(), &mut error) };
+    assert!(!float.is_null(), "to float: {:?}", take(error));
+    let float = *unsafe { Box::from_raw(float) };
+    let options = CString::new(r#"{"space":"dot_gain_20"}"#).expect("the options");
+    let mut error = ptr::null_mut();
+    let gray = unsafe {
+        dr_precision_doc_convert_to_gray(
+            &float,
+            ptr::null(),
+            0,
+            options.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!gray.is_null(), "to 32-bit Grayscale: {:?}", take(error));
+    *unsafe { Box::from_raw(gray) }
 }
 
 /// `gray` as a two-ink Duotone (Black and a warm ink, straight curves).
@@ -616,6 +645,27 @@ fn sixteen_bit_layered_psd_without_a_spot_channel_holds_its_plan() {
     no_failures(&failures);
 }
 
+/// A flattened 16-bit RGB PSD and PSB take the Composite record's channels
+/// and the image data's planes from one walk of the projection
+/// (`flattened_planes16`): seven raw planes beside one encoded plane, before
+/// the file exists, inside the same plan.
+#[test]
+fn sixteen_bit_flattened_psd_and_psb_hold_their_plan() {
+    let _serial = serial();
+    let document = rgb_doc(W, H, 1, false);
+    let projection = projection_of(&document);
+    let mut failures = Vec::new();
+    typed_saves_hold_their_plan(
+        "16-bit flattened",
+        &document,
+        Some(&projection),
+        &[(PSD, FLATTENED), (PSB, FLATTENED)],
+        false,
+        &mut failures,
+    );
+    no_failures(&failures);
+}
+
 /// Lab documents at `depth` of one and of three layers, their layered PSD
 /// and TIFF.
 fn lab_layered_cases(depth: u32) {
@@ -771,6 +821,76 @@ fn duotone_layered_psds_hold_their_plan() {
         );
     }
     no_failures(&failures);
+}
+
+/// One PackBits plane's worst case in a classic PSD, written out here
+/// independently: the compression word, a u16 count a row, and each row of
+/// `row_bytes` all literal (one header byte per 128).
+fn psd_plane_worst_case(row_bytes: u64, rows: u64) -> u64 {
+    2 + 2 * rows + rows * (row_bytes + row_bytes.div_ceil(128))
+}
+
+/// A 16-bit Gray record writes two planes, alpha and gray
+/// (`channels_gray`), so one more full-canvas layer adds two planes' worst
+/// case and its record header to the layered PSD's `worst_case_bytes`, not
+/// four planes'.
+#[test]
+fn a_gray_record_costs_two_planes_in_the_worst_case() {
+    let _serial = serial();
+    let worst = |layers: usize| {
+        let document = gray_doc(MW, MH, layers, 16, false);
+        typed_report(&document, PSD, LAYERS)["worst_case_bytes"]
+            .as_u64()
+            .expect("a worst case")
+    };
+    let (one, two) = (worst(1), worst(2));
+    let plane = psd_plane_worst_case(u64::from(MW) * 2, u64::from(MH));
+    let added = two - one;
+    println!(
+        "Gray 16-bit PSD: one layer {one}, two {two}, the second adds {added}; one plane {plane}"
+    );
+    assert!(
+        added >= 2 * plane && added < 3 * plane,
+        "the second layer adds {added}, not two planes of {plane} and its header"
+    );
+}
+
+/// A 32-bit Gray layered PSD of five full-canvas layers holds their records
+/// beside the file (8 B a canvas pixel each, `channels_gray32`): the save
+/// succeeds, the file is no longer than the report's worst case, and the
+/// counted peak stays inside the scratch the save admits (its refusal at a
+/// limit of 1, less the retained bytes). The report states no plan at 32
+/// bits, so the case asserts with its own code.
+#[test]
+fn gray32_layered_psd_holds_what_it_admits() {
+    let _serial = serial();
+    let document = gray32_doc(MW, MH, 5);
+    let projection = projection_of(&document);
+    let folder = tempfile::TempDir::new().expect("a scratch folder");
+    let path = folder.path().join("gray32.psd");
+    let report = typed_report(&document, PSD, LAYERS);
+    assert_eq!(report["available"], Value::Bool(true), "{report}");
+    let message = typed_save(&document, Some(&projection), &path, (PSD, LAYERS), 1)
+        .expect_err("a limit of 1 refuses");
+    let admitted = needed_of(&message)
+        .unwrap_or_else(|| panic!("not the admission refusal: {message}"))
+        - document.retained_bytes();
+    let (peak, saved) =
+        measured(|| typed_save(&document, Some(&projection), &path, (PSD, LAYERS), LIMIT));
+    saved.expect("the 32-bit Gray save");
+    let written = std::fs::metadata(&path).expect("the written file").len();
+    let worst = report["worst_case_bytes"].as_u64().expect("a worst case");
+    let peak = peak as u64;
+    println!("Gray 32-bit five layers PSD: file {written}, worst case {worst}, peak {peak}, admitted {admitted}");
+    assert!(
+        written <= worst,
+        "the file is {written} bytes, above the worst case {worst}"
+    );
+    assert!(
+        peak <= admitted,
+        "the save peaks at {peak} above the {admitted} it admits (by {})",
+        peak - admitted
+    );
 }
 
 /// A flattened Gray or Duotone file's one composite record writes its alpha

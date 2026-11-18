@@ -52,7 +52,9 @@
 //! canvas display term and bookkeeping; the History Brush adds the state's
 //! two pass images under `G'` (16 B a pixel). Sample All Layers still adds
 //! its canvas-sized picture once (`sampled_plate_plan`). Its margin over the
-//! counted peak is held by `core/tests/rect_read_memory.rs`.
+//! counted peak is held by `core/tests/rect_read_memory.rs`, and over the
+//! Release phys-footprint peak by `scripts/cmyk-admission/measure.py`
+//! (`cmyk_retouch_brush`'s module doc has the figures).
 //!
 //! [`PrecisionDocument::cmyk_brush_whole_layer`] is the tests' seam: a
 //! stroke through layer-sized pass documents, the path before the rect

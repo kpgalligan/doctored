@@ -232,13 +232,16 @@ after:
 / 4: at 24 MP the 2 GiB budget of the 16 GB minimum holds 22 whole-layer 8-bit edits or 11 at 16 bits, and dab-scale
 edits reach the transition cap first. What limited history was the over-retention above.
 
-**The layered saves inside their plan** (2026-11-16 and 11-17, [#10](https://github.com/kpgalligan/doctored/issues/10)).
+**The layered saves inside their plan** (2026-11-16, 11-17 and 11-18).
 An 8- or 16-bit PSD, PSB or layered TIFF is laid into ONE buffer (`write_psd`; `tiff_layers_write::write` takes the
 records and a `Strip`), the TIFF strip streamed, each spot plane read a row at a time (`SpotCoverage::stored_row`);
 bytes unchanged. The plan, `PsdExportReport::working_plan`: `worst_case_bytes` + `held_bytes` + a PSD's composite
 planes + `bake_scratch_bytes` + the wide encoder + `BOOKKEEPING_BYTES`; Lab adds 3·n·d for a PSD (one encoded row for
-a TIFF), CMYK the larger of 68·n and `held_bytes` + 5·n·d, Gray and Duotone the sum they admitted (a 16-bit Duotone's
-adds its 8-bit copy's plan). Every 8- and 16-bit report states `working_memory_plan_bytes`, every such save admits it,
+a TIFF), CMYK the larger of 68·n and `held_bytes` + 5·n·d, Gray and Duotone (`gray_save_plan`) `worst_case_bytes` +
+`held_bytes` + 8·n + the stamps + the wide encoder, a Duotone file its worst case once more and a 16-bit Duotone its
+8-bit copy's plan. Since 2026-11-18 the inventory charges a Gray record the two planes it writes (`export_costs`), so
+`worst_case_bytes` no longer pays for the records held beside the file and the plan names them (`held_bytes`); the
+32-bit Gray save admits `held_bytes` beside the 32-bit save's measured figure too (`psd_export_gray32`). Every 8- and 16-bit report states `working_memory_plan_bytes`, every such save admits it,
 `PSDExportCapture` reads it; `core/tests/layered_save_plan_memory.rs` holds each peak within its plan. Layered TIFF,
 one spot channel (`phase13b_transient_copies`): 8-bit 530,365,614 / none before, 313,597,438 / 338,757,996 after
 (peak / plan); 16-bit 967,596,955 / 627,463,002 before, 531,410,775 / 677,389,996 after.
@@ -250,7 +253,7 @@ typed style planes, a byte mask's derived and aligned planes, the LUT memo's par
 `Ticket` (a `Weak` plus a shared token). **Bound:** `cache_limit::registry_bound`, the working limit / 8, held at
 every insert. **Order:** least recently used first, across classes, one clock. An evicted entry is a miss and is
 rebuilt; readers keep the planes they upgraded; an entry above the bound is not kept; the last ticket's drop
-unregisters its entry. **Not members:** the content-box memos and the contiguous views (their own 1 GiB bound); the
+unregisters its entry. **Not members:** the content-box memos and the contiguous views (their own bound, 256 MiB); the
 report's `cache_registry` section lists both. The host trim and `dr_process_cache_trim_limit` are gone; `admit` still
 evicts every cache and remeasures under pressure. Exit met: `core/tests/cache_registry.rs`, each case failing under a
 mutant. At 24 MP 8-bit a drop-shadow entry is 48,844,344 bytes, a three-effect entry 98,496,192, a feathered mask's
@@ -275,6 +278,50 @@ component planes cover the request's bounds. Oracle: `RetouchEdit::full_frame` (
 `cmyk_synthesis_in_place.rs`); `rect_read_memory.rs` bounds a 48×48 dab below 1 byte a canvas pixel. The byte plate
 reports per tile (Tiles, Tree) in its caller's band.
 
+## The quiet-machine residue
+
+2026-11-18, Release builds on an M2 Max with no other build running; each sample's 1-minute load is in the batch's
+receipts (3.3–6.0 for the timing rows). The timing rows are `cd core && DR_TILE_SHARING_ONLY=<group> cargo run
+--release --example phase13b_tile_sharing`, one process a sample, medians of 5; base and tip alternated, every
+`sha256` equal.
+
+**The missed warm bounds**, carried through the recorded miss (the pre-tiling library is not in this history): met when
+tip ÷ base ≤ bound ÷ recorded ratio. The Copy / Cut payload is built straight into tiles (no staging plane), the
+flattened 16-bit PSD/PSB takes its record and image data from one walk (`flattened_planes16`), and the float native
+save copies each staged chunk in one move. `copy_layer_float` 0.860 ≤ 1.018 met (`extended_pixel` written without a
+branch: its check was most of the gap); `save_psd_flattened` 0.945 ≤ 0.970 met; `save_native_float` 0.803 ≤ 0.823
+met. `copy_layer` (u16; at 3000×2000, since its host stage refuses 24 MP at the 2 GiB pin) 1.023 against ≤ 0.951:
+MISSED, its bound restated at **1.16 ×** (1.157 × 1.023, capped at the recorded miss). Cause, measured in one binary
+(`DR_TILE_SHARING_ONLY=copy_split`: the stages alternated in one process, medians of 9 rounds, five processes at load
+3.5): the warm Copy's 18.4 ms is the payload build, 6.4, and the RZCB encode, 11.5 (a 2-byte append a sample). The
+same build with no tile on either side takes 0.9: on tiles the source's `row_segments` read (one run a tile column)
+takes 2.9 against 0.8 from one contiguous buffer, and the rest of the build the other 3.5 (the tile write and its
+per-row checks). That tile layout's 5.5 ms
+(30 % of the call) covers the miss (14 % of it). The staging copy is not the cause (removing it moved the median
+−4 % to +4 % over nine alternated sets); the change is kept for its memory: the whole-layer Copy's peak is its
+payload, 48,029,392 for 48,000,000 at 16 bits (96,005,480 before, `make t F=rect_read_memory T=a_whole_layer_copy
+A=--nocapture`).
+
+**Typed latency bounds** (`latency`; 1.10 × the median, rounded up to 0.1 ms, `LATENCY_BOUNDS_MS`): `typed/dab` 97.6 ms
+the 8 dabs / 11.8 ms the median dab, `typed/dab_blend` 98.4 / 12.4, `typed/projection` 399.2 cold / 344.0 warm,
+`typed/save` 219.5, `typed/projection_masked` 465.6 / 427.2, `regional_window` 24.5 / 22.9, `regional_window_masked`
+29.7 / 29.2; the run after printed `MET` on every line. A canvas mask costs the typed projection 3.15 ns a mask
+sample (1.24 ×) and the byte regional window 5.44 ns (1.27 ×): the per-sample tile lookup; a row cursor is open
+([#10](https://github.com/kpgalligan/doctored/issues/10)).
+
+**The view cap is 256 MiB** (`views`, declared: stay 1 GiB if a 48 MP u16 miss exceeds 50 ms): a miss costs 7.7 ms
+(24 MP 8-bit, 96 MB), 17.5 (48 MP 8-bit), 16.2 (24 MP u16) and 31.5 (48 MP u16, 384 MB); a hit 0.0002. A 10-layer 24
+MP byte document's seeds held 960,000,000 bytes at 1 GiB, 192,000,000 at 256 MiB.
+
+**Release memory drives**, plan ≥ ⌈1.25 × max E⌉, three runs and a twin each, all PASS. CMYK retouch
+(`DR_VERIFY_APP=build/Build/Products/Release/Doctored.app python3 -B scripts/cmyk-admission/measure.py --runs 3`):
+`dodge-16` 605,924,864 against max E 299,729,136, `smudge-16` 657,695,832 / 301,777,112, `history-brush-16`
+621,420,032 / 42,254,312, `blur-sal-16` 7,468,608,928 / 2,279,360,336, `smudge-sal-16` 3,951,631,368 /
+1,398,080,712, `retouch-clone-16` 620,606,424 / 14,663,704. Duotone (`scripts/duotone-admission/measure.py`, all ten
+cases): `export-duotone-psd16` 1,582,538,480 / 52,428,824, the tightest `set-duotone` 745,048,576 / 576,422,296. The
+float retouch rows are `float_retouch`'s table (`examples/float_retouch_admission.rs`, now over the call's own
+footprint interval: the boxed cases' whole-run peak is the document build's).
+
 ## Decisions
 
 - **The 13C seam.** `Tile<S>` is opaque behind `samples()`, so a spilled or compressed tile variant lands without
@@ -284,9 +331,10 @@ reports per tile (Tiles, Tree) in its caller's band.
 
 ### 13B-2b decisions
 
-- **The view bound is one projection's working set (1 GiB, 256 entries).** `CONTIGUOUS_CACHE_BYTES` /
-  `CONTIGUOUS_CACHE_ENTRIES`; since 13B-2c-1 a projection reads rows from the tiles and leaves no view. A working set
-  above the bound thrashes LRU ([#10](https://github.com/kpgalligan/doctored/issues/10)).
+- **The view bound was one projection's working set (1 GiB, 256 entries)**, `CONTIGUOUS_CACHE_BYTES` /
+  `CONTIGUOUS_CACHE_ENTRIES`; since 13B-2c-1 a projection reads rows from the tiles and leaves no view, so 13B-6's
+  decision (2026-11-18) is 256 MiB: the readers left are the develop preview, the cropped delete, the crop's padded
+  background and the byte writers' seeds, and a 48 MP u16 miss costs 31.5 ms (the quiet-machine residue above).
 - **The views are not a registry member**: every projection re-reads them, so they keep their own bound. They stay
   `cache: true`, so `EditingState`'s retained figure still subtracts them.
 
@@ -299,8 +347,8 @@ reports per tile (Tiles, Tree) in its caller's band.
 ### 13B-3b-1 decisions
 
 - **(c) Planes above `CONTIGUOUS_CACHE_BYTES` stayed Contiguous** because the cache would refuse their view; since
-  the f32 tiling's phase 2 (`09e0b98`) every plane tiles, each plan charging its copy. The view bound itself is 13B-6's
-  ([#10](https://github.com/kpgalligan/doctored/issues/10)).
+  the f32 tiling's phase 2 (`09e0b98`) every plane tiles, each plan charging its copy. The view bound itself is 13B-6's:
+  256 MiB since 2026-11-18.
 
 ### 13B-3c-2c-2 decisions
 
@@ -323,10 +371,10 @@ The 19-site Seeded / Unseeded classification is in the first archived original; 
 
 ### 13B-3e-4c-2b decisions
 
-- **D1 — closed as a recorded residual.** A float document cannot hold an f32 raster above `CONTIGUOUS_CACHE_BYTES`:
-  `native_preflight`'s float `finish_plan` (`precision_native_plan.rs`) charges `reopen_retained` ≥ D + 1 MiB plus
-  `decode_scratch_bytes` ≥ D + 16·n + 1 MiB, so every document raster was inside `tiles_of`'s bound; the f32 tiling
-  (`5ad3dbc`, `09e0b98`) since tiles every f32 plane at every size.
+- **D1 — closed as a recorded residual.** A float document cannot hold an f32 raster above 1 GiB (67,108,864 px, the
+  view bound then) at the 2 GiB pin: `native_preflight`'s float `finish_plan` (`precision_native_plan.rs`) charges
+  `reopen_retained` ≥ D + 1 MiB plus `decode_scratch_bytes` ≥ D + 16·n + 1 MiB, so every document raster was inside
+  `tiles_of`'s bound; the f32 tiling (`5ad3dbc`, `09e0b98`) since tiles every f32 plane at every size.
 - **D5 — the typed geometry plan charged no input transient**: closed (Closed open items below).
 
 ### 13B-4 decisions

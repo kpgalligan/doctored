@@ -480,16 +480,22 @@ fn export_costs(inventory: &ExportInventory, mode: PsdExportMode) -> Vec<RecordC
             block_bytes: 0,
         }];
     }
+    // A Grayscale record writes two colour/alpha planes (alpha and gray,
+    // `channels_gray`, `channels_gray32`, a closer's `placeholder_channels`),
+    // so each entry's are its first two; every other mode keeps its own.
     let mut out = Vec::new();
     for entry in &inventory.entries {
         if entry.group {
             out.push(RecordCost {
                 name_units: name_units(CLOSER_NAME),
-                planes: vec![(0, 0); 4],
+                planes: vec![(0, 0); if inventory.gray { 2 } else { 4 }],
                 block_bytes: 0,
             });
         }
         let mut planes = entry.planes.clone();
+        if inventory.gray {
+            planes.truncate(2);
+        }
         if let Some(mask) = &entry.mask {
             planes.push((u64::from(mask.width), u64::from(mask.height)));
         }

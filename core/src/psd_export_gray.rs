@@ -247,16 +247,15 @@ impl PrecisionDocument {
     }
 
     /// The plan the 8- and 16-bit Gray or Duotone save admits
-    /// (`working_memory_plan_bytes`): the file's worst case, the canvas at
-    /// 8 B a pixel, the stamps' scratch and a wide style encoder, and for a
-    /// Duotone file the worst case once more (one more copy of the Gray
-    /// writer's bytes, `duotone_files::into_duotone_file`). It holds by
-    /// count: the inventory charges four planes for each raster record
-    /// (`psd_export16::entries`) where a Gray record writes two
-    /// ([`channels_gray`]), so `worst_case_bytes` overstates the file by one
-    /// Gray record's planes a layer, which pays for the record held beside
-    /// the file; the 8 B a pixel covers the one composite plane (n · d), a
-    /// PSD's encoded spot rows and the transients. Saturating.
+    /// (`working_memory_plan_bytes`): the file's worst case, what the save
+    /// holds beside it (`held_bytes`: the records it copies in, two planes
+    /// each as a Gray record writes them, [`channels_gray`], and the
+    /// resources), the canvas at 8 B a pixel, the stamps' scratch and a wide
+    /// style encoder, and for a Duotone file the worst case once more (one
+    /// more copy of the Gray writer's bytes,
+    /// `duotone_files::into_duotone_file`). The 8 B a pixel covers the one
+    /// composite plane (n · d), a PSD's encoded spot rows and the
+    /// transients. Saturating.
     fn gray_save_plan(&self, report: &PsdExportReport) -> u64 {
         let (width, height) = self.dimensions();
         let canvas = u64::from(width)
@@ -274,6 +273,7 @@ impl PrecisionDocument {
         };
         report
             .worst_case_bytes
+            .saturating_add(report.held_bytes)
             .saturating_add(canvas)
             .saturating_add(report.bake_scratch_bytes)
             .saturating_add(wide)

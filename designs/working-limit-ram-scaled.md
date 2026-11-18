@@ -88,7 +88,7 @@ refused any larger limit). A 32 GB Mac refused the same 45 MP work an 8 GB Mac r
   `T=eight_100_mp_16_bit_layers` (eight layers, past 2^32) and `T=two_100_mp_float_layers` (two float layers,
   past 2^31), all at 8 GiB.
 - The PSD 2 GiB file cap, `IDAT_CHUNK_MAX_BYTES` and the other format caps; `CONTIGUOUS_CACHE_BYTES`
-  (1 GiB).
+  (256 MiB since 2026-11-18).
 - Work caps kept, each because the work is not a cancellable job or its memory plan is sized
   from the cap, and each with a sentence that says what to do: the stroke caps (`MAX_BRUSH_WORK` 2·10⁹,
   `MAX_BRUSH_DABS` 50,000, the RAW local brush's 256 M and 4,096 dabs, the trimap and sampling-area

@@ -285,8 +285,22 @@ pub(crate) fn put_samples(
     for mut run in runs {
         while !run.is_empty() {
             let (chunk, rest) = run.split_at((4096 - staged).min(run.len()));
-            let dest = bytes[staged * 16..].chunks_exact_mut(16);
-            for (pixel, dest) in chunk.iter().zip(dest) {
+            let dest = &mut bytes[staged * 16..(staged + chunk.len()) * 16];
+            // On a little-endian target the run's own bytes ARE the LE
+            // stream, so the chunk lands with one copy; elsewhere each
+            // sample is swapped.
+            #[cfg(target_endian = "little")]
+            {
+                // SAFETY: `[f32; 4]` is 16 bytes with no padding and any
+                // initialized memory reads as `u8`; the slice covers exactly
+                // the chunk's `len · 16` bytes and lives only for this copy.
+                let source = unsafe {
+                    std::slice::from_raw_parts(chunk.as_ptr().cast::<u8>(), chunk.len() * 16)
+                };
+                dest.copy_from_slice(source);
+            }
+            #[cfg(not(target_endian = "little"))]
+            for (pixel, dest) in chunk.iter().zip(dest.chunks_exact_mut(16)) {
                 for (value, slot) in pixel.iter().zip(dest.chunks_exact_mut(4)) {
                     slot.copy_from_slice(&value.to_le_bytes());
                 }

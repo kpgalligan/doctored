@@ -830,3 +830,54 @@ pub(crate) fn composite_planes16(
     }
     Ok(planes)
 }
+
+/// [`flattened_planes16`]'s answer: the Composite record's `(id, encoded
+/// plane)` channels and the image data's four raw planes.
+pub(crate) type FlattenedPlanes16 = (Vec<(i16, Vec<u8>)>, [Vec<u8>; 4]);
+
+/// A flattened 16-bit PSD or PSB's two forms of `projection` from ONE walk of
+/// its runs (`runs_rgba16`), each pixel's alpha read once: the Composite
+/// record's channels, exactly what `psd_export16::channels16` answers (ids
+/// -1, 0, 1, 2, each [`encode_plane`]d), and the image data's planes,
+/// exactly what [`composite_planes16`] answers (R, G, B matted by
+/// [`matte16`], A straight). The walk fills seven raw planes, each sized
+/// for the canvas up front (A, R, G, B, matted R, G, B: 14 bytes a pixel);
+/// then the record's R, G and B are encoded and each raw plane dropped in
+/// turn, and A is encoded and its raw plane moved into the composite's
+/// alpha slot, so the peak is the seven raw planes beside one encoded
+/// plane, inside `rgb16_save_plan`. The same two refusals as
+/// [`composite_planes16`].
+pub(crate) fn flattened_planes16(
+    projection: &PrecisionImage,
+    width: u32,
+    height: u32,
+    large: bool,
+) -> Result<FlattenedPlanes16, String> {
+    if projection.dimensions() != (width, height) {
+        return Err("PSD composite preview does not match the canvas".into());
+    }
+    let runs = projection
+        .runs_rgba16()
+        .ok_or("16-bit PSD export requires an RGBA16 UNORM projection")?;
+    let count = width as usize * height as usize * 2;
+    let mut planes: [Vec<u8>; 7] = std::array::from_fn(|_| Vec::with_capacity(count));
+    for run in runs {
+        for pixel in run {
+            let [a, r, g, b, mr, mg, mb] = &mut planes;
+            let alpha = pixel[3];
+            a.extend_from_slice(&alpha.to_be_bytes());
+            r.extend_from_slice(&pixel[0].to_be_bytes());
+            g.extend_from_slice(&pixel[1].to_be_bytes());
+            b.extend_from_slice(&pixel[2].to_be_bytes());
+            mr.extend_from_slice(&matte16(pixel[0], alpha).to_be_bytes());
+            mg.extend_from_slice(&matte16(pixel[1], alpha).to_be_bytes());
+            mb.extend_from_slice(&matte16(pixel[2], alpha).to_be_bytes());
+        }
+    }
+    let [a, r, g, b, mr, mg, mb] = planes;
+    let row = width * 2;
+    let encoded = |plane: Vec<u8>| encode_plane(&plane, row, height, large);
+    let (r, g, b) = (encoded(r), encoded(g), encoded(b));
+    let alpha = encode_plane(&a, row, height, large);
+    Ok((vec![(-1, alpha), (0, r), (1, g), (2, b)], [mr, mg, mb, a]))
+}

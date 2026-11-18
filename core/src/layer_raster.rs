@@ -53,8 +53,9 @@
 //!   image) when bytes are meant, `ptr_eq` when identity is; neither touches
 //!   the view cache.
 //! - **Bind once.** [`LayerRaster::contiguous_image`] is the legacy
-//!   whole-image view; since 13B-2c-3b it has no production caller (the
-//!   residual is 0) and serves the test oracles. It is called at most once
+//!   whole-image view; since 13B-2c-3b its production callers are
+//!   `doc_delete_cropped` and `doc_crop_extend::background_padded`, and it
+//!   serves the test oracles. It is called at most once
 //!   per raster per operation, at the top of the function or block that owns
 //!   the read — never inside a loop body or a per-row / per-sample closure —
 //!   because every call on a tiled raster is a cache lookup and a miss is a
@@ -84,10 +85,11 @@
 //!   `to_contiguous[_with_job]` copy and the profile conversion, the
 //!   retouch expansion, the scoped analysis and the retouch temp documents
 //!   read `runs` / `row_segments` / `sample_at` / `read_rect`, so no
-//!   production read binds a view; the bound (one projection's working set,
-//!   a 3-layer 48 MP or 10-layer 24 MP document) serves the seeds of `new` /
-//!   `rebuilt` and the test oracles, and 13B-6 absorbs it. The views are
-//!   DISPOSABLE:
+//!   production read binds a view save `doc_delete_cropped` and
+//!   `doc_crop_extend::background_padded`; the bound (256 MiB since 13B-6's
+//!   decision, `contiguous_views`' module doc: a miss costs tens of
+//!   milliseconds) serves those, the seeds of `new` / `rebuilt` and the test
+//!   oracles. The views are DISPOSABLE:
 //!   the resource report lists the views of the supplied documents' planes
 //!   as `contiguous_views` cache bytes and `dr_mixed_resources_evict_caches` drops
 //!   every view.
@@ -163,12 +165,13 @@
 //! re-reads `binding.source_pixels`) pays a full transient copy per edit where it used to hit the
 //! view cache — measured by `phase13b_tile_sharing`'s `transforms/warm` rows (6 MP: `warp_edit#2`
 //! 699.6 → 686.2 ms, one sample; views held 72064016 bytes → 0); it missed no bound, so no
-//! mitigation is planned (dropped 2026-10-30, the 13B status). `contiguous_image()` (no
-//! production caller since 13B-2c-3b — the cache's read path, kept for the test oracles and
-//! 13B-6; an `Arc` BY VALUE) is served from ONE process-wide bounded view cache (since 13B-3b-1
+//! mitigation is planned (dropped 2026-10-30, the 13B status). `contiguous_image()` (read
+//! in production only by the cropped delete and the crop's padded background since 13B-2c-3b —
+//! the cache's read path, kept for them and the test oracles; an `Arc` BY VALUE) is served from
+//! ONE process-wide bounded view cache (since 13B-3b-1
 //! in `contiguous_views.rs`, shared with the typed `PrecisionImage`; `layer_raster` re-exports
-//! `contiguous_view_bytes` and the two bounds; `CONTIGUOUS_CACHE_BYTES` 1
-//! GiB = one projection's working set, `CONTIGUOUS_CACHE_ENTRIES` 256, LRU, one live entry per
+//! `contiguous_view_bytes` and the two bounds; `CONTIGUOUS_CACHE_BYTES` 256
+//! MiB (13B-6's decision), `CONTIGUOUS_CACHE_ENTRIES` 256, LRU, one live entry per
 //! plane, keyed on the plane INDEX via `TilePlane::weak_index` so `weak_count` is unaffected,
 //! seeded by `new` / `rebuilt` — `LayerRaster::unseeded` is `new` without the seed, for the planes
 //! nothing reads whole: `rendered_group`'s synthetic (read only through `row_segments` /

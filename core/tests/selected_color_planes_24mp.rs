@@ -194,16 +194,13 @@ fn a_colour_channel_edit_is_admitted_at_24mp() {
     // Fill (in place and onto a new layer) over the same float layer;
     // ⌈1.25 × the largest measured footprint⌉ of each in `float_retouch`'s
     // module doc (`# Admission`), the requests of
-    // `examples/float_retouch_admission.rs`. The in-place heal, spot heal
-    // and fill were measured while they read the canvas (before 13B-9a and
-    // 13B-9b), so since 13B-9c their floors are ⌈1.25 ×⌉ the heap peaks
-    // `examples/phase13b_retouch_dab.rs` counts for the same requests
-    // (104,843,077; 339,211,458; 339,211,458).
-    const FLOOR_RC32: u64 = 1_924_916_610;
-    const FLOOR_RH32: u64 = 131_053_847;
-    const FLOOR_RS32: u64 = 424_014_323;
-    const FLOOR_RF32: u64 = 424_014_323;
-    const FLOOR_RN32: u64 = 2_670_655_420;
+    // `examples/float_retouch_admission.rs`, re-measured on the rect walks
+    // over each call's own footprint interval.
+    const FLOOR_RC32: u64 = 1_442_796_600;
+    const FLOOR_RH32: u64 = 115_486_780;
+    const FLOOR_RS32: u64 = 399_790_410;
+    const FLOOR_RF32: u64 = 399_831_370;
+    const FLOOR_RN32: u64 = 2_640_938_880;
     let translate = [1.0, 0.0, 0.0, 1.0, 64.0, 0.0];
     let clone = json!({"op":"retouch_clone","layer":0,"matrix":translate}).to_string();
     check("RC32", scratch(&d32, &clone), FLOOR_RC32);
@@ -224,7 +221,7 @@ fn a_colour_channel_edit_is_admitted_at_24mp() {
     check("RN32", scratch(&d32, &layered.to_string()), FLOOR_RN32);
     // Red Eye over the whole canvas, its largest encoded copy;
     // ⌈1.25 × the largest measured footprint⌉ in `float_retouch`'s module doc.
-    const FLOOR_RE32: u64 = 1_230_828_420;
+    const FLOOR_RE32: u64 = 1_132_380_970;
     let red_eye = json!({"op":"red_eye","layer":0,"x":0,"y":0,"width":6000,"height":4000,
         "pupil_size":1.0,"darken":0.5})
     .to_string();

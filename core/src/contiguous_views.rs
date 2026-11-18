@@ -10,10 +10,25 @@
 //! holding a view does not move `LayerRaster::weak_count` — with at most one
 //! live entry per plane; a `PlaneKey`'s variant is part of the key, so a byte
 //! and a typed plane never alias. The bounds are shared by both
-//! view types: `CONTIGUOUS_CACHE_BYTES` (one projection's working set, a
-//! 3-layer 48 MP or 10-layer 24 MP document) and `CONTIGUOUS_CACHE_ENTRIES`,
-//! least recently used evicted first; a view above the byte bound on its own
-//! is never retained.
+//! view types: `CONTIGUOUS_CACHE_BYTES` (256 MiB) and
+//! `CONTIGUOUS_CACHE_ENTRIES`, least recently used evicted first; a view
+//! above the byte bound on its own is never retained.
+//!
+//! Why 256 MiB (13B-6's decision, from `phase13b_tile_sharing`'s `views`
+//! group): since 13B-2c-1 a projection leaves no view, so the bound no
+//! longer has to hold one projection's working set. What reads a view now
+//! is `develop_inspect`'s preview (`PrecisionImage::preview_view_rgba16`,
+//! the one view a production reader keeps across calls), `doc_delete_cropped`,
+//! `doc_crop_extend::background_padded` and whoever reads a byte writer's
+//! seed; every view is `cache: true` in a report, so `admit` evicts them
+//! under pressure. A miss is cheap beside what a view holds: the median
+//! re-materialization (5 samples, Release) is 31.5 ms for a 48 MP u16
+//! plane (384 MB, a 48 MP RAW develop preview's geometry output), 16.2 ms
+//! at 24 MP, and 7.7 / 17.5 ms for a 24 / 48 MP byte raster, under the
+//! declared 50 ms; a 10-layer 24 MP byte document's seeds held 960,000,000
+//! bytes resident under the old 1 GiB and hold 192,000,000 under 256 MiB.
+//! 256 MiB keeps a 24 MP u16 preview view (192 MB) or two 24 MP byte seeds;
+//! a larger plane re-materializes on each read.
 //!
 //! Writers SEED the cache with the contiguous buffer they already hold
 //! (`LayerRaster::new` / `rebuilt`, the seeded u16 constructor's `tile()`),
@@ -31,8 +46,8 @@
 //! moved out of `layer_raster` and generalized in 13B-3b-1): `PlaneKey::{Rgba8, Rgba16}` (a `Weak`
 //! of the tile plane's index — never an identity token; the variant is part of the key),
 //! `View::{Rgba8(Arc<RgbaImage>), Rgba16(Arc<Vec<[u16;4]>>)}` (bytes capacity-based; the f32
-//! variants removed in 13B-3e-4c-2a, when no f32 constructor seeds), `CONTIGUOUS_CACHE_BYTES` (1
-//! GiB) / `CONTIGUOUS_CACHE_ENTRIES` (256) shared by both depths, LRU, one live entry per plane;
+//! variants removed in 13B-3e-4c-2a, when no f32 constructor seeds), `CONTIGUOUS_CACHE_BYTES` (256
+//! MiB) / `CONTIGUOUS_CACHE_ENTRIES` (256) shared by both depths, LRU, one live entry per plane;
 //! `seed` (writers hand over the buffer they hold), `view` (hit, else materialize OUTSIDE the lock,
 //! re-check, insert; removed entries dropped unlocked), `contiguous_view_bytes` (test oracle), and
 //! the report / eviction trio `contiguous_views_of` / `record_contiguous_views` /
@@ -49,8 +64,9 @@ use crate::resources::Inventory;
 use crate::tile_store::Tile;
 
 /// Bytes of disposable contiguous views retained process-wide (see the
-/// module doc for why one projection's working set).
-pub const CONTIGUOUS_CACHE_BYTES: u64 = 1024 * 1024 * 1024;
+/// module doc for why 256 MiB: a miss costs tens of milliseconds, and no
+/// projection reads a view).
+pub const CONTIGUOUS_CACHE_BYTES: u64 = 256 * 1024 * 1024;
 
 /// Views retained process-wide, whatever their size.
 pub const CONTIGUOUS_CACHE_ENTRIES: usize = 256;

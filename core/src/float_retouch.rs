@@ -53,44 +53,38 @@
 //! the pixel buffers (the master's figure at f32 width), plus `output·16` for
 //! the W plane of a heal, spot heal or fill; the heal, synthesis and plate
 //! terms are the master's (the plate at 16 bytes a pixel). Since 13B-9b a
-//! `sample: current` spot heal or fill reads its source layer in place, so
-//! RS32 and RF32 below drop the plate's `16n + 4 MiB` and plan 3,559,730,688
-//! (`make t F=selected_color_planes_24mp A=--nocapture`); E was not re-measured.
-//! Since 13B-9c the in-place arm (RC32, RH32, RS32, RF32 below) plans what its
-//! rect walk holds instead (`precision_retouch_plan`: the 16-bit terms doubled,
-//! plus the W copy of a heal, spot heal or fill's destination rect): RC32 plans
-//! 2,005,727,488, RH32 292,541,108, RS32 and RF32 711,762,048
-//! (`make t F=selected_color_planes_24mp A=--nocapture`). RH32, RS32 and RF32's
-//! `E` below were measured while they read the canvas; their heap peaks, counted
-//! by `examples/phase13b_retouch_dab.rs`, are 104,843,077 and 339,211,458, and
-//! `selected_color_planes_24mp.rs` pins ⌈1.25 ×⌉ those. Their phys-footprint
-//! re-measure needs a quiet machine (#10).
+//! `sample: current` spot heal or fill reads its source layer in place, and
+//! since 13B-9c the in-place arm (RC32, RH32, RS32, RF32 below) plans what its
+//! rect walk holds (`precision_retouch_plan`: the 16-bit terms doubled, plus
+//! the W copy of a heal, spot heal or fill's destination rect).
 //!
 //! Measured in Release, one case per process, `MallocLargeCache=0`, a
 //! baseline twin and three runs (`examples/float_retouch_admission.rs`), on a
-//! 6000×4000 opaque float layer; `E` is the run's `phys_footprint` peak less
-//! the footprint read just before the call, the largest of the three runs.
-//! The clone covers the canvas under a translation by (64, 0); the others
-//! cover the 1000×1000 box at (2500, 1500) (heal: the same translation; spot
-//! heal and fill: ring 0, seed 7; the new-layer fill samples `all`).
+//! 6000×4000 opaque float layer; `E` is the peak `phys_footprint` over the
+//! interval that starts just before the call (`proc_reset_footprint_interval`)
+//! less the footprint read there, the largest of the three runs; each twin's
+//! is at most 16,384. The clone covers the canvas under a translation by
+//! (64, 0); the others cover the 1000×1000 box at (2500, 1500) (heal: the
+//! same translation; spot heal and fill: ring 0, seed 7; the new-layer fill
+//! samples `all`). Re-measured 2026-11-18 on the rect walks (an M2 Max,
+//! 1-minute load 2.2–5.8).
 //!
 //! | case | plan A (`scratch_bytes`) | max E | ⌈1.25 E⌉ |
 //! |---|---|---|---|
-//! | RC32 (`retouch_clone`) | 3,084,582,912 | 1,539,933,288 | 1,924,916,610 |
-//! | RH32 (`retouch_heal`) | 3,629,223,552 | 1,154,171,696 | 1,442,714,620 |
-//! | RS32 (`spot_heal`) | 3,947,924,992 | 769,966,632 | 962,458,290 |
-//! | RF32 (`content_aware_fill`) | 3,947,924,992 | 769,950,224 | 962,437,780 |
-//! | RN32 (`content_aware_fill`, new layer) | 6,306,216,448 | 2,136,524,336 | 2,670,655,420 |
-//! | RE32 (`red_eye`, the whole canvas) | 2,696,388,608 | 984,662,736 | 1,230,828,420 |
+//! | RC32 (`retouch_clone`) | 2,005,727,488 | 1,154,237,280 | 1,442,796,600 |
+//! | RH32 (`retouch_heal`) | 292,541,108 | 92,389,424 | 115,486,780 |
+//! | RS32 (`spot_heal`) | 711,762,048 | 319,832,328 | 399,790,410 |
+//! | RF32 (`content_aware_fill`) | 711,762,048 | 319,865,096 | 399,831,370 |
+//! | RN32 (`content_aware_fill`, new layer) | 6,306,216,448 | 2,112,751,104 | 2,640,938,880 |
+//! | RE32 (`red_eye`, the whole canvas) | 2,696,388,608 | 905,904,776 | 1,132,380,970 |
 //!
 //! `A ≥ ⌈1.25 E⌉` in each, so the multipliers stand; the floors are pinned by
 //! `selected_color_planes_24mp.rs` (`FLOOR_RC32`, `FLOOR_RH32`, `FLOOR_RS32`,
 //! `FLOOR_RF32`, `FLOOR_RN32`, `FLOOR_RE32`). Red Eye's display-encoded copy
 //! of its rect (n×16 at most) sits inside the f32 buffer term the plan
-//! already doubles (2026-10-12; its twin peaks at 1,155,384,424, below the
-//! run's 1,421,411,648, so E is the retouch's own). The twin's own peak (building the document)
-//! is 1,155,400,832, above the pre-call footprint of 436.7 MB, so the spot
-//! heal's and the fill's `E` is an upper bound on what the retouch holds.
+//! already doubles. The process's whole-run peak cannot stand in for `E` on
+//! the boxed cases: building the document peaks 718,635,512 above the
+//! pre-call footprint, above what the heal, spot heal and fill hold.
 
 use crate::blend::BlendMode;
 use crate::blend_float::blend_kind_at;

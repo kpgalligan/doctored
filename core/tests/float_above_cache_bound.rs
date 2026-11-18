@@ -1,4 +1,5 @@
-//! A 32-bit float plane above `CONTIGUOUS_CACHE_BYTES` (67,108,864 px)
+//! A 32-bit float plane above 1 GiB (67,108,864 px; the view bound these
+//! tests' "cache bound" names was 1 GiB until 2026-11-18, 256 MiB since)
 //! is tiled at the 8 GiB working limit of a 16 GB Mac, where such a raster is
 //! admitted. Phase 1 tiled every plane built without an adopted `Vec` (an
 //! added, filled layer, the float `.rz` reopen and every `with_rect`

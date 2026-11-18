@@ -298,7 +298,42 @@
 //! `DR_TILE_SHARING_ONLY=producers` only the two 13B-3d-3a procedures, and
 //! `DR_TILE_SHARING_ONLY=filled` only `typed/filled`, and
 //! `DR_TILE_SHARING_ONLY=exports` only `typed/exports`, and
-//! `DR_TILE_SHARING_ONLY=whole_readers` only `typed/whole_readers`.
+//! `DR_TILE_SHARING_ONLY=whole_readers` only `typed/whole_readers`, and
+//! `DR_TILE_SHARING_ONLY=latency`, `=views` and `=copy_split` only the
+//! groups below.
+//!
+//! The `latency` group (13B's quiet-machine residue) prints `typed`'s
+//! `typed/dab`, `typed/dab_blend`, `typed/projection` and `typed/save` over
+//! the 24 MP corpus; `typed/projection_masked`, `typed/projection` over the
+//! dabbed document after a canvas-sized `set_mask` `(i·7919) mod 65536` on
+//! layer 0 (the typed mask read, `PreparedMask::at`); and `regional_window`
+//! with its twin `regional_window_masked`, whose layer 1 carries that mask's
+//! high byte (the byte regional tree's mask read). Every one of these lines,
+//! wherever it prints, carries `bound_ms` (each declared bound of its `op` in
+//! `LATENCY_BOUNDS_MS`, by timed key: `ms` and `ms_median` on the dab lines,
+//! `ms` on the save, `ms_cold` and `ms_warm` on the renders) and `verdict`
+//! (`MET`, `MISSED`, or `UNSET` when the op declares none). The `views`
+//! group prints `views/miss` per plane (`rgba8_24mp`, `rgba8_48mp`: a
+//! `LayerRaster::new` raster, the views evicted, `contiguous_image()` timed
+//! as `ms_miss` and again as `ms_hit`; `rgba16_24mp`, `rgba16_48mp`: a u16
+//! `TilePlane`'s `to_contiguous(None)` after the eviction, `ms_miss`) with
+//! its `bytes`, and `views/resident`: `contiguous_view_bytes()` after a
+//! 10-layer 24 MP byte document is built from `from_pixels` and
+//! `adding_image_layer` (every layer seeds its view), and after the
+//! eviction, beside `CONTIGUOUS_CACHE_BYTES`. The `copy_split` group splits
+//! `typed/clipboard`'s warm `copy_layer` at 3000×2000 into its stages in
+//! one process: a one-raster document of the same u16 corpus layer (the
+//! Copy reads layer 0 alone; `source_tiles` is its tile count, 0 for a
+//! contiguous plane), one warm-up round, then medians of 9 rounds,
+//! each timing in turn `ms_call` (the row's `dr_precision_doc_clipboard_copy`),
+//! `ms_copy` (`PrecisionDocument::clipboard_copy`: the source read and the
+//! payload's tile write), `ms_encode` (`ClipboardPayload::encode`, the RZCB
+//! stream the handle builds), `ms_read_tiles` (the source's `row_segments`,
+//! one run a tile column, copied into one row buffer, as the Copy reads
+//! it), `ms_read_contiguous` (the same samples copied a row at a time
+//! from one contiguous buffer) and `ms_build_contiguous` (those rows
+//! appended to one fresh buffer: the payload build with no tile on either
+//! side).
 //!
 //! 13B-3e-1 adds `typed/exports`, printed last in the full run and alone by
 //! `DR_TILE_SHARING_ONLY=exports`, with `typed/plates`' fields and procedure
@@ -430,7 +465,7 @@ use std::ffi::{c_char, CStr};
 use std::ptr;
 use std::time::Instant;
 
-use doctored_core::contiguous_views::contiguous_view_bytes;
+use doctored_core::contiguous_views::{contiguous_view_bytes, CONTIGUOUS_CACHE_BYTES};
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_export::ExportRequest;
 use doctored_core::ffi::{
@@ -493,6 +528,7 @@ use doctored_core::ffi_selected_adjustment::dr_precision_doc_selected_auto_level
 use doctored_core::icc::IccProfile;
 use doctored_core::job_control::DrJobControl;
 use doctored_core::layer_insert::InsertPosition;
+use doctored_core::layer_raster::LayerRaster;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_clipboard::{
     ClipboardRead, PastePlacement, PasteProfile, PasteRequest,
@@ -502,7 +538,7 @@ use doctored_core::precision_codec::{self, PrecisionFormat};
 use doctored_core::precision_conversion_narrow::Narrowed;
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
 use doctored_core::precision_geometry::GeometryEdit;
-use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
+use doctored_core::precision_image::{PrecisionImage, PrecisionRun, REFERENCE_WORKING_BYTES};
 use doctored_core::precision_mask_edit::MaskEdit;
 use doctored_core::precision_quantize::PrecisionDither;
 use doctored_core::raw_local_develop::develop;
@@ -526,6 +562,46 @@ mod resource_report;
 
 /// `typed/float_projection`'s corpus size (a 16 B/px float plane).
 const FLOAT_DIMENSIONS: (u32, u32) = (3000, 2000);
+
+/// The declared latency bounds of the `latency` group (module doc): `(op,
+/// timed key, bound in ms)`, each 1.10 × the key's median of 5 samples at
+/// idle (a Release build, one process a sample, 1-minute load 3.3–4.4 on an
+/// M2 Max with 96 GB), rounded up to 0.1 ms.
+const LATENCY_BOUNDS_MS: &[(&str, &str, f64)] = &[
+    ("typed/dab", "ms", 97.6),
+    ("typed/dab", "ms_median", 11.8),
+    ("typed/dab_blend", "ms", 98.4),
+    ("typed/dab_blend", "ms_median", 12.4),
+    ("typed/projection", "ms_cold", 399.2),
+    ("typed/projection", "ms_warm", 344.0),
+    ("typed/save", "ms", 219.5),
+    ("typed/projection_masked", "ms_cold", 465.6),
+    ("typed/projection_masked", "ms_warm", 427.2),
+    ("regional_window", "ms_cold", 24.5),
+    ("regional_window", "ms_warm", 22.9),
+    ("regional_window_masked", "ms_cold", 29.7),
+    ("regional_window_masked", "ms_warm", 29.2),
+];
+
+/// `line` with `bound_ms` (each declared bound of its `op`, by timed key)
+/// and `verdict`: `"MET"` when every bounded key is within its bound,
+/// `"MISSED"` when one is not, `"UNSET"` when `op` declares none.
+fn bounded(mut line: Value) -> Value {
+    let op = line["op"].as_str().unwrap_or_default().to_string();
+    let mut bounds = serde_json::Map::new();
+    let mut met = true;
+    for &(_, key, bound) in LATENCY_BOUNDS_MS.iter().filter(|(o, ..)| *o == op) {
+        bounds.insert(key.to_string(), json!(bound));
+        met &= line[key].as_f64().is_some_and(|v| v <= bound);
+    }
+    line["verdict"] = json!(match (bounds.is_empty(), met) {
+        (true, _) => "UNSET",
+        (false, true) => "MET",
+        (false, false) => "MISSED",
+    });
+    line["bound_ms"] = Value::Object(bounds);
+    line
+}
 
 fn line(op: &str, (width, height): (u32, u32), planes: u64, a: TileAccounting, ms: f64) {
     let tiles = u64::from(width.div_ceil(256)) * u64::from(height.div_ceil(256));
@@ -652,8 +728,25 @@ fn flattened((width, height): (u32, u32)) {
     );
 }
 
-fn regional_window((width, height): (u32, u32)) {
-    let document = three_layers((width, height));
+/// `regional_window`, or with `masked` `regional_window_masked`: layer 1
+/// carries a canvas-sized byte mask, the high byte of `(i·7919) mod 65536`.
+fn regional_window((width, height): (u32, u32), masked: bool) {
+    let mut document = three_layers((width, height));
+    if masked {
+        let coverage: Vec<u8> = producer_coverage((width, height))
+            .into_iter()
+            .map(|v| (v >> 8) as u8)
+            .collect();
+        let coverage = image::GrayImage::from_raw(width, height, coverage).expect("a byte mask");
+        document = document
+            .set_mask(1, coverage, (0, 0), true, 0)
+            .expect("a masked document");
+    }
+    let op = if masked {
+        "regional_window_masked"
+    } else {
+        "regional_window"
+    };
     let documents = [&document as *const DrDocument];
     let request = RegionRequest {
         x: 2500,
@@ -678,8 +771,8 @@ fn regional_window((width, height): (u32, u32)) {
     let measured = report(&documents);
     println!(
         "{}",
-        json!({
-            "op": "regional_window",
+        bounded(json!({
+            "op": op,
             "width": width,
             "height": height,
             "layers": document.layers.len(),
@@ -687,6 +780,84 @@ fn regional_window((width, height): (u32, u32)) {
             "ms_cold": ms_cold,
             "ms_warm": ms_warm,
             "contiguous_views_after_warm": category(&measured, "contiguous_views", "allocation_count"),
+        }))
+    );
+}
+
+/// The `views` group (module doc): what a view-cache miss costs per plane
+/// size, and what a 10-layer 24 MP byte document leaves resident.
+fn views() {
+    let [small, large] = phase4_corpus::DIMENSIONS;
+    for (plane, (width, height)) in [("rgba8_24mp", small), ("rgba8_48mp", large)] {
+        let raster = LayerRaster::new(phase4_corpus::image(width, height));
+        resource_report::evict(&[]).expect("an eviction report");
+        let start = Instant::now();
+        let miss = raster.contiguous_image();
+        let ms_miss = ms(start);
+        drop(miss);
+        let start = Instant::now();
+        let hit = raster.contiguous_image();
+        let ms_hit = ms(start);
+        drop(hit);
+        println!(
+            "{}",
+            json!({
+                "op": "views/miss",
+                "plane": plane,
+                "width": width,
+                "height": height,
+                "bytes": u64::from(width) * u64::from(height) * 4,
+                "ms_miss": ms_miss,
+                "ms_hit": ms_hit,
+            })
+        );
+    }
+    for (plane, (width, height)) in [("rgba16_24mp", small), ("rgba16_48mp", large)] {
+        let source: Vec<[u16; 4]> = phase4_corpus::image(width, height)
+            .into_raw()
+            .chunks_exact(4)
+            .map(|p| [p[0], p[1], p[2], p[3]].map(|v| u16::from(v) * 257))
+            .collect();
+        let tiles = TilePlane::from_contiguous(width, height, &source, None).expect("tiled");
+        drop(source);
+        resource_report::evict(&[]).expect("an eviction report");
+        let start = Instant::now();
+        let miss = tiles.to_contiguous(None).expect("contiguous");
+        let ms_miss = ms(start);
+        drop(miss);
+        println!(
+            "{}",
+            json!({
+                "op": "views/miss",
+                "plane": plane,
+                "width": width,
+                "height": height,
+                "bytes": u64::from(width) * u64::from(height) * 8,
+                "ms_miss": ms_miss,
+            })
+        );
+    }
+    resource_report::evict(&[]).expect("an eviction report");
+    let (width, height) = small;
+    let mut document = DrDocument::from_pixels(phase4_corpus::image(width, height));
+    for k in 1..10 {
+        document = document
+            .adding_image_layer(k - 1, phase4_corpus::image(width, height), "Layer")
+            .expect("a layer");
+    }
+    let built = contiguous_view_bytes();
+    resource_report::evict(&[&document as *const DrDocument]).expect("an eviction report");
+    let evicted = contiguous_view_bytes();
+    println!(
+        "{}",
+        json!({
+            "op": "views/resident",
+            "width": width,
+            "height": height,
+            "layers": document.layers.len(),
+            "contiguous_view_bytes_built": built,
+            "contiguous_view_bytes_evicted": evicted,
+            "cap_bytes": CONTIGUOUS_CACHE_BYTES,
         })
     );
 }
@@ -1138,7 +1309,7 @@ fn try_typed_dabs(
     drop(samples);
     println!(
         "{}",
-        json!({
+        bounded(json!({
             "op": op,
             "width": width,
             "height": height,
@@ -1155,7 +1326,7 @@ fn try_typed_dabs(
             "ms_median": (sorted[3] + sorted[4]) / 2.0,
             "checkpoints": checkpoints,
             "sha256": sha256::sha256_hex(&bytes),
-        })
+        }))
     );
     Ok(handles)
 }
@@ -1245,18 +1416,60 @@ fn typed_retouch() {
     );
 }
 
-fn typed((width, height): (u32, u32)) {
+fn typed(size: (u32, u32)) {
     // (1) Eight opaque dabs, one state each (and the `paint_blend` twin).
-    let handles = typed_dab_lines((width, height));
+    let handles = typed_dab_lines(size);
     let dabbed = handles[8];
+    // (2) The projection, cold then warm; (3) the native save.
+    typed_projection("typed/projection", dabbed, size);
+    typed_save(dabbed, size);
+    typed_regional_window(dabbed, size);
+    for handle in handles.into_iter().rev() {
+        unsafe { dr_precision_doc_free(handle) };
+    }
+}
 
-    // (2) The projection, cold then warm.
+/// The `latency` group (module doc): `typed`'s dab, projection and save
+/// lines, `typed/projection_masked`, then `regional_window` and
+/// `regional_window_masked`.
+fn latency(size: (u32, u32)) {
+    let handles = typed_dab_lines(size);
+    let dabbed = handles[8];
+    typed_projection("typed/projection", dabbed, size);
+    typed_save(dabbed, size);
+    let mask = MaskEdit::parse(
+        &json!({"op":"set_mask","layer":0,"width":size.0,"height":size.1,"x":0,"y":0}).to_string(),
+    )
+    .expect("a mask request");
+    let masked = unsafe { &*dabbed }
+        .mask_edit(
+            &mask,
+            &producer_coverage(size),
+            REFERENCE_WORKING_BYTES,
+            0,
+            None,
+        )
+        .expect("a mask")
+        .expect("a masked document");
+    let masked = Box::into_raw(Box::new(masked));
+    typed_projection("typed/projection_masked", masked, size);
+    unsafe { dr_precision_doc_free(masked) };
+    for handle in handles.into_iter().rev() {
+        unsafe { dr_precision_doc_free(handle) };
+    }
+    regional_window(size, false);
+    regional_window(size, true);
+}
+
+/// `doc` rendered through `dr_precision_doc_render` cold after an eviction,
+/// then warm, printed as line `op` (`typed/projection`'s keys).
+fn typed_projection(op: &str, doc: *mut PrecisionDocument, (width, height): (u32, u32)) {
     resource_report::evict(&[]).expect("an eviction report");
     let render = || {
         let mut error = ptr::null_mut();
         let start = Instant::now();
         let out = unsafe {
-            dr_precision_doc_render(dabbed, REFERENCE_WORKING_BYTES, 0, ptr::null(), &mut error)
+            dr_precision_doc_render(doc, REFERENCE_WORKING_BYTES, 0, ptr::null(), &mut error)
         };
         let elapsed = ms(start);
         typed_error(error, "typed render");
@@ -1265,8 +1478,8 @@ fn typed((width, height): (u32, u32)) {
     };
     let (cold, ms_cold) = render();
     let (warm, ms_warm) = render();
-    let measured = typed_report(&[dabbed as *const _], &[cold as *const _, warm as *const _]);
-    let document_views = typed_report(&[dabbed as *const _], &[])["contiguous_view_bytes"]
+    let measured = typed_report(&[doc as *const _], &[cold as *const _, warm as *const _]);
+    let document_views = typed_report(&[doc as *const _], &[])["contiguous_view_bytes"]
         .as_u64()
         .unwrap_or(0);
     let lent = unsafe { dr_precision_image_pixels_rgba16(warm) };
@@ -1276,8 +1489,8 @@ fn typed((width, height): (u32, u32)) {
     };
     println!(
         "{}",
-        json!({
-            "op": "typed/projection",
+        bounded(json!({
+            "op": op,
             "width": width,
             "height": height,
             "ms_cold": ms_cold,
@@ -1286,13 +1499,15 @@ fn typed((width, height): (u32, u32)) {
             "contiguous_view_bytes": measured["contiguous_view_bytes"].as_u64().unwrap_or(0),
             "contiguous_views.allocation_count": category(&measured, "contiguous_views", "allocation_count"),
             "sha256": sha256::sha256_hex(bytes),
-        })
+        }))
     );
     for image in [cold, warm] {
         unsafe { dr_precision_image_free(image) };
     }
+}
 
-    // (3) The native save of the dabbed document.
+/// `typed/save`: the native save of the dabbed document.
+fn typed_save(dabbed: *mut PrecisionDocument, (width, height): (u32, u32)) {
     let path = std::env::temp_dir().join(format!("phase13b_typed_{}.rz", std::process::id()));
     let c_path = std::ffi::CString::new(path.to_str().expect("a UTF-8 path")).unwrap();
     let mut error = ptr::null_mut();
@@ -1315,7 +1530,7 @@ fn typed((width, height): (u32, u32)) {
     std::fs::remove_file(&path).expect("the saved file removed");
     println!(
         "{}",
-        json!({
+        bounded(json!({
             "op": "typed/save",
             "width": width,
             "height": height,
@@ -1324,12 +1539,8 @@ fn typed((width, height): (u32, u32)) {
             "contiguous_view_bytes": measured["contiguous_view_bytes"].as_u64().unwrap_or(0),
             "contiguous_views.allocation_count": category(&measured, "contiguous_views", "allocation_count"),
             "ms": elapsed,
-        })
+        }))
     );
-    typed_regional_window(dabbed, (width, height));
-    for handle in handles.into_iter().rev() {
-        unsafe { dr_precision_doc_free(handle) };
-    }
 }
 
 /// `typed/regional_window` (13B-3c-1): the dabbed document's 1024×1024
@@ -2631,8 +2842,11 @@ fn typed_clipboard() {
                 width: w,
                 height: h,
             };
+            // The untimed input: no working limit, so the 24 MP Copy's host
+            // stage (refused at 2 GiB) cannot end the run before the timed
+            // paste, which keeps the reference limit.
             let payload = source
-                .clipboard_copy(&read, None, REFERENCE_WORKING_BYTES, 0, None)
+                .clipboard_copy(&read, None, u64::MAX, 0, None)
                 .expect("a P3 payload");
             drop(source);
             (plates_document((w, h)), payload)
@@ -2649,6 +2863,113 @@ fn typed_clipboard() {
             doc.clipboard_paste(payload, &request, REFERENCE_WORKING_BYTES, 0, None)
         },
         plates_document_bytes,
+    );
+}
+
+/// The `copy_split` group (module doc): `typed/clipboard`'s warm
+/// `copy_layer` split into its stages in one process, the stages
+/// alternated within each round so a load change reaches them alike.
+fn copy_split() {
+    const ROUNDS: usize = 9;
+    let (width, height) = FLOAT_DIMENSIONS;
+    let source: Vec<[u16; 4]> = phase4_corpus::image(width, height)
+        .into_raw()
+        .chunks_exact(4)
+        .map(|p| [p[0], p[1], p[2], p[3]].map(|v| u16::from(v) * 257))
+        .collect();
+    let image =
+        PrecisionImage::from_rgba16(width, height, source.clone(), IccProfile::srgb(), None)
+            .expect("a typed corpus image");
+    let doc = PrecisionDocument::from_parts(
+        width,
+        height,
+        IccProfile::srgb(),
+        Metadata::default(),
+        Resolution::default(),
+        vec![Layer::raster("Base", image.clone(), (0, 0), 1.0, true).expect("the base")],
+    )
+    .expect("the split document");
+    let read = ClipboardRead::Copy {
+        layer: 0,
+        x: 0,
+        y: 0,
+        width,
+        height,
+    };
+    let request = std::ffi::CString::new(
+        json!({"op":"copy","layer":0,"x":0,"y":0,"width":width,"height":height}).to_string(),
+    )
+    .unwrap();
+    let mut row = vec![[0_u16; 4]; width as usize];
+    resource_report::evict(&[]).expect("an eviction report");
+    let mut stages: [Vec<f64>; 6] = Default::default();
+    for round in 0..=ROUNDS {
+        let mut times = [0.0; 6];
+        let start = Instant::now();
+        let handle = clipboard_copy_handle(&doc, &request).expect("a Copy");
+        times[0] = ms(start);
+        drop(handle);
+        let start = Instant::now();
+        let payload = doc
+            .clipboard_copy(&read, None, REFERENCE_WORKING_BYTES, 0, None)
+            .expect("a payload");
+        times[1] = ms(start);
+        let start = Instant::now();
+        let stream = payload.encode().expect("an RZCB stream");
+        times[2] = ms(start);
+        drop(stream);
+        drop(payload);
+        let start = Instant::now();
+        for y in 0..height {
+            let mut at = 0;
+            for (_, run) in image.row_segments(y, 0, width) {
+                if let PrecisionRun::Rgba16(run) = run {
+                    row[at..at + run.len()].copy_from_slice(run);
+                    at += run.len();
+                }
+            }
+            std::hint::black_box(&row);
+        }
+        times[3] = ms(start);
+        let start = Instant::now();
+        for line in source.chunks_exact(width as usize) {
+            row.copy_from_slice(line);
+            std::hint::black_box(&row);
+        }
+        times[4] = ms(start);
+        let start = Instant::now();
+        let mut built: Vec<[u16; 4]> = Vec::with_capacity(source.len());
+        for line in source.chunks_exact(width as usize) {
+            built.extend_from_slice(line);
+        }
+        std::hint::black_box(&built);
+        drop(built);
+        times[5] = ms(start);
+        if round > 0 {
+            for (stage, time) in stages.iter_mut().zip(times) {
+                stage.push(time);
+            }
+        }
+    }
+    let [call, copy, encode, tiles, contiguous, flat] = stages.map(|mut stage| {
+        stage.sort_by(f64::total_cmp);
+        stage[ROUNDS / 2]
+    });
+    println!(
+        "{}",
+        json!({
+            "op": "copy_split",
+            "width": width,
+            "height": height,
+            "rounds": ROUNDS,
+            "source_tiles": image.shared_tile_count(&image),
+            "ms_call": call,
+            "ms_copy": copy,
+            "ms_encode": encode,
+            "ms_read_tiles": tiles,
+            "ms_read_contiguous": contiguous,
+            "ms_build_contiguous": flat,
+        })
     );
 }
 
@@ -3205,6 +3526,18 @@ fn typed_exports() {
 
 fn main() {
     match std::env::var("DR_TILE_SHARING_ONLY").as_deref() {
+        Ok("latency") => {
+            latency(phase4_corpus::DIMENSIONS[0]);
+            return;
+        }
+        Ok("views") => {
+            views();
+            return;
+        }
+        Ok("copy_split") => {
+            copy_split();
+            return;
+        }
         Ok("decoders") => {
             typed_decoders();
             return;
@@ -3314,7 +3647,7 @@ fn main() {
         document_dab(size);
     }
     flattened(phase4_corpus::DIMENSIONS[0]);
-    regional_window(phase4_corpus::DIMENSIONS[0]);
+    regional_window(phase4_corpus::DIMENSIONS[0], false);
     rect_writers(phase4_corpus::DIMENSIONS[0]);
     placed_source(phase4_corpus::DIMENSIONS[0]);
     transforms(phase4_corpus::DIMENSIONS[0]);

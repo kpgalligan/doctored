@@ -31,9 +31,14 @@
 //! run. The plan is read from `dr_precision_doc_edit_plan`: `scratch_bytes`
 //! is the scratch the retouch charges and `plan_bytes` is that plus the
 //! retained document. Both modes print `footprint_before_bytes`, this
-//! process's `phys_footprint` read just before the first call: the run's peak
-//! less that is the call's own peak, the figure held against `scratch_bytes`
-//! with the 1.25 margin (`float_retouch`'s module doc, `# Admission`).
+//! process's `phys_footprint` read just before the first call,
+//! `interval_peak_bytes`, its peak over the interval that starts there
+//! (`proc_reset_footprint_interval`, so building the document is outside it
+//! and the twin reads no rise), and `e_bytes`, their difference: the call's
+//! own peak, the figure held against `scratch_bytes` with the 1.25 margin
+//! (`float_retouch`'s module doc, `# Admission`). The process's whole-run
+//! peak (`/usr/bin/time -l`) is the document build's on the boxed cases,
+//! which hides the retouch beneath it.
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -157,19 +162,31 @@ fn coverage(case: &str) -> Vec<u16> {
         .collect()
 }
 
-/// This process's current `phys_footprint`, the figure whose peak
-/// `/usr/bin/time -l` reports.
-fn footprint() -> u64 {
-    let mut info: libc::rusage_info_v0 = unsafe { std::mem::zeroed() };
-    let status = unsafe {
-        libc::proc_pid_rusage(
-            std::process::id() as libc::c_int,
-            libc::RUSAGE_INFO_V0,
-            (&mut info as *mut libc::rusage_info_v0).cast(),
-        )
+/// `rusage_info_v4` as `float_retouch_brush_admission.rs` reads it: a uuid,
+/// then 35 words.
+#[repr(C)]
+struct RusageInfoV4 {
+    uuid: [u8; 16],
+    fields: [u64; 35],
+}
+const PHYS_FOOTPRINT: usize = 7;
+const INTERVAL_MAX_PHYS_FOOTPRINT: usize = 33;
+
+extern "C" {
+    fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut RusageInfoV4) -> i32;
+    fn proc_reset_footprint_interval(pid: i32) -> i32;
+}
+
+/// This process's `phys_footprint` (the figure whose peak `/usr/bin/time -l`
+/// reports) or its peak since the interval was last reset.
+fn rusage(field: usize) -> u64 {
+    let mut info = RusageInfoV4 {
+        uuid: [0; 16],
+        fields: [0; 35],
     };
+    let status = unsafe { proc_pid_rusage(std::process::id() as i32, 4, &mut info) };
     assert_eq!(status, 0, "proc_pid_rusage");
-    info.ri_phys_footprint
+    info.fields[field]
 }
 
 fn main() {
@@ -202,18 +219,24 @@ fn main() {
         (out, taken(error))
     };
     let scratch = scratch_of(&document, &text);
-    let before = footprint();
+    let before = rusage(PHYS_FOOTPRINT);
+    unsafe { proc_reset_footprint_interval(std::process::id() as i32) };
     let (out, refusal) = edit(1);
     assert!(out.is_null(), "a one-byte limit refuses");
     assert!(refusal.contains("working limit"), "{refusal}");
     let retained = document.retained_bytes();
     let mut result_bytes = 0;
+    // Held until the interval's peak is read, as the app holds the result.
+    let mut held = None;
     if run {
         let (out, error) = edit(UNLIMITED);
         assert!(!out.is_null(), "{error}");
         let retouched = unsafe { Box::from_raw(out) };
         result_bytes = retouched.retained_bytes();
+        held = Some(retouched);
     }
+    let peak = rusage(INTERVAL_MAX_PHYS_FOOTPRINT);
+    drop(held);
     println!(
         "{}",
         json!({
@@ -223,6 +246,8 @@ fn main() {
             "retained_bytes": retained,
             "scratch_bytes": scratch,
             "footprint_before_bytes": before,
+            "interval_peak_bytes": peak,
+            "e_bytes": peak.saturating_sub(before),
             "result_retained_bytes": result_bytes,
         })
     );

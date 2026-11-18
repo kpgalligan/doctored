@@ -25,9 +25,13 @@
 //!
 //! The report is the float preflight (`limited_psd_report` at 4 B a sample;
 //! a layered TIFF refuses with [`TIFF_REFUSAL`]: the 32-bit layered TIFF
-//! is RGB only), and the admission is the 32-bit RGB save's measured
-//! one (`admit_psd32`), which charges four planes where this writes two: no
-//! new plan.
+//! is RGB only), whose inventory charges each record the two planes it
+//! writes. The admission is the 32-bit RGB save's measured one
+//! (`admit_psd32`: the worst case and 28 B a canvas pixel, measured for the
+//! projection and composite transients) with the report's `held_bytes`
+//! added to the worst case: the records held beside the file, 8 B a pixel
+//! for each full-canvas record (`channels_gray32`), which the 28 B do not
+//! cover. The report still states no plan.
 
 use crate::gray_document::GrayDepth;
 use crate::icc_builtin::gray_linear_twin;
@@ -125,7 +129,10 @@ impl PrecisionDocument {
         let projection = projection.ok_or(
             "a Grayscale document's PSD export requires its projection (required handle is NULL)",
         )?;
-        self.admit_psd32(projection, report.worst_case_bytes, limit, other)?;
+        // The records held beside the file (`held_bytes`) on top of the 32-bit
+        // RGB save's measured admission (module doc).
+        let file_and_held = report.worst_case_bytes.saturating_add(report.held_bytes);
+        self.admit_psd32(projection, file_and_held, limit, other)?;
         let large = container.large();
         let (width, height) = self.dimensions();
         let colors = StyleEnv::colors_for(self.profile());

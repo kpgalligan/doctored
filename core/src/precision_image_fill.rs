@@ -13,7 +13,9 @@
 //! decode straight into tiles at every size);
 //! [`PrecisionImage::from_rgba16_tiles_unseeded`] adopts a built plane's
 //! tiles as they are (the uniform resample output, whose uniform
-//! tiles are already shared) under the same admission.
+//! tiles are already shared, and the Copy / Cut payload built straight
+//! into tiles) under the same admission, and
+//! [`PrecisionImage::from_rgba32_tiles_unseeded`] is its f32 twin.
 
 use std::sync::Arc;
 
@@ -66,10 +68,10 @@ impl PrecisionImage {
         ))
     }
 
-    /// Adopts `plane`'s tiles as they are (the uniform resample):
-    /// a fresh identity, nothing seeded, no uniform refill. Admits the
-    /// plane's `8·w·h` bytes beside bookkeeping first, as
-    /// [`Self::from_rgba16_tiles_decoded`] does.
+    /// Adopts `plane`'s tiles as they are (the uniform resample, and the
+    /// Copy / Cut payload built straight into tiles): a fresh identity,
+    /// nothing seeded, no uniform refill. Admits the plane's `8·w·h` bytes
+    /// beside bookkeeping first, as [`Self::from_rgba16_tiles_decoded`] does.
     pub(crate) fn from_rgba16_tiles_unseeded(
         plane: TilePlane<[u16; 4]>,
         profile: Arc<IccProfile>,
@@ -89,29 +91,42 @@ impl PrecisionImage {
     /// raster and the float TIFF open decode into tiles, and float paint's
     /// grown-extent arm builds its plane into tiles).
     /// Admits the plane's `16·w·h` bytes beside bookkeeping first, then
-    /// checks every sample with `extended_pixel` through
-    /// `TilePlane::row_segments` (no allocation) and refuses the first
-    /// failure with `from_rgba32_extended`'s sentence. A bitwise-uniform
-    /// plane becomes ONE filled plane. A fresh identity, nothing seeded, no
-    /// job.
+    /// checks every sample with `extended_pixel` (`admitted_extended`:
+    /// each tile's own samples, one verdict a tile, no allocation) and
+    /// refuses a failure with `from_rgba32_extended`'s sentence. A
+    /// bitwise-uniform plane becomes ONE filled plane. A fresh identity,
+    /// nothing seeded, no job.
     pub(crate) fn from_rgba32_tiles_decoded(
         plane: TilePlane<[f32; 4]>,
         profile: Arc<IccProfile>,
     ) -> Result<Self, String> {
         let (width, height) = plane.dimensions();
-        let bytes = pixel_count(width, height)? as u64 * 16;
-        admit(bytes, BOOKKEEPING_BYTES, 0, process_working_limit())?;
-        for y in 0..height {
-            for (_, run) in plane.row_segments(y, 0, width) {
-                if !run.iter().all(|pixel| extended_pixel(*pixel)) {
-                    return Err(EXTENDED.into());
-                }
-            }
-        }
+        admitted_extended(&plane)?;
         let plane = match plane.uniform_sample() {
             Some(value) => TilePlane::filled(width, height, value)?,
             None => plane,
         };
+        Ok(Self::assembled(
+            width,
+            height,
+            profile,
+            Pixels::F32(Plane::Tiled(plane)),
+        ))
+    }
+
+    /// The f32 twin of [`Self::from_rgba16_tiles_unseeded`] (the Copy / Cut
+    /// payload, built straight into tiles): adopts `plane`'s tiles as they
+    /// are, no uniform refill, after
+    /// [`Self::from_rgba32_tiles_decoded`]'s admission of `16·w·h` bytes
+    /// beside bookkeeping and its `extended_pixel` check of every sample,
+    /// with `from_rgba32_extended`'s sentence. A fresh identity, nothing
+    /// seeded, no job.
+    pub(crate) fn from_rgba32_tiles_unseeded(
+        plane: TilePlane<[f32; 4]>,
+        profile: Arc<IccProfile>,
+    ) -> Result<Self, String> {
+        let (width, height) = plane.dimensions();
+        admitted_extended(&plane)?;
         Ok(Self::assembled(
             width,
             height,
@@ -135,6 +150,32 @@ impl PrecisionImage {
         let plane = filled_plane(width, height, value)?;
         Ok(Self::assembled(width, height, profile, Pixels::F32(plane)))
     }
+}
+
+/// The f32 tile constructors' admission and check: `16·w·h` bytes beside
+/// bookkeeping, then every sample `extended_pixel`, a failure refused with
+/// `from_rgba32_extended`'s sentence. The check walks each tile's own
+/// contiguous samples in storage order (no allocation), not canvas rows
+/// across the tiles (`row_segments`, one short run per tile).
+fn admitted_extended(plane: &TilePlane<[f32; 4]>) -> Result<(), String> {
+    let (width, height) = plane.dimensions();
+    let bytes = pixel_count(width, height)? as u64 * 16;
+    admit(bytes, BOOKKEEPING_BYTES, 0, process_working_limit())?;
+    for ty in 0..plane.rows() {
+        for tx in 0..plane.columns() {
+            // One verdict a tile, no exit per sample, so the walk can run
+            // without a branch a sample.
+            let valid = plane.tile(tx, ty).is_none_or(|tile| {
+                tile.samples()
+                    .iter()
+                    .fold(true, |valid, pixel| valid & extended_pixel(*pixel))
+            });
+            if !valid {
+                return Err(EXTENDED.into());
+            }
+        }
+    }
+    Ok(())
 }
 
 /// One plane of `value`: tiled through `TilePlane::filled` at every size,

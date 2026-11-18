@@ -21,8 +21,8 @@
 //!   is tiled at every size (filled planes, uniform decoded planes, the
 //!   float `.rz` reopen and float TIFF open, decoded straight into tiles,
 //!   and every `with_rect` output), and every adopted f32 plane is too,
-//!   above `CONTIGUOUS_CACHE_BYTES` (67,108,864 f32 px, reachable at the
-//!   8 GiB limit of a 16 GB Mac) included: each adopting plan charges the
+//!   above `CONTIGUOUS_CACHE_BYTES` (16,777,216 f32 px) included: each
+//!   adopting plan charges the
 //!   tiling copy beside its `Vec`.
 //!
 //! ACCESSOR CONTRACT (13B-3a). There is NO borrowed-slice read accessor, no
@@ -480,11 +480,16 @@ pub(crate) fn admit(retained: u64, scratch: u64, other: u64, limit: u64) -> Resu
 
 /// The extended-range storage invariant, written once: finite RGB within
 /// ±`FLOAT_RANGE_MAX` and alpha in [0, 1] (`float_document`'s contract).
+/// Written without a branch: `FLOAT_RANGE_MAX` is finite, so `|v| ≤ max` is
+/// false for NaN and ±∞ and needs no `is_finite`, and `0 ≤ a ≤ 1` likewise;
+/// a walk that folds the verdicts with `&` then has no branch a sample.
 pub(crate) fn extended_pixel(pixel: [f32; 4]) -> bool {
     let max = crate::float_document::FLOAT_RANGE_MAX;
-    pixel[..3].iter().all(|v| v.is_finite() && v.abs() <= max)
-        && pixel[3].is_finite()
-        && (0.0..=1.0).contains(&pixel[3])
+    (pixel[0].abs() <= max)
+        & (pixel[1].abs() <= max)
+        & (pixel[2].abs() <= max)
+        & (pixel[3] >= 0.0)
+        & (pixel[3] <= 1.0)
 }
 
 pub(crate) fn reserved_vec<T>(count: usize) -> Result<Vec<T>, String> {

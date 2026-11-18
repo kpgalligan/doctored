@@ -7,7 +7,7 @@ import Foundation
 // `working_limit` object). The core bounds its own resident caches: style planes, mask caches and
 // LUT tables are held by its process-wide registry at working limit / 8, least recently used
 // evicted first (13B-6; the report's `cache_registry` section, whose `bound_bytes` this reports as
-// `cache_limit_bytes`), and the contiguous layer views by their own 1 GiB cache, so the host trims
+// `cache_limit_bytes`), and the contiguous layer views by their own 256 MiB cache, so the host trims
 // nothing after a projection. Registration compacts dead weak boxes only when a list doubles. Job
 // admission preserves caches when the full retained-plus-scratch peak fits, otherwise evicts and
 // remeasures before refusal.

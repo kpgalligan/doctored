@@ -52,6 +52,12 @@
 //! 1.25 × margin, which there holds the per-pixel terms rather than the
 //! fixed bookkeeping.
 //!
+//! The warm whole-layer Copy's bound, declared before measuring, on the first
+//! canvas: `PrecisionDocument::clipboard_copy` of layer 0 over the whole
+//! canvas, no coverage, at 16 bits and 32-bit float, peaks at most 1.25 ×
+//! its payload (8 or 16 bytes a canvas pixel); a contiguous staging buffer
+//! tiled after the read is 2 ×.
+//!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
 //! `serial()`.
@@ -85,6 +91,7 @@ use doctored_core::ffi_retouch_brush::{
 use doctored_core::icc::IccProfile;
 use doctored_core::layer_raster::LayerRaster;
 use doctored_core::metadata::{Metadata, Resolution};
+use doctored_core::precision_clipboard::ClipboardRead;
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
 use doctored_core::precision_image::PrecisionImage;
 use doctored_core::precision_mask::{PrecisionMask, PrecisionPlane};
@@ -987,4 +994,44 @@ fn a_cmyk_current_synthesis_peaks_below_one_byte_a_canvas_pixel() {
     let doc = synthesis_cmyk();
     assert!(doc.is_cmyk());
     assert_synthesis_below_bound("cmyk", &doc);
+}
+
+/// A whole-canvas Copy of layer 0 (`PrecisionDocument::clipboard_copy`, no
+/// coverage, so no encoding): its peak above the live bytes before it,
+/// against the bound, `payload` × 5/4.
+fn assert_whole_layer_copy_bound(depth: &str, doc: &PrecisionDocument, payload: usize) {
+    let read = ClipboardRead::Copy {
+        layer: 0,
+        x: 0,
+        y: 0,
+        width: W,
+        height: H,
+    };
+    let base = begin();
+    let copied = doc
+        .clipboard_copy(&read, None, LIMIT, 0, None)
+        .expect("a payload");
+    let peak = peak_since(base);
+    drop(copied);
+    println!("{depth} whole-layer Copy at {W}x{H}: peak {peak}, payload {payload}");
+    assert!(
+        4 * peak <= 5 * payload,
+        "{depth}: the peak {peak} exceeds 1.25 × the payload {payload}"
+    );
+}
+
+/// The warm whole-layer Copy's bound, declared before measuring: the Copy
+/// builds its payload straight into tiles, so its peak is at most 1.25 × the
+/// payload (a contiguous staging buffer beside the tiles is 2 ×).
+#[test]
+fn a_whole_layer_copy_at_16_bits_peaks_at_most_five_quarters_of_its_payload() {
+    let _serial = serial();
+    assert_whole_layer_copy_bound("16-bit", &document16(vec![raster16()]), N * 8);
+}
+
+#[test]
+fn a_whole_layer_copy_at_float_peaks_at_most_five_quarters_of_its_payload() {
+    let _serial = serial();
+    let doc = float_fixture::float_doc(W, H, &IccProfile::srgb(), &[pattern32()]);
+    assert_whole_layer_copy_bound("float", &doc, N * 16);
 }

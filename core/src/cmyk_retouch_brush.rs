@@ -47,13 +47,13 @@
 //! footprint (`cmyk_brush_rect`). Sample All Layers adds the picture once
 //! (`sampled_plate_plan`: `cmyk_plate_scratch` plus its two passes, canvas ×
 //! 16), and each coverage brush's pass is admitted against `other` plus the
-//! two passes' bytes. Measured on the by-layer plans by
-//! `scripts/cmyk-admission/measure.py` (`dodge-16`, `smudge-16`,
-//! `history-brush-16`; `blur-sal-16`, plan 7,366,605,728 against max E
-//! 2,281,113,400, and `smudge-sal-16`, plan 5,310,313,888 against max E
-//! 1,464,435,960, the 24 MP 16-bit CMYK TIFF, both 1.25 E inside the plan);
-//! the rect plans of `dodge-16`, `history-brush-16` and `blur-sal-16` hold
-//! their margin by allocator count only (`core/tests/rect_read_memory.rs`).
+//! two passes' bytes. Measured on the rect plans in Release by
+//! `scripts/cmyk-admission/measure.py` (2026-11-18, the 24 MP 16-bit CMYK
+//! TIFF, three runs each, every plan ≥ ⌈1.25 × max E⌉): `dodge-16` plan
+//! 605,924,864 against max E 299,729,136, `smudge-16` 657,695,832 against
+//! 301,777,112, `history-brush-16` 621,420,032 against 42,254,312,
+//! `blur-sal-16` 7,468,608,928 against 2,279,360,336 and `smudge-sal-16`
+//! 3,951,631,368 against 1,398,080,712.
 
 use serde_json::{json, Value};
 

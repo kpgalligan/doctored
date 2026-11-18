@@ -108,6 +108,7 @@ use crate::precision_image::{
     BOOKKEEPING_BYTES,
 };
 use crate::precision_paint::{canvas_index, PaintEdit};
+use crate::tile_store::TilePlane;
 
 /// The admission terms one paste shares between its plan, its allocation
 /// and the paste itself.
@@ -260,8 +261,41 @@ impl Window<'_> {
         (ly >= 0 && ly < i64::from(h)).then_some(ly as u32)
     }
 
+    /// Window row `py` of `image` placed at `offset` into `row` (the
+    /// window's width), read through `image.row_segments` (zeros where the
+    /// image does not reach); `pick` answers a run's samples in `S`.
+    fn fill_row<'i, S: Copy + Default + 'i>(
+        &self,
+        row: &mut [S],
+        py: u32,
+        image: &'i PrecisionImage,
+        offset: (i32, i32),
+        pick: impl Fn(PrecisionRun<'i>) -> Option<&'i [S]>,
+    ) {
+        let (w, h) = image.dimensions();
+        let (a, lx0, lx1) = self.columns(w, offset);
+        let mut at = 0;
+        if let Some(ly) = self.layer_row(py, h, offset).filter(|_| lx0 < lx1) {
+            at = ((lx0 - a) as usize).min(row.len());
+            row[..at].fill(S::default());
+            for (_, run) in image.row_segments(ly, lx0 as u32, lx1 as u32) {
+                let Some(run) = pick(run) else {
+                    continue;
+                };
+                let end = (at + run.len()).min(row.len());
+                row[at..end].copy_from_slice(&run[..end - at]);
+                at = end;
+            }
+        }
+        row[at..].fill(S::default());
+    }
+
     /// Every window row read through `image.row_segments` (zeros where the
-    /// image placed at `offset` does not reach), alpha covered.
+    /// image placed at `offset` does not reach), alpha covered, written
+    /// straight into the payload's tiles (`TilePlane::from_rows_with_job`,
+    /// one tile per tile position as `from_contiguous` gives): no contiguous
+    /// staging copy. `job.check()` once per row; the cover pass runs only
+    /// when a coverage is in force (`cover_u16` at 65535 is the identity).
     fn u16(
         &self,
         profile: Arc<IccProfile>,
@@ -269,35 +303,29 @@ impl Window<'_> {
         offset: (i32, i32),
         job: JobContext<'_>,
     ) -> Result<PrecisionImage, String> {
-        let (w, h) = image.dimensions();
-        let (a, lx0, lx1) = self.columns(w, offset);
-        let width = self.width as usize;
-        let mut out = reserved_vec(pixel_count(self.width, self.height)?)?;
-        for py in 0..self.height {
-            job.check()?;
-            let start = out.len();
-            match self.layer_row(py, h, offset) {
-                Some(ly) if lx0 < lx1 => {
-                    out.resize(start + (lx0 - a) as usize, [0; 4]);
-                    for (_, run) in image.row_segments(ly, lx0 as u32, lx1 as u32) {
-                        let PrecisionRun::Rgba16(run) = run else {
-                            continue;
-                        };
-                        out.extend_from_slice(run);
+        let plane = TilePlane::from_rows_with_job(
+            self.width,
+            self.height,
+            |py, row: &mut [[u16; 4]]| {
+                job.check()?;
+                self.fill_row(row, py, image, offset, |run| match run {
+                    PrecisionRun::Rgba16(run) => Some(run),
+                    PrecisionRun::Rgba32(_) => None,
+                });
+                if self.coverage.is_some() {
+                    for (px, pixel) in row.iter_mut().enumerate() {
+                        pixel[3] = cover_u16(pixel[3], self.coverage_at(px as u32, py));
                     }
-                    out.resize(start + width, [0; 4]);
                 }
-                _ => out.resize(start + width, [0; 4]),
-            }
-            debug_assert_eq!(out.len() - start, width);
-            for (px, pixel) in out[start..].iter_mut().enumerate() {
-                pixel[3] = cover_u16(pixel[3], self.coverage_at(px as u32, py));
-            }
-        }
-        PrecisionImage::from_rgba16_unseeded(self.width, self.height, out, profile, None)
+                Ok(())
+            },
+            JobContext::NONE,
+        )?;
+        PrecisionImage::from_rgba16_tiles_unseeded(plane, profile)
     }
 
-    /// The f32 twin of [`Self::u16`].
+    /// The f32 twin of [`Self::u16`] (`cover_f32` is exact at 65535), its
+    /// samples checked as `from_rgba32_extended` checks them.
     fn f32(
         &self,
         profile: Arc<IccProfile>,
@@ -305,32 +333,25 @@ impl Window<'_> {
         offset: (i32, i32),
         job: JobContext<'_>,
     ) -> Result<PrecisionImage, String> {
-        let (w, h) = image.dimensions();
-        let (a, lx0, lx1) = self.columns(w, offset);
-        let width = self.width as usize;
-        let mut out = reserved_vec(pixel_count(self.width, self.height)?)?;
-        for py in 0..self.height {
-            job.check()?;
-            let start = out.len();
-            match self.layer_row(py, h, offset) {
-                Some(ly) if lx0 < lx1 => {
-                    out.resize(start + (lx0 - a) as usize, [0.0; 4]);
-                    for (_, run) in image.row_segments(ly, lx0 as u32, lx1 as u32) {
-                        let PrecisionRun::Rgba32(run) = run else {
-                            continue;
-                        };
-                        out.extend_from_slice(run);
+        let plane = TilePlane::from_rows_with_job(
+            self.width,
+            self.height,
+            |py, row: &mut [[f32; 4]]| {
+                job.check()?;
+                self.fill_row(row, py, image, offset, |run| match run {
+                    PrecisionRun::Rgba32(run) => Some(run),
+                    PrecisionRun::Rgba16(_) => None,
+                });
+                if self.coverage.is_some() {
+                    for (px, pixel) in row.iter_mut().enumerate() {
+                        pixel[3] = cover_f32(pixel[3], self.coverage_at(px as u32, py));
                     }
-                    out.resize(start + width, [0.0; 4]);
                 }
-                _ => out.resize(start + width, [0.0; 4]),
-            }
-            debug_assert_eq!(out.len() - start, width);
-            for (px, pixel) in out[start..].iter_mut().enumerate() {
-                pixel[3] = cover_f32(pixel[3], self.coverage_at(px as u32, py));
-            }
-        }
-        PrecisionImage::from_rgba32_extended(self.width, self.height, out, profile, None)
+                Ok(())
+            },
+            JobContext::NONE,
+        )?;
+        PrecisionImage::from_rgba32_tiles_unseeded(plane, profile)
     }
 
     /// Reads every window pixel out of `image` placed at `offset`.

@@ -66,7 +66,8 @@ use crate::psd_adjustment;
 use crate::psd_export_bake::inexact_group16;
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
-    composite_planes16, encode_plane, image_resources, write_psd, MaskBody, Record,
+    composite_planes16, encode_plane, flattened_planes16, image_resources, write_psd, MaskBody,
+    Record,
 };
 use crate::psd_export_preflight::{
     bake_inexact, blend_key, mask_bake_reason, preflight, rgb_composite_scratch, stamps,
@@ -1350,6 +1351,9 @@ impl PrecisionDocument {
             // A Lab document's bakes take its arms.
             lab: self.lab_grid(),
         };
+        // A flattened PSD or PSB takes the record's channels and the image
+        // data's planes from ONE walk of the projection (`flattened_planes16`).
+        let mut composite = None;
         match mode {
             PsdExportMode::Layers => records(
                 self.root_layers(),
@@ -1368,8 +1372,14 @@ impl PrecisionDocument {
             )?,
             PsdExportMode::Flattened => out.push(Record {
                 bounds: [0, 0, height as i32, width as i32],
-                channels: channels16(projection, large)
-                    .ok_or("16-bit PSD export requires an RGBA16 UNORM projection")?,
+                channels: if container == LayeredContainer::Tiff {
+                    channels16(projection, large)
+                        .ok_or("16-bit PSD export requires an RGBA16 UNORM projection")?
+                } else {
+                    let (channels, planes) = flattened_planes16(projection, width, height, large)?;
+                    composite = Some(planes);
+                    channels
+                },
                 blend: *b"norm",
                 opacity: 255,
                 clipping: 0,
@@ -1470,6 +1480,10 @@ impl PrecisionDocument {
                 &spots.planes,
             )?
         } else {
+            let composite = match composite {
+                Some(planes) => planes,
+                None => composite_planes16(projection, width, height)?,
+            };
             write_psd(
                 width,
                 height,
@@ -1480,7 +1494,7 @@ impl PrecisionDocument {
                 light,
                 self.color_samplers(),
                 &out,
-                &composite_planes16(projection, width, height)?,
+                &composite,
                 large,
                 &tail,
                 &self.psd_spot_planes(false),

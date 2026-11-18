@@ -144,7 +144,7 @@ image. Byte and u16 modes had to stay byte-identical. Builds on [11D](phase-11d-
 ## Consequences
 Admitting any new float operator requires an f64 oracle on extended-range input (including negatives) and a
 `FLOAT_FAMILIES` entry; exact permutation/copy ops may be admitted on that argument alone (12F precedent). An f32
-plane above `CONTIGUOUS_CACHE_BYTES` is refused at the 2 GiB pin but admitted at the 8 GiB limit of a 16 GB Mac;
+plane above 1 GiB (67,108,864 px) is refused at the 2 GiB pin but admitted at the 8 GiB limit of a 16 GB Mac;
 it is tiled. Tests: `core/tests/float_{document,native,interchange}.rs`; drive `scripts/verify_phase11f_float.py`.
 
 ## Open items (verified 2026-10-30)
