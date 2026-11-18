@@ -23,6 +23,7 @@ use crate::bitmap_edit::{republish, BITMAP_EDIT_BYTES_PER_PIXEL, NOT_BITMAP};
 use crate::job_control::JobContext;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, BOOKKEEPING_BYTES};
+use crate::retouch_coverage::Rect;
 use crate::selected_adjustment::SelectedEdit;
 
 /// `value` (the Gray storage's plan) with the republish's bytes over
@@ -80,11 +81,12 @@ pub(crate) fn history_brush_plan(
     source: &PrecisionDocument,
     source_layer: usize,
     selection: bool,
+    rect: Option<Rect>,
 ) -> Result<Value, String> {
     doc.bitmap_policy().ok_or(NOT_BITMAP)?;
-    let value = doc
-        .without_bitmap()
-        .history_brush_plan(layer, source, source_layer, selection)?;
+    let value =
+        doc.without_bitmap()
+            .history_brush_plan(layer, source, source_layer, selection, rect)?;
     with_republish(doc, value)
 }
 
@@ -99,19 +101,21 @@ pub(crate) fn history_brush(
     source_layer: usize,
     opacity: f64,
     samples: &[u16],
+    rect: Option<Rect>,
     limit: u64,
     other: u64,
     job: JobContext<'_>,
 ) -> Result<Option<PrecisionDocument>, String> {
     doc.bitmap_policy().ok_or(NOT_BITMAP)?;
-    let canvas = crate::precision_image::pixel_count(doc.width, doc.height)?;
-    let selection = samples.len() == 2 * canvas;
+    let area = crate::precision_retouch_brush::history_rect(doc, rect)?;
+    let selection = samples.len() == 2 * crate::precision_image::pixel_count(area.2, area.3)?;
     let scratch = scratch(&history_brush_plan(
         doc,
         layer,
         source,
         source_layer,
         selection,
+        rect,
     )?)?;
     admit(doc.retained_bytes(), scratch, other, limit)?;
     job.reserve(scratch)?;
@@ -123,6 +127,7 @@ pub(crate) fn history_brush(
         source_layer,
         opacity,
         samples,
+        rect,
         limit,
         other,
         inner,

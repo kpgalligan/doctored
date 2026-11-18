@@ -3,13 +3,15 @@
 //! the History Brush.
 //!
 //! [`RetouchBrushEdit`] is the `retouch_brush` op of `dr_precision_doc_edit`:
-//! its input is laid out as `dodge_burn`'s — the canvas-sized u16 stroke
-//! coverage, then the canvas-sized selection plane when `selection` is set —
-//! and the two planes multiply per pixel. The History Brush has its own export
-//! because it takes a second document, the history state it paints from.
+//! its input is laid out as `dodge_burn`'s — the u16 stroke coverage over the
+//! request's `coverage_rect` (the canvas without one), then the selection
+//! plane over the same rect when `selection` is set — and the two planes
+//! multiply per pixel (`retouch_coverage::BrushCoverage`). The History Brush
+//! has its own export because it takes a second document, the history state
+//! it paints from; its `coverage_rect` is an argument.
 //!
 //! Both walk only the layer rect the stroke coverage reaches
-//! (`layer_rect::coverage_rect16`), write it back through `with_rect_rgba16`,
+//! (`BrushCoverage::layer_rect`), write it back through `with_rect_rgba16`,
 //! never grow the layer, and answer `Ok(None)` when no stored code changes. A
 //! target that is not a u16 raster and a retained source refuse in
 //! `NativePaintEdit::extent`'s sentences.
@@ -23,7 +25,6 @@ use crate::adjust_vibrance::BoundVibrance;
 use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
 use crate::icc_transform::PrecisionToneEncoder;
 use crate::job_control::JobContext;
-use crate::layer_rect::coverage_rect16;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{
     admit, pixel_count, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
@@ -32,6 +33,7 @@ use crate::retouch_brush::{
     halo, mix, mix_over, refuse_options, sponge_slider, targets, RetouchBrushKind, Vibrancy,
 };
 use crate::retouch_brush_sampling::{canvas_reach, plate_samples};
+use crate::retouch_coverage::{brush_rect, BrushCoverage, Rect};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -39,6 +41,10 @@ use serde_json::{json, Value};
 /// on the walk rect, which the plan cannot know before it sees the coverage):
 /// the rect read with its halo (8 B), the Gaussian's binary64 row strip
 /// (32 B), the targets (12 B) and the rect being rewritten (8 B).
+///
+/// The records below were measured on canvas-form requests; a request that
+/// names its `coverage_rect` charges the walk's `n·24` over that rect
+/// ([`coverage_plan`]), and this term stays over the layer.
 ///
 /// Record (the Release app at `DR_WORKING_LIMIT_BYTES` 8 GiB, a fresh
 /// instance per case, `MallocLargeCache=0`, E =
@@ -76,7 +82,9 @@ pub(crate) const HISTORY_BRUSH_BYTES_PER_PIXEL: u64 = 16;
 /// (`BoundVibrance::prepare_precision`, the adjustment's own 16-bit binding);
 /// `sample_all_layers` (Blur and Sharpen only) reads the sampled
 /// picture (`retouch_brush_sampling`) and writes `retouch_brush::mix_over`.
-/// Both default to false, the shipped behaviour. `ink_pass` is never read from
+/// Both default to false, the shipped behaviour. `coverage_rect`
+/// (`[x, y, w, h]`, absent = the canvas) is the canvas rect the input is laid
+/// out over (module doc). `ink_pass` is never read from
 /// JSON: `cmyk_retouch_brush` sets it on the edit it runs on a CMYK record's
 /// pass, whose Vibrance target runs through the sRGB curve
 /// (`retouch_brush::Vibrancy::Encoded`).
@@ -94,6 +102,8 @@ pub(crate) struct RetouchBrushEdit {
     pub(crate) vibrance: bool,
     #[serde(default)]
     pub(crate) sample_all_layers: bool,
+    #[serde(default)]
+    pub(crate) coverage_rect: Option<[u32; 4]>,
     #[serde(skip)]
     pub(crate) ink_pass: bool,
 }
@@ -120,16 +130,19 @@ pub(crate) fn paintable_u16(
     Ok((image, layer.offset()))
 }
 
-/// A canvas-coverage plan in `NativePaintEdit::plan_in`'s shape: the paint
-/// walk's `8·BOOKKEEPING_BYTES + n·24 + output·8`, plus `kernel` bytes for
-/// each layer pixel.
+/// A coverage plan in `NativePaintEdit::plan_in`'s shape: the paint walk's
+/// `8·BOOKKEEPING_BYTES + n·24 + output·8`, plus `kernel` bytes for each
+/// layer pixel, with `n` the input's own area, `rect`'s (the canvas for a
+/// request without `coverage_rect`), as `plan_in` reads it from its frame.
+/// The layer terms stay by layer.
 pub(crate) fn coverage_plan(
     doc: &PrecisionDocument,
     image: &PrecisionImage,
     kernel: u64,
     selection: bool,
+    rect: Rect,
 ) -> Result<Value, String> {
-    let (width, height) = doc.dimensions();
+    let (_, _, width, height) = rect;
     let n = pixel_count(width, height)? as u64;
     let (w, h) = image.dimensions();
     let output = pixel_count(w, h)? as u64;
@@ -145,14 +158,20 @@ pub(crate) fn coverage_plan(
     }))
 }
 
-/// The stroke's coverage of canvas sample `i` in [0, 1]: the coverage plane,
-/// times the selection plane when the input carries one.
-pub(crate) fn coverage_at(input: &[u16], n: usize, selected: bool, i: usize) -> f64 {
-    let stroke = f64::from(input[i]) / 65535.0;
-    if selected {
-        stroke * f64::from(input[n + i]) / 65535.0
-    } else {
-        stroke
+/// The History Brush's input rect: the export's `coverage_rect`, or the
+/// canvas (`retouch_coverage::brush_rect`).
+pub(crate) fn history_rect(doc: &PrecisionDocument, rect: Option<Rect>) -> Result<Rect, String> {
+    brush_rect(rect.map(Into::into), doc.dimensions())
+}
+
+/// Whether a History Brush input over `rect` carries the selection plane:
+/// one plane or two, any other length refused in the walks' sentence.
+pub(crate) fn history_selected(input: &[u16], rect: Rect) -> Result<bool, String> {
+    let area = pixel_count(rect.2, rect.3)?;
+    match input.len() {
+        len if len == area => Ok(false),
+        len if len == 2 * area => Ok(true),
+        _ => Err("native paint input length differs from plan".into()),
     }
 }
 
@@ -195,7 +214,14 @@ impl RetouchBrushEdit {
             return Err("retouch brush strength is invalid".into());
         }
         let (image, _) = paintable_u16(doc, self.layer)?;
-        let mut plan = coverage_plan(doc, image, RETOUCH_BRUSH_BYTES_PER_PIXEL, self.selection)?;
+        let rect = brush_rect(self.coverage_rect, doc.dimensions())?;
+        let mut plan = coverage_plan(
+            doc,
+            image,
+            RETOUCH_BRUSH_BYTES_PER_PIXEL,
+            self.selection,
+            rect,
+        )?;
         if self.vibrance && !self.ink_pass && !doc.is_gray() && !doc.is_lab() {
             // The Vibrance target binds the document's profile at 16 bits
             // (`BoundVibrance::prepare_precision`), whose continuous encoder
@@ -289,9 +315,9 @@ impl RetouchBrushEdit {
         let (image, (ox, oy)) = paintable_u16(doc, self.layer)?;
         let (lw, lh) = image.dimensions();
         let canvas = doc.dimensions();
-        let n = pixel_count(canvas.0, canvas.1)?;
-        let Some((rx, ry, rw, rh)) = coverage_rect16(&input[..n], canvas, (lw, lh), (ox, oy))
-        else {
+        let rect = brush_rect(self.coverage_rect, canvas)?;
+        let coverage = BrushCoverage::new(input, rect, canvas, self.selection)?;
+        let Some((rx, ry, rw, rh)) = coverage.layer_rect((lw, lh), (ox, oy)) else {
             job.report(1., 5)?;
             return Ok(None);
         };
@@ -317,9 +343,9 @@ impl RetouchBrushEdit {
             (None, None, None, false) => Vibrancy::Off,
         };
         let coverage_of = |at: usize| -> f64 {
-            let cx = (i64::from(rx) + (at % rw as usize) as i64 + i64::from(ox)) as usize;
-            let cy = (i64::from(ry) + (at / rw as usize) as i64 + i64::from(oy)) as usize;
-            coverage_at(input, n, self.selection, cy * canvas.0 as usize + cx)
+            let cx = i64::from(rx) + (at % rw as usize) as i64 + i64::from(ox);
+            let cy = i64::from(ry) + (at / rw as usize) as i64 + i64::from(oy);
+            coverage.at(cx, cy)
         };
         let code = |v: f32| (v.clamp(0., 1.) * 65535.).round() as u16;
         let mut px = image.read_rect_rgba16(rx, ry, rw, rh).ok_or_else(alloc)?;
@@ -454,9 +480,10 @@ impl PrecisionDocument {
 
     /// The History Brush's plan for layer `layer` painting from layer
     /// `source_layer` of `source`: `retained_bytes`, `scratch_bytes`,
-    /// `input_samples` (the canvas coverage plane, then the selection plane
-    /// when `selection`). Refuses, before allocating, a target or source that
-    /// is not a u16 raster and a source of another canvas size. A 32-bit
+    /// `input_samples` (the coverage plane over `rect`, the canvas when
+    /// `None`, then the selection plane over it when `selection`). Refuses,
+    /// before allocating, a target or source that is not a u16 raster, a
+    /// source of another canvas size and a rect outside the canvas. A 32-bit
     /// float document plans its own arm (`float_retouch_brush`), whose source
     /// is a float document's f32 raster.
     pub(crate) fn history_brush_plan(
@@ -465,6 +492,7 @@ impl PrecisionDocument {
         source: &PrecisionDocument,
         source_layer: usize,
         selection: bool,
+        rect: Option<Rect>,
     ) -> Result<Value, String> {
         // A Bitmap document's arm (#1 Bitmap phase 3, `bitmap_tools`).
         if self.is_bitmap() {
@@ -474,6 +502,7 @@ impl PrecisionDocument {
                 source,
                 source_layer,
                 selection,
+                rect,
             );
         }
         if self.is_indexed() {
@@ -483,17 +512,19 @@ impl PrecisionDocument {
                 source,
                 source_layer,
                 selection,
+                rect,
             );
         }
         if self.is_cmyk() {
-            return self.cmyk_history_brush_plan(layer, source, source_layer, selection);
+            return self.cmyk_history_brush_plan(layer, source, source_layer, selection, rect);
         }
         if self.is_float() {
-            return self.float_history_brush_plan(layer, source, source_layer, selection);
+            return self.float_history_brush_plan(layer, source, source_layer, selection, rect);
         }
         let (image, _) = paintable_u16(self, layer)?;
         self.history_source(source, source_layer)?;
-        coverage_plan(self, image, HISTORY_BRUSH_BYTES_PER_PIXEL, selection)
+        let rect = history_rect(self, rect)?;
+        coverage_plan(self, image, HISTORY_BRUSH_BYTES_PER_PIXEL, selection, rect)
     }
 
     /// Paints layer `layer` back toward layer `source_layer` of `source` (an
@@ -501,9 +532,10 @@ impl PrecisionDocument {
     /// premultiplied mix of all four channels (`doc_retouch_brush.rs` holds
     /// the master copy of that mix; this is its u16 twin) toward the source
     /// layer's pixel at the same CANVAS position (transparent where the source
-    /// layer has none) by `coverage · opacity`. `samples` is the canvas-sized u16 stroke
-    /// coverage, followed by the canvas-sized selection plane when there is
-    /// one (length n or 2n). The layer does not grow; under a transparency
+    /// layer has none) by `coverage · opacity`. `samples` is the u16 stroke
+    /// coverage over `rect` (the canvas when `None`), followed by the
+    /// selection plane over it when there is one (length n or 2n, n the
+    /// rect's area). The layer does not grow; under a transparency
     /// lock each pixel keeps its alpha and alpha-0 pixels stay. `Ok(None)`
     /// when no stored code changes. A PIXELS edit under `precision_lock`.
     #[allow(clippy::too_many_arguments)]
@@ -514,6 +546,7 @@ impl PrecisionDocument {
         source_layer: usize,
         opacity: f64,
         samples: &[u16],
+        rect: Option<Rect>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
@@ -528,6 +561,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 samples,
+                rect,
                 limit,
                 other,
                 job,
@@ -543,6 +577,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 samples,
+                rect,
                 limit,
                 other,
                 job,
@@ -555,6 +590,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 samples,
+                rect,
                 limit,
                 other,
                 job,
@@ -570,6 +606,7 @@ impl PrecisionDocument {
         source_layer: usize,
         opacity: f64,
         input: &[u16],
+        rect: Option<Rect>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
@@ -581,6 +618,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 input,
+                rect,
                 limit,
                 other,
                 job,
@@ -593,6 +631,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 input,
+                rect,
                 limit,
                 other,
                 job,
@@ -602,13 +641,9 @@ impl PrecisionDocument {
             return Err("history brush opacity is invalid".into());
         }
         let canvas = self.dimensions();
-        let n = pixel_count(canvas.0, canvas.1)?;
-        let selected = match input.len() {
-            len if len == n => false,
-            len if len == 2 * n => true,
-            _ => return Err("native paint input length differs from plan".into()),
-        };
-        let plan = self.history_brush_plan(index, source, source_layer, selected)?;
+        let input_rect = history_rect(self, rect)?;
+        let selected = history_selected(input, input_rect)?;
+        let plan = self.history_brush_plan(index, source, source_layer, selected, rect)?;
         let scratch = plan["scratch_bytes"].as_u64().unwrap_or(u64::MAX);
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
@@ -619,8 +654,8 @@ impl PrecisionDocument {
         let (image, (ox, oy)) = paintable_u16(self, index)?;
         let (from, (sox, soy)) = self.history_source(source, source_layer)?;
         let (lw, lh) = image.dimensions();
-        let Some((rx, ry, rw, rh)) = coverage_rect16(&input[..n], canvas, (lw, lh), (ox, oy))
-        else {
+        let coverage = BrushCoverage::new(input, input_rect, canvas, selected)?;
+        let Some((rx, ry, rw, rh)) = coverage.layer_rect((lw, lh), (ox, oy)) else {
             job.report(1., 5)?;
             return Ok(None);
         };
@@ -658,9 +693,9 @@ impl PrecisionDocument {
                 job.report(0.8 * at as f64 / area as f64, 3)?;
             }
             let (column, row) = ((at % rw as usize) as i64, (at / rw as usize) as i64);
-            let cx = (i64::from(rx) + column + i64::from(ox)) as usize;
-            let cy = (i64::from(ry) + row + i64::from(oy)) as usize;
-            let coverage = coverage_at(input, n, selected, cy * canvas.0 as usize + cx);
+            let cx = i64::from(rx) + column + i64::from(ox);
+            let cy = i64::from(ry) + row + i64::from(oy);
+            let coverage = coverage.at(cx, cy);
             let old = *slot;
             if coverage == 0. || (frozen && old[3] == 0) {
                 continue;

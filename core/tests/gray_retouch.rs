@@ -322,7 +322,17 @@ fn history_plan(
 ) -> Result<Value, String> {
     let mut err = ptr::null_mut();
     let out = unsafe {
-        dr_precision_doc_history_brush_plan(doc, 0, source, 0, false, LIMIT, 0, &mut err)
+        dr_precision_doc_history_brush_plan(
+            doc,
+            0,
+            source,
+            0,
+            false,
+            ptr::null(),
+            LIMIT,
+            0,
+            &mut err,
+        )
     };
     plan_json(out, err)
 }
@@ -342,6 +352,7 @@ fn history(
             0.75,
             samples.as_ptr(),
             samples.len(),
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),

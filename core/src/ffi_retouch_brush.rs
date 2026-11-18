@@ -17,6 +17,7 @@ use crate::ffi_util::{
 use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, pixel_count, BOOKKEEPING_BYTES};
+use crate::retouch_coverage::Rect;
 
 /// The parse charge of a brush request and its dab list, as `dr_brush_u16`
 /// charges it (`ffi_background_eraser` charges it too).
@@ -332,10 +333,25 @@ pub unsafe extern "C" fn dr_precision_doc_smudge(
     }
 }
 
+/// The History Brush exports' `coverage_rect`: `None` (the canvas) for NULL,
+/// else the four `x, y, w, h` it points at.
+///
+/// # Safety
+/// `rect` NULL or readable and aligned for four u32s.
+unsafe fn coverage_rect_words(rect: *const u32) -> Option<Rect> {
+    if rect.is_null() {
+        return None;
+    }
+    let words = unsafe { std::slice::from_raw_parts(rect, 4) };
+    Some((words[0], words[1], words[2], words[3]))
+}
+
 /// Plans `dr_precision_doc_history_brush` for layer `layer` painting from
 /// layer `source_layer` of `source`: JSON with `retained_bytes`,
-/// `scratch_bytes` and `input_samples` (the canvas pixel count, doubled when
-/// `selection`), admitted against `limit`. A float `document` takes a float
+/// `scratch_bytes` and `input_samples` (the pixel count of `coverage_rect`,
+/// `x, y, w, h`, or of the canvas when it is NULL, doubled when
+/// `selection`), admitted against `limit`; a rect that is empty or leaves
+/// the canvas refuses. A float `document` takes a float
 /// `source` ("history brush source has a different bit depth" otherwise), and
 /// a Grayscale `document` a Grayscale `source` (#1 phase 2c,
 /// `gray_filter::HISTORY_SOURCE_REFUSAL`), and a Lab Color `document` a Lab
@@ -344,7 +360,9 @@ pub unsafe extern "C" fn dr_precision_doc_smudge(
 /// dr_string_free.
 ///
 /// # Safety
-/// `document` and `source` NULL or live; `err_out` NULL or writable.
+/// `document` and `source` NULL or live; `coverage_rect` NULL or readable
+/// for four u32s; `err_out` NULL or writable.
+#[allow(clippy::too_many_arguments)]
 #[no_mangle]
 pub unsafe extern "C" fn dr_precision_doc_history_brush_plan(
     document: *const PrecisionDocument,
@@ -352,6 +370,7 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush_plan(
     source: *const PrecisionDocument,
     source_layer: usize,
     selection: bool,
+    coverage_rect: *const u32,
     limit: u64,
     other_retained_bytes: u64,
     err_out: *mut *mut c_char,
@@ -370,7 +389,8 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush_plan(
                 if let Some(reason) = crate::lab_retouch::history_source_refusal(doc, source) {
                     return Err(reason.into());
                 }
-                let plan = doc.history_brush_plan(layer, source, source_layer, selection)?;
+                let rect = coverage_rect_words(coverage_rect);
+                let plan = doc.history_brush_plan(layer, source, source_layer, selection, rect)?;
                 admit(
                     doc.retained_bytes(),
                     plan["scratch_bytes"].as_u64().unwrap_or(u64::MAX),
@@ -386,10 +406,11 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush_plan(
 
 /// Paints 16-bit or 32-bit float layer `layer` back toward layer
 /// `source_layer` of `source` (an earlier state of the same document, at the
-/// same depth) by coverage × `opacity` (in [0, 1]). `samples` is the
-/// canvas-sized u16 stroke coverage, followed by the canvas-sized selection
-/// plane when the plan was made with `selection` (`length` n or 2n,
-/// recomputed from the document's canvas). In a float document coverage ×
+/// same depth) by coverage × `opacity` (in [0, 1]). `samples` is the u16
+/// stroke coverage over `coverage_rect` (`x, y, w, h`; the canvas when NULL),
+/// followed by the selection plane over the same rect when the plan was made
+/// with `selection` (`length` n or 2n, n the rect's area recomputed in the
+/// core; a rect that is empty or leaves the canvas refuses). In a float document coverage ×
 /// opacity of 1 writes the source sample's bits. A Grayscale `document`
 /// refuses a `source` that is not Grayscale, and a Lab Color `document` or
 /// `source` the other's mode, as the plan does. An exact no-op
@@ -397,7 +418,8 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush_plan(
 ///
 /// # Safety
 /// `document`/`source`/`control` NULL or live; `samples` NULL or readable and
-/// aligned for `length` u16s; `err_out` NULL or writable.
+/// aligned for `length` u16s; `coverage_rect` NULL or readable for four u32s;
+/// `err_out` NULL or writable.
 #[allow(clippy::too_many_arguments)]
 #[no_mangle]
 pub unsafe extern "C" fn dr_precision_doc_history_brush(
@@ -408,6 +430,7 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush(
     opacity: f64,
     samples: *const u16,
     length: usize,
+    coverage_rect: *const u32,
     limit: u64,
     other_retained_bytes: u64,
     control: *const DrJobControl,
@@ -430,9 +453,11 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush(
                 if let Some(reason) = crate::lab_retouch::history_source_refusal(doc, source) {
                     return Err(reason.into());
                 }
-                // The sample length is one or two of the core's own canvas
-                // planes, never the caller's word alone.
-                let (width, height) = doc.dimensions();
+                // The sample length is one or two of the core's own planes
+                // over the rect (or the canvas), never the caller's word alone.
+                let rect = coverage_rect_words(coverage_rect);
+                let (_, _, width, height) =
+                    crate::precision_retouch_brush::history_rect(doc, rect)?;
                 let n = pixel_count(width, height)?;
                 if samples.is_null() || (length != n && length != 2 * n) {
                     return Err(
@@ -446,6 +471,7 @@ pub unsafe extern "C" fn dr_precision_doc_history_brush(
                     source_layer,
                     opacity,
                     samples,
+                    rect,
                     limit,
                     other_retained_bytes,
                     job,

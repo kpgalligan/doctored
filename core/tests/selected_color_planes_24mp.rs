@@ -276,7 +276,17 @@ fn a_colour_channel_edit_is_admitted_at_24mp() {
     check("SM32T", smudge(thin), FLOOR_SM32T);
     let mut err = ptr::null_mut();
     let out = unsafe {
-        dr_precision_doc_history_brush_plan(&d32, 0, &d32, 0, false, MEASURED_LIMIT, 0, &mut err)
+        dr_precision_doc_history_brush_plan(
+            &d32,
+            0,
+            &d32,
+            0,
+            false,
+            ptr::null(),
+            MEASURED_LIMIT,
+            0,
+            &mut err,
+        )
     };
     check("HB32", scratch_of(out, err), FLOOR_HB32);
     // The Paint Bucket, Dodge and the Sponge over the same float layer,

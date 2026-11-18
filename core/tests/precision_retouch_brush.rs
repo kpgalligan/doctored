@@ -296,7 +296,17 @@ fn history_plan(
 ) -> Result<Value, String> {
     let mut e = ptr::null_mut();
     let p = unsafe {
-        dr_precision_doc_history_brush_plan(d, 0, source, 0, selection, LIMIT, 0, &mut e)
+        dr_precision_doc_history_brush_plan(
+            d,
+            0,
+            source,
+            0,
+            selection,
+            ptr::null(),
+            LIMIT,
+            0,
+            &mut e,
+        )
     };
     if p.is_null() {
         return Err(unsafe { error(e) });
@@ -322,6 +332,7 @@ fn history(
             opacity,
             input.as_ptr(),
             input.len(),
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -503,6 +514,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             &earlier,
             0,
             false,
+            ptr::null(),
             LIMIT,
             0,
             &mut e
@@ -516,6 +528,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             ptr::null(),
             0,
             false,
+            ptr::null(),
             LIMIT,
             0,
             &mut e
@@ -531,6 +544,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -547,6 +561,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -563,6 +578,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             ptr::null(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -582,12 +598,87 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
             ptr::null_mut()
         )
         .is_null());
+        // A `coverage_rect` that leaves the 8 × 6 canvas refuses by name in
+        // the plan and the stroke; NULL samples with a rect refuse by length.
+        let outside = [5u32, 2, 4, 3];
+        const OUTSIDE: &str = "brush coverage_rect must be a nonempty rectangle inside the canvas";
+        e = ptr::null_mut();
+        assert!(dr_precision_doc_history_brush_plan(
+            &now,
+            0,
+            &earlier,
+            0,
+            false,
+            outside.as_ptr(),
+            LIMIT,
+            0,
+            &mut e
+        )
+        .is_null());
+        assert_eq!(error(e), OUTSIDE);
+        e = ptr::null_mut();
+        assert!(dr_precision_doc_history_brush(
+            &now,
+            0,
+            &earlier,
+            0,
+            1.0,
+            full.as_ptr(),
+            12,
+            outside.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut e
+        )
+        .is_null());
+        assert_eq!(error(e), OUTSIDE);
+        let inside = [2u32, 1, 4, 3];
+        e = ptr::null_mut();
+        assert!(dr_precision_doc_history_brush(
+            &now,
+            0,
+            &earlier,
+            0,
+            1.0,
+            ptr::null(),
+            12,
+            inside.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut e
+        )
+        .is_null());
+        assert_eq!(
+            error(e),
+            "high-depth input sample length does not match the core plan"
+        );
+        // The rect's own plane: 12 samples, 24 with the selection.
+        e = ptr::null_mut();
+        let plan = dr_precision_doc_history_brush_plan(
+            &now,
+            0,
+            &earlier,
+            0,
+            true,
+            inside.as_ptr(),
+            LIMIT,
+            0,
+            &mut e,
+        );
+        assert!(!plan.is_null());
+        let text = CStr::from_ptr(plan).to_string_lossy().into_owned();
+        doctored_core::ffi::dr_string_free(plan);
+        let plan: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(plan["input_samples"], 24);
     }
 }
 

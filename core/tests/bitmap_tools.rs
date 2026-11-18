@@ -256,6 +256,16 @@ fn history_brush(
     source: *const PrecisionDocument,
     coverage: &[u16],
 ) -> *mut PrecisionDocument {
+    history_brush_over(doc, source, coverage, None)
+}
+
+/// [`history_brush`] with `coverage` laid out over `rect` (`x, y, w, h`).
+fn history_brush_over(
+    doc: *const PrecisionDocument,
+    source: *const PrecisionDocument,
+    coverage: &[u16],
+    rect: Option<[u32; 4]>,
+) -> *mut PrecisionDocument {
     let mut err = ptr::null_mut();
     let out = unsafe {
         dr_precision_doc_history_brush(
@@ -266,6 +276,7 @@ fn history_brush(
             1.0,
             coverage.as_ptr(),
             coverage.len(),
+            rect.as_ref().map_or(ptr::null(), |r| r.as_ptr()),
             LIMIT,
             0,
             ptr::null(),
@@ -308,6 +319,35 @@ fn the_history_brush_gives_the_earlier_bits_back() {
         painted,
         doc,
     ] {
+        free(d);
+    }
+}
+
+/// The History Brush naming its `coverage_rect`: a soft band across the
+/// black half's edge, cropped to a rect that holds it, gives back the bits
+/// the canvas form gives back.
+#[test]
+fn a_rect_form_history_brush_answers_the_canvas_form() {
+    let doc = scene();
+    let fill = json!({"op":"paint_blend","layer":0,"color":[1.0,1.0,1.0,1.0],
+        "color_space":"document","opacity":1.0,"blend_mode":0});
+    let painted = paint(doc, &fill, &[65535; N])
+        .unwrap()
+        .expect("the fill whitens the black half");
+    let soft: Vec<u16> = (0..N as u32)
+        .map(|i| if (2..8).contains(&(i % W)) { 50000 } else { 0 })
+        .collect();
+    let rect = (1u32, 0u32, 8u32, H);
+    let a = history_brush(painted, doc, &soft);
+    let b = history_brush_over(
+        painted,
+        doc,
+        &crop(&soft, rect),
+        Some([rect.0, rect.1, rect.2, rect.3]),
+    );
+    assert_ne!(bits(a), bits(painted), "the canvas form moves bits");
+    assert_eq!(bits(b), bits(a));
+    for d in [a, b, painted, doc] {
         free(d);
     }
 }

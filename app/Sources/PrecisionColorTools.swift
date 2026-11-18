@@ -526,20 +526,24 @@ extension AgentServer {
         let native = try capturedNativeStroke(a) ?? NativeBrushStrokeSession.generated(points: parsePoints(a),
             size: CGFloat(min(max(size, 1), EditorTool.dodge.maximumBrushSize)), tip: strokeTip(a))
         let selected = capture.selection != nil
+        // The stroke's rect (`coverage_rect`), as the canvas stroke sends it.
+        let coverageRect = native.healBounds(width: capture.facade.width, height: capture.facade.height)
         let command = try PrecisionPixelCommand(["op": "dodge_burn", "layer": layer, "exposure": min(max(exposure, 0), 100) / 100,
             "range": range, "burn": boolArg(a, "burn") ?? false,
-            "protect_tones": boolArg(a, "protect_tones") ?? false, "selection": selected])
+            "protect_tones": boolArg(a, "protect_tones") ?? false, "selection": selected,
+            "coverage_rect": PrecisionPixelCommand.coverageRectField(coverageRect)])
         // One job whose worker rasterizes the footprint, as the 16-bit
         // canvas Dodge / Burn stroke commits.
         let work = try PrecisionStrokeWork(source: capture.source, stroke: native, command: command,
-            selection: selected ? capture.selection?.maskSamples16() : nil,
-            width: capture.facade.width, height: capture.facade.height)
+            selection: selected ? capture.selection?.maskSamples16(in: coverageRect) : nil,
+            width: capture.facade.width, height: capture.facade.height, coverageRect: coverageRect)
         let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture, layer: layer,
             title: "Dodge / Burn", record: .notACommand, showProgress: false, rasterizesTarget: true,
             completion: Self.noteStrokeJobChange)
         // A float layer's pixels are f32, a CMYK layer's ink (#1).
         let storage = capture.source.isCmyk ? "cmyka16_unorm" : capture.facade.isFloat ? "rgba32_float" : "u16"
-        job.details = ["storage": storage]
+        job.details = ["storage": storage,
+                       "coverage_rect": PrecisionPixelCommand.coverageRectField(coverageRect)]
         return try finishJobCall(job, tool: "dodge_burn", arguments: a, unchanged: {
             try self.jsonResult(["ok": true, "changed": false, "storage": storage])
         })

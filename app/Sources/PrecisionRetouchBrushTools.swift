@@ -67,11 +67,18 @@ extension AgentServer {
             "kind": brush.requestName, "strength": percent / 100, "selection": selected]
         if vibrance { request["vibrance"] = true }
         if sampleAllLayers, tool != "smudge_stroke" { request["sample_all_layers"] = true }
+        // Every brush but Smudge (which runs along its dabs) sends its stroke's rect
+        // (`coverage_rect`), as the canvas strokes do.
+        let coverageRect = tool == "smudge_stroke" ? nil
+            : native.healBounds(width: capture.facade.width, height: capture.facade.height)
+        if let coverageRect {
+            request["coverage_rect"] = PrecisionPixelCommand.coverageRectField(coverageRect)
+        }
         let command = try PrecisionPixelCommand(request)
         let work = try PrecisionStrokeWork(kind: kind, layer: layer, source: capture.source,
             stroke: native, command: command,
-            selection: selected ? capture.selection?.maskSamples16() : nil,
-            width: capture.facade.width, height: capture.facade.height)
+            selection: selected ? capture.selection?.maskSamples16(in: coverageRect) : nil,
+            width: capture.facade.width, height: capture.facade.height, coverageRect: coverageRect)
         let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture,
             layer: layer, title: title, record: .notACommand, showProgress: false,
             rasterizesTarget: true, completion: Self.noteStrokeJobChange)
@@ -82,6 +89,9 @@ extension AgentServer {
         // `scripts/cmyk-admission/measure.py`'s Sample All Layers rows gate on.
         job.details = ["storage": storage, "applied": applied,
                        "working_memory_plan_bytes": work.scratchEstimate]
+        if let coverageRect {
+            job.details["coverage_rect"] = PrecisionPixelCommand.coverageRectField(coverageRect)
+        }
         return try finishJobCall(job, tool: tool, arguments: a, unchanged: {
             try self.jsonResult(["ok": true, "changed": false, "storage": storage,
                                  "applied": applied])

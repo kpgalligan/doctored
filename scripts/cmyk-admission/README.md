@@ -92,9 +92,10 @@ canvas), `spot-heal-16` (the RGB synthesis plan's in-place terms at four
 channels; its `sample: current` heal reads the source layer in place, so no
 plate since 13B-9b), each the plan of the rect-form request the app sends
 (`coverage_rect`, `cmyk_retouch_plate.rs`), `dodge-16` and
-`history-brush-16` (`cmyk_retouch_brush`'s two-pass plans by layer; since
-13B-9 the passes run over the stroke's rect, but the requests carry no
-rect), `smudge-16` (since 13B-9 the plan of its footprint,
+`history-brush-16` (since 13B-9 the passes run over the stroke's rect, and
+the requests the app sends name it, so their plans are the rect form's,
+`cmyk_brush_rect`'s plan frame; the figures recorded here were measured on
+the by-layer plans before it and are not re-run), `smudge-16` (since 13B-9 the plan of its footprint,
 `cmyk_brush_rect`) and `equalize-16`
 (the CMYK adjustment apply's terms plus the table), each read from
 `get_precision` before the measured call, and `equalize-rgb16` /

@@ -16,9 +16,11 @@
 //! and its alpha kept. Normal blending only, never with a pattern or a plane.
 //!
 //! The walk runs over a [`PaintFrame`]: the canvas for every request this
-//! API parses (`plan` / `apply`), or another canvas-space rect for a caller
-//! that lays its coverage out there (`precision_fill_stroke`'s layer-edge
-//! stroke, whose band may reach past the canvas). Nothing grows under
+//! API parses (`plan` / `apply`) but a `dodge_burn` that names its
+//! `coverage_rect` (the rect, [`NativePaintEdit::frame`]), or another
+//! canvas-space rect for a caller that lays its coverage out there
+//! (`precision_fill_stroke`'s layer-edge stroke, whose band may reach past
+//! the canvas). Nothing grows under
 //! Preserve Transparency (`PaintBlend`'s `preserve_alpha`) or a transparency
 //! lock. Under either, the composite is the frozen-alpha rule
 //! (`blend::composite_source_frozen`): an alpha-0 pixel stays, a
@@ -143,6 +145,11 @@ pub(crate) enum NativePaintEdit {
         /// `doc_retouch::protected`; absent is the per-channel curve.
         #[serde(default)]
         protect_tones: bool,
+        /// The canvas rect `[x, y, w, h]` the input is laid out over (the
+        /// walk's [`PaintFrame`], `retouch_coverage::brush_rect`); absent is
+        /// the canvas.
+        #[serde(default)]
+        coverage_rect: Option<[u32; 4]>,
     },
     EraseNative {
         layer: usize,
@@ -394,11 +401,30 @@ impl NativePaintEdit {
             Ok((image.dimensions(), layer.offset()))
         }
     }
+    /// The frame a parsed request's input is laid out over: the canvas,
+    /// unless a `dodge_burn` names its `coverage_rect`.
+    pub(crate) fn frame(&self, doc: &PrecisionDocument) -> Result<PaintFrame, String> {
+        let Self::DodgeBurn {
+            coverage_rect: Some(rect),
+            ..
+        } = *self
+        else {
+            return Ok(PaintFrame::canvas(doc));
+        };
+        let (x, y, width, height) =
+            crate::retouch_coverage::brush_rect(Some(rect), doc.dimensions())?;
+        Ok(PaintFrame {
+            x: i64::from(x),
+            y: i64::from(y),
+            width,
+            height,
+        })
+    }
     pub(crate) fn plan(&self, doc: &PrecisionDocument) -> Result<Value, String> {
         if doc.is_cmyk() {
             return doc.cmyk_dodge_burn_plan(self);
         }
-        self.plan_in(doc, PaintFrame::canvas(doc))
+        self.plan_in(doc, self.frame(doc)?)
     }
     /// [`Self::plan`] with the input laid out over `frame`.
     pub(crate) fn plan_in(
@@ -507,7 +533,7 @@ impl NativePaintEdit {
         if doc.is_cmyk() {
             return doc.cmyk_dodge_burn(self, input, limit, other, job);
         }
-        self.apply_in(doc, input, PaintFrame::canvas(doc), limit, other, job)
+        self.apply_in(doc, input, self.frame(doc)?, limit, other, job)
     }
 
     /// [`Self::apply`] with `input` laid out over `frame`.

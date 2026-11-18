@@ -477,7 +477,7 @@ fn the_descriptor_reports_the_retouch_plans() {
             descriptor[key]
         );
     }
-    // The three retouch keys are the plans of the rect-form requests the
+    // The retouch keys are the plans of the rect-form requests the
     // app sends for `scripts/cmyk-admission/measure.py`'s strokes on the top
     // CMYK raster (record 1): a heal and a spot heal of one 100 px dab at
     // the centre (`healBounds`, the 104 px square, as their bounds and
@@ -500,13 +500,47 @@ fn the_descriptor_reports_the_retouch_plans() {
     heal["matrix"] = json!(above);
     let mut spot = at(square);
     spot["op"] = json!("spot_heal");
+    // Dodge/Burn and the History Brush (from the document itself) along the
+    // clone's row send the same rect as their `coverage_rect`.
+    let dodge = json!({"op":"dodge_burn","layer":1,"exposure":0.5,"range":1,"burn":false,
+        "coverage_rect":row});
     for (key, request) in [
         ("cmyk_clone_scratch_bytes", clone),
         ("cmyk_heal_scratch_bytes", heal),
         ("cmyk_spot_heal_scratch_bytes", spot),
+        ("cmyk_dodge_scratch_bytes", dodge),
     ] {
         let plan = crate::cmyk_structure_fixture::plan(doc, &request.to_string()).unwrap();
         assert_eq!(descriptor[key], plan["scratch_bytes"], "{key}: {request}");
     }
+    let mut err = ptr::null_mut();
+    let out = unsafe {
+        doctored_core::ffi_retouch_brush::dr_precision_doc_history_brush_plan(
+            doc,
+            1,
+            doc,
+            1,
+            false,
+            row.as_ptr(),
+            LIMIT,
+            0,
+            &mut err,
+        )
+    };
+    assert!(
+        !out.is_null(),
+        "history brush plan: {}",
+        take_err_string(err)
+    );
+    let text = unsafe { std::ffi::CStr::from_ptr(out) }
+        .to_str()
+        .unwrap()
+        .to_owned();
+    unsafe { doctored_core::ffi::dr_string_free(out) };
+    let history: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        descriptor["cmyk_history_brush_scratch_bytes"],
+        history["scratch_bytes"]
+    );
     free(doc);
 }

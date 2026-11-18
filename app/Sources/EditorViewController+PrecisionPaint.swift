@@ -183,7 +183,8 @@ extension EditorViewController {
             let selected = stroke.capture.selection != nil
             let command: PrecisionPixelCommand
             var kind = PrecisionStrokeWork.Kind.edit
-            // Clone, Heal and Spot Heal send their stroke's rect (`coverage_rect`, 13B-9c).
+            // Clone, Heal and Spot Heal send their stroke's rect (`coverage_rect`, 13B-9c), and
+            // so do Dodge/Burn, Blur, Sharpen, Sponge and the History Brush.
             var coverageRect: CoverageRect?
             switch stroke.tool {
             case .brush where stroke.cmyk != nil:
@@ -211,9 +212,12 @@ extension EditorViewController {
                     "opacity": stroke.opacity, "selection": selected]
                     .merging(IndexedDocument.backgroundFields(backgroundColor, in: source)) { $1 })
             case .dodge:
+                let rect = native.healBounds(width: source.width, height: source.height)
+                coverageRect = rect
                 command = try PrecisionPixelCommand(["op": "dodge_burn", "layer": stroke.capture.layer,
                     "exposure": stroke.opacity, "range": stroke.dodgeRange, "burn": stroke.burn,
-                    "protect_tones": stroke.protectTones, "selection": selected])
+                    "protect_tones": stroke.protectTones, "selection": selected,
+                    "coverage_rect": PrecisionPixelCommand.coverageRectField(rect)])
             case .clone, .heal, .spotHeal:
                 guard let options = stroke.retouchOptions else { throw DoctoredCoreError(message: "Missing captured retouch options.") }
                 let choice = RetouchSamplingChoice(mode: options.sample, ignoreAdjustments: options.ignoreAdjustments)
@@ -248,6 +252,12 @@ extension EditorViewController {
                 if stroke.vibrance { request["vibrance"] = true }
                 if stroke.sampleAllLayers, stroke.tool != .smudge {
                     request["sample_all_layers"] = true
+                }
+                // Smudge runs along its dabs and sends no rect.
+                if stroke.tool != .smudge {
+                    let rect = native.healBounds(width: source.width, height: source.height)
+                    coverageRect = rect
+                    request["coverage_rect"] = PrecisionPixelCommand.coverageRectField(rect)
                 }
                 command = try PrecisionPixelCommand(request)
                 if stroke.tool == .smudge {

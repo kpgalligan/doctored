@@ -68,10 +68,11 @@ use crate::precision_clipboard::ClipboardPayload;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_fill_stroke::LayerEdgeStroke;
 use crate::precision_geometry::{CropBackground, CROP_BACKGROUND_SHAPE};
-use crate::precision_image::{admit, PrecisionImage, PrecisionRun, BOOKKEEPING_BYTES};
+use crate::precision_image::{admit, pixel_count, PrecisionImage, PrecisionRun, BOOKKEEPING_BYTES};
 use crate::precision_paint::{PaintColorSpace, PaintEdit};
 use crate::precision_paint_tools::NativePaintEdit;
 use crate::precision_retouch::RetouchEdit;
+use crate::retouch_coverage::Rect;
 
 /// The request key that names the background colour (module doc).
 pub(crate) const BACKGROUND_KEY: &str = "indexed_background";
@@ -514,11 +515,12 @@ pub(crate) fn history_brush_plan(
     source: &PrecisionDocument,
     source_layer: usize,
     selection: bool,
+    rect: Option<Rect>,
 ) -> Result<Value, String> {
     doc.indexed_policy().ok_or(NOT_INDEXED)?;
     let mut value =
         doc.without_indexed()
-            .history_brush_plan(layer, source, source_layer, selection)?;
+            .history_brush_plan(layer, source, source_layer, selection, rect)?;
     let scratch = value["scratch_bytes"]
         .as_u64()
         .ok_or("indexed history brush plan has no scratch_bytes")?;
@@ -537,14 +539,16 @@ pub(crate) fn history_brush(
     source_layer: usize,
     opacity: f64,
     samples: &[u16],
+    rect: Option<Rect>,
     limit: u64,
     other: u64,
     job: JobContext<'_>,
 ) -> Result<Option<PrecisionDocument>, String> {
     doc.indexed_policy().ok_or(NOT_INDEXED)?;
-    let canvas = crate::precision_image::pixel_count(doc.width, doc.height)?;
-    let selection = samples.len() == 2 * canvas;
-    let scratch = history_brush_plan(doc, layer, source, source_layer, selection)?["scratch_bytes"]
+    let area = crate::precision_retouch_brush::history_rect(doc, rect)?;
+    let selection = samples.len() == 2 * pixel_count(area.2, area.3)?;
+    let scratch = history_brush_plan(doc, layer, source, source_layer, selection, rect)?
+        ["scratch_bytes"]
         .as_u64()
         .ok_or("indexed history brush plan has no scratch_bytes")?;
     admit(doc.retained_bytes(), scratch, other, limit)?;
@@ -557,6 +561,7 @@ pub(crate) fn history_brush(
         source_layer,
         opacity,
         samples,
+        rect,
         limit,
         other,
         inner,

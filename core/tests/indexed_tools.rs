@@ -411,6 +411,7 @@ fn the_history_brush_restores_the_earlier_plane() {
             1.0,
             full.as_ptr(),
             full.len(),
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -422,6 +423,66 @@ fn the_history_brush_restores_the_earlier_plane() {
     assert_eq!(indices(restored), before);
     assert_eq!(render16(restored), render16(doc));
     free(restored);
+    free(painted);
+    free(doc);
+}
+
+/// The History Brush naming its `coverage_rect`: the stroke cropped to the
+/// rect moves the indices the canvas form moves.
+#[test]
+fn a_rect_form_history_brush_answers_the_canvas_form() {
+    let doc = scene();
+    let brush = json!({"op":"paint_blend","layer":0,
+        "color":[220.0/255.0, 30.0/255.0, 30.0/255.0, 1.0],"color_space":"document",
+        "opacity":1.0,"blend_mode":0});
+    let painted = paint(doc, &brush, &band_coverage(65535))
+        .unwrap()
+        .expect("the stroke moves indices");
+    let rect = (3u32, 1u32, 6u32, 6u32);
+    // The band in rows 2 to 5, inside the rect.
+    let stroke: Vec<u16> = band_coverage(65535)
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| {
+            if (2..6).contains(&(i as u32 / W)) {
+                c
+            } else {
+                0
+            }
+        })
+        .collect();
+    let history = |samples: &[u16], words: Option<[u32; 4]>| {
+        let mut err = ptr::null_mut();
+        let out = unsafe {
+            dr_precision_doc_history_brush(
+                painted,
+                0,
+                doc,
+                0,
+                1.0,
+                samples.as_ptr(),
+                samples.len(),
+                words.as_ref().map_or(ptr::null(), |w| w.as_ptr()),
+                LIMIT,
+                0,
+                ptr::null(),
+                &mut err,
+            )
+        };
+        assert!(!out.is_null(), "{}", take_err_string(err));
+        out
+    };
+    let a = history(&stroke, None);
+    let b = history(&crop(&stroke, rect), Some([rect.0, rect.1, rect.2, rect.3]));
+    assert_ne!(
+        indices(a),
+        indices(painted),
+        "the canvas form moves indices"
+    );
+    assert_eq!(indices(b), indices(a));
+    assert_eq!(render16(b), render16(a));
+    free(a);
+    free(b);
     free(painted);
     free(doc);
 }

@@ -8175,15 +8175,21 @@ size_t dr_brush_dynamics_dabs(const DrBrushDynamics *dynamics, uint64_t index,
  * takes strength in 0..1, the canvas-sized u16 selection (or NULL, 0) and
  * sample_all_layers, whose plan (dr_precision_doc_smudge_plan with the same
  * flag) adds the sampled picture's term once;
- * dr_precision_doc_history_brush takes opacity in 0..1 and samples: the
- * canvas-sized u16 stroke coverage, then the selection plane when planned with
- * selection (length n or 2n). Both refuse a target that is not a raster of
+ * dr_precision_doc_history_brush takes opacity in 0..1 and samples: the u16
+ * stroke coverage over coverage_rect (four uint32 x, y, w, h; NULL = the
+ * canvas), then the selection plane over the same rect when planned with
+ * selection (length n or 2n, n the rect's area recomputed in the core);
+ * dr_precision_doc_history_brush_plan takes the same coverage_rect, and both
+ * refuse a rect that is empty or leaves the canvas ("brush coverage_rect must
+ * be a nonempty rectangle inside the canvas"). Both refuse a target that is not a raster of
  * the document's own storage and a retained source by name; an exact no-op is
  * NULL with no error; control is an optional single-use job. The 16-bit Blur,
  * Sharpen and Sponge are dr_precision_doc_edit's op "retouch_brush":
  * {"op":"retouch_brush","layer":n,"kind":"blur"|"sharpen"|"saturate"|
  * "desaturate","strength":0..1,"selection":bool,"vibrance":bool,
- * "sample_all_layers":bool}, input laid out as dodge_burn's; vibrance and
+ * "sample_all_layers":bool,"coverage_rect":[x,y,w,h]}, input laid out as
+ * dodge_burn's (over coverage_rect when it is named, the canvas otherwise);
+ * vibrance and
  * sample_all_layers (both default false) as the byte call's, refused in its
  * sentences, and a sampled stroke's plan adds the picture's term once.
  *
@@ -8253,14 +8259,14 @@ DrPrecisionDocument *dr_precision_doc_smudge(
     const DrJobControl *control, char **err_out);
 char *dr_precision_doc_history_brush_plan(const DrPrecisionDocument *document,
     size_t layer, const DrPrecisionDocument *source, size_t source_layer,
-    bool selection, uint64_t limit, uint64_t other_retained_bytes,
-    char **err_out);
+    bool selection, const uint32_t *coverage_rect, uint64_t limit,
+    uint64_t other_retained_bytes, char **err_out);
 DrPrecisionDocument *dr_precision_doc_history_brush(
     const DrPrecisionDocument *document, size_t layer,
     const DrPrecisionDocument *source, size_t source_layer, double opacity,
-    const uint16_t *samples, size_t length, uint64_t limit,
-    uint64_t other_retained_bytes, const DrJobControl *control,
-    char **err_out);
+    const uint16_t *samples, size_t length, const uint32_t *coverage_rect,
+    uint64_t limit, uint64_t other_retained_bytes,
+    const DrJobControl *control, char **err_out);
 
 /* The Art History Brush (art_history_stroke.rs, the kernel, with
  * doc_art_history.rs, precision_art_history.rs, cmyk_art_history.rs,
@@ -8437,11 +8443,13 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * protect_tones default false: the three channels move together, each scaled
  * by curve(V)/V with V the largest, #1; a float layer groups its in-range
  * display codes; on a Lab Color document, #1 phase 2e, only L* is shaped and
- * protect_tones is the plain curve on L*) retains alpha and raw storage; a scalar_edit dodge_burn
+ * protect_tones is the plain curve on L*; coverage_rect [x,y,w,h], optional,
+ * lays its input over that canvas rect, as "retouch_brush"'s does) retains alpha and raw storage; a scalar_edit dodge_burn
  * accepts protect_tones and takes the plain curve (a single plane). erase_native(layer,opacity) changes alpha
- * alone without expansion. Every op reads one canvas coverage plane;
- * selection:true adds a second separate canvas gate, multiplied once before
- * final native quantization. No erase blend mode exists; historical paint/
+ * alone without expansion. Every op reads one coverage plane over the canvas,
+ * or over coverage_rect when a dodge_burn names one; selection:true adds a
+ * second separate gate over the same area, multiplied once before final
+ * native quantization. No erase blend mode exists; historical paint/
  * erase schemas and byte operations retain their existing meaning.
  * scalar_edit operation gradient(from,to,radial,start/end u16,opacity default1,
  * start_alpha/end_alpha normalized doubles default1 interpolated independently)

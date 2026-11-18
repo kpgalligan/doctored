@@ -18,14 +18,28 @@
 //! selection is zero (the selection confines it, so it is admitted and
 //! equals the same request with that overreach zeroed), and refuses where
 //! the selection is not.
+//!
+//! The coverage brushes take the same key (13B-9's residue): a `dodge_burn`
+//! (Dodge, Burn, Protect Tones) or `retouch_brush` request (Blur, Sharpen,
+//! Saturate, Desaturate, the Vibrance sponge, Blur and Sharpen with Sample
+//! All Layers), and the History Brush export's `coverage_rect` argument,
+//! answer what their canvas form answers to the bit at each depth, with and
+//! without a selection, on the canvas layer, the off-canvas layer and a
+//! transparency-locked one; a rect that misses the layer answers nothing in
+//! both forms. Their plans report the rect form's input, and each refusal
+//! names itself.
 
 use std::ffi::{CStr, CString};
 use std::ptr;
 
+use doctored_core::doc_lock::LOCK_TRANSPARENCY;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::ffi_retouch::dr_precision_doc_retouch_from;
+use doctored_core::ffi_retouch_brush::{
+    dr_precision_doc_history_brush, dr_precision_doc_history_brush_plan,
+};
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
@@ -194,11 +208,20 @@ fn crop(plane: &[u16], (x, y, w, h): (u32, u32, u32, u32)) -> Vec<u16> {
 
 /// The canvas-form samples and the rect-form samples of one stroke.
 fn inputs(stroke: &[u16], selection: Option<&[u16]>) -> (Vec<u16>, Vec<u16>) {
+    inputs_over(stroke, selection, RECT)
+}
+
+/// [`inputs`] over `over`.
+fn inputs_over(
+    stroke: &[u16],
+    selection: Option<&[u16]>,
+    over: (u32, u32, u32, u32),
+) -> (Vec<u16>, Vec<u16>) {
     let mut canvas = stroke.to_vec();
-    let mut rect = crop(stroke, RECT);
+    let mut rect = crop(stroke, over);
     if let Some(selection) = selection {
         canvas.extend_from_slice(selection);
-        rect.extend(crop(selection, RECT));
+        rect.extend(crop(selection, over));
     }
     (canvas, rect)
 }
@@ -617,4 +640,305 @@ fn a_selection_confines_coverage_past_the_bounds_in_both_forms() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+// ------------------------------------------------- the coverage brushes --
+
+/// The coverage brushes' refusal of a rect outside the canvas.
+const BRUSH_OUTSIDE: &str = "brush coverage_rect must be a nonempty rectangle inside the canvas";
+/// A rect that misses the off-canvas layer (`OFF`: canvas x < 48, y ≥ 44),
+/// and the dab inside it.
+const MISS_RECT: (u32, u32, u32, u32) = (58, 4, 26, 22);
+const MISS_DAB: (u32, u32, u32, u32) = (62, 8, 18, 14);
+
+/// The coverage brushes' canvas-form `dr_precision_doc_edit` requests on
+/// `layer`.
+fn brushes(layer: usize) -> Vec<(&'static str, Value)> {
+    let dodge = |extra: Value| {
+        let base = json!({"op":"dodge_burn","layer":layer,"exposure":0.6,"range":1,"burn":false});
+        with(&base, extra)
+    };
+    let brush = |kind: &str, extra: Value| {
+        let base = json!({"op":"retouch_brush","layer":layer,"kind":kind,"strength":0.8});
+        with(&base, extra)
+    };
+    vec![
+        ("dodge", dodge(json!({}))),
+        ("burn", dodge(json!({"burn": true, "range": 0}))),
+        (
+            "protect tones",
+            dodge(json!({"protect_tones": true, "range": 2})),
+        ),
+        ("blur", brush("blur", json!({}))),
+        ("sharpen", brush("sharpen", json!({}))),
+        ("saturate", brush("saturate", json!({}))),
+        ("desaturate", brush("desaturate", json!({}))),
+        ("vibrance", brush("saturate", json!({"vibrance": true}))),
+        (
+            "blur sal",
+            brush("blur", json!({"sample_all_layers": true})),
+        ),
+        (
+            "sharpen sal",
+            brush("sharpen", json!({"sample_all_layers": true})),
+        ),
+    ]
+}
+
+/// `rect` as the History Brush export's `coverage_rect` words.
+fn words(rect: Option<(u32, u32, u32, u32)>) -> Option<[u32; 4]> {
+    rect.map(|(x, y, w, h)| [x, y, w, h])
+}
+
+/// The History Brush painting layer `layer` of `source` back over `doc`'s
+/// at opacity 0.7, its input over `rect` (the canvas when `None`).
+fn history(
+    doc: &PrecisionDocument,
+    source: &PrecisionDocument,
+    layer: usize,
+    samples: &[u16],
+    rect: Option<(u32, u32, u32, u32)>,
+) -> Answer {
+    let rect = words(rect);
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_history_brush(
+            doc,
+            layer,
+            source,
+            layer,
+            0.7,
+            samples.as_ptr(),
+            samples.len(),
+            rect.as_ref().map_or(ptr::null(), |r| r.as_ptr()),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    if !error.is_null() {
+        return Err(take(error));
+    }
+    Ok((!out.is_null()).then(|| unsafe { Box::from_raw(out) }))
+}
+
+fn history_plan(
+    doc: &PrecisionDocument,
+    source: &PrecisionDocument,
+    selected: bool,
+    rect: Option<(u32, u32, u32, u32)>,
+) -> Result<Value, String> {
+    let rect = words(rect);
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_history_brush_plan(
+            doc,
+            0,
+            source,
+            0,
+            selected,
+            rect.as_ref().map_or(ptr::null(), |r| r.as_ptr()),
+            LIMIT,
+            0,
+            &mut error,
+        )
+    };
+    if out.is_null() {
+        return Err(take(error));
+    }
+    let value = serde_json::from_str(unsafe { CStr::from_ptr(out) }.to_str().unwrap()).unwrap();
+    unsafe { dr_string_free(out) };
+    Ok(value)
+}
+
+/// Both forms answer no change.
+fn nothing(failures: &mut Vec<String>, label: &str, canvas: Answer, rect: Answer) {
+    match (canvas, rect) {
+        (Ok(None), Ok(None)) => {}
+        (canvas, rect) => failures.push(format!(
+            "{label}: canvas form {:?}, rect form {:?} (both should change nothing)",
+            canvas.map(|d| d.is_some()),
+            rect.map(|d| d.is_some())
+        )),
+    }
+}
+
+#[test]
+fn the_brush_rect_form_answers_the_canvas_form() {
+    let stroke = coverage(DAB);
+    let missing = coverage(MISS_DAB);
+    let gate = selection();
+    let sources = documents(9);
+    let mut failures = Vec::new();
+    for ((depth, doc), (_, source)) in documents(1).into_iter().zip(&sources) {
+        for layer in [0usize, 1] {
+            let locked = doc
+                .with_layer_locks(layer, LOCK_TRANSPARENCY)
+                .unwrap()
+                .unwrap();
+            for selected in [false, true] {
+                let plane = selected.then_some(&gate[..]);
+                let (canvas, rect) = inputs(&stroke, plane);
+                let (miss_canvas, miss_rect) = inputs_over(&missing, plane, MISS_RECT);
+                for (name, request) in brushes(layer) {
+                    let mut request = request;
+                    if selected {
+                        request["selection"] = json!(true);
+                    }
+                    let label = format!("{depth} {name} layer {layer} selection {selected}");
+                    for (target, on) in [("", &doc), (" locked", &locked)] {
+                        compare(
+                            &mut failures,
+                            &format!("{label}{target}"),
+                            edit(on, &request, &canvas),
+                            edit(on, &rect_form(&request, RECT), &rect),
+                            true,
+                        );
+                    }
+                    if layer == 1 {
+                        nothing(
+                            &mut failures,
+                            &format!("{label} missing rect"),
+                            edit(&doc, &request, &miss_canvas),
+                            edit(&doc, &rect_form(&request, MISS_RECT), &miss_rect),
+                        );
+                    }
+                }
+                let label = format!("{depth} history layer {layer} selection {selected}");
+                for (target, on) in [("", &doc), (" locked", &locked)] {
+                    compare(
+                        &mut failures,
+                        &format!("{label}{target}"),
+                        history(on, source, layer, &canvas, None),
+                        history(on, source, layer, &rect, Some(RECT)),
+                        true,
+                    );
+                }
+                if layer == 1 {
+                    nothing(
+                        &mut failures,
+                        &format!("{label} missing rect"),
+                        history(&doc, source, layer, &miss_canvas, None),
+                        history(&doc, source, layer, &miss_rect, Some(MISS_RECT)),
+                    );
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn the_brush_plan_reports_the_rect_forms_input() {
+    let sources = documents(9);
+    for ((depth, doc), (_, source)) in documents(1).into_iter().zip(&sources) {
+        for selected in [false, true] {
+            let planes = if selected { 2 } else { 1 };
+            let shape = |plan: &Value| {
+                (
+                    plan["input_width"].clone(),
+                    plan["input_height"].clone(),
+                    plan["input_planes"].clone(),
+                    plan["input_samples"].clone(),
+                )
+            };
+            let canvas_shape = (json!(W), json!(H), json!(planes), json!(N * planes));
+            let rect_shape = (
+                json!(RECT.2),
+                json!(RECT.3),
+                json!(planes),
+                json!((RECT.2 * RECT.3) as usize * planes),
+            );
+            for (name, request) in brushes(0) {
+                let mut request = request;
+                request["selection"] = json!(selected);
+                let canvas = plan(&doc, &request).unwrap();
+                assert_eq!(
+                    shape(&canvas),
+                    canvas_shape,
+                    "{depth} {name} canvas form, selection {selected}"
+                );
+                let rect = plan(&doc, &rect_form(&request, RECT)).unwrap();
+                assert_eq!(
+                    shape(&rect),
+                    rect_shape,
+                    "{depth} {name} rect form, selection {selected}"
+                );
+            }
+            let canvas = history_plan(&doc, source, selected, None).unwrap();
+            assert_eq!(
+                shape(&canvas),
+                canvas_shape,
+                "{depth} history canvas form, selection {selected}"
+            );
+            let rect = history_plan(&doc, source, selected, Some(RECT)).unwrap();
+            assert_eq!(
+                shape(&rect),
+                rect_shape,
+                "{depth} history rect form, selection {selected}"
+            );
+        }
+    }
+}
+
+#[test]
+fn each_brush_refusal_names_itself() {
+    const COUNT: &str = "high-depth input sample length does not match the core plan";
+    let stroke = coverage(DAB);
+    let sources = documents(9);
+    let outside = [
+        (90, 10, 10, 10),
+        (10, 70, 10, 3),
+        (10, 10, 0, 5),
+        (10, 10, 5, 0),
+    ];
+    for ((depth, doc), (_, source)) in documents(1).into_iter().zip(&sources) {
+        for (name, request) in brushes(0) {
+            for rect in outside {
+                assert_eq!(
+                    plan(&doc, &rect_form(&request, rect)).unwrap_err(),
+                    BRUSH_OUTSIDE,
+                    "{depth} {name} {rect:?}"
+                );
+            }
+            // A sample count that is not the plan's.
+            assert_eq!(
+                refused(edit(&doc, &rect_form(&request, RECT), &stroke)),
+                COUNT,
+                "{depth} {name}"
+            );
+        }
+        for rect in outside {
+            assert_eq!(
+                history_plan(&doc, source, false, Some(rect)).unwrap_err(),
+                BRUSH_OUTSIDE,
+                "{depth} history plan {rect:?}"
+            );
+            assert_eq!(
+                refused(history(&doc, source, 0, &crop(&stroke, RECT), Some(rect))),
+                BRUSH_OUTSIDE,
+                "{depth} history {rect:?}"
+            );
+        }
+        assert_eq!(
+            refused(history(&doc, source, 0, &stroke, Some(RECT))),
+            COUNT,
+            "{depth} history"
+        );
+        // The key is the coverage brushes' alone.
+        let paint = if depth == "cmyk" {
+            json!({"op":"paint_blend","layer":0,"ink":[0.1,0.2,0.3,0.4,1.0],"opacity":1.0,
+                "coverage_rect":[RECT.0, RECT.1, RECT.2, RECT.3]})
+        } else {
+            json!({"op":"paint_blend","layer":0,"color":[0.1,0.2,0.3,1.0],
+                "color_space":"document","opacity":1.0,"blend_mode":0,
+                "coverage_rect":[RECT.0, RECT.1, RECT.2, RECT.3]})
+        };
+        let refusal = plan(&doc, &paint).unwrap_err();
+        assert!(
+            refusal.contains("unknown field `coverage_rect`"),
+            "{depth} paint_blend: {refusal}"
+        );
+    }
 }

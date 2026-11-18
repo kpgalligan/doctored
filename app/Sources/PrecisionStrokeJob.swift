@@ -12,8 +12,9 @@ import AppKit
 // Smudge runs along the stroke's own dabs and the History Brush paints its footprint from a state.
 // A Smudge carries Sample All Layers, which its plan and run both take. The
 // Art History Brush runs along the stroke's own dabs from a state, as Smudge does (no footprint).
-// A stroke that names its `coverage_rect` (Clone, Heal, Spot Heal) brings its selection read
-// over that rect (`CanvasSelection.maskSamples16(in:)`), never a canvas-sized u16 plane.
+// A stroke that names its `coverage_rect` (Clone, Heal, Spot Heal, Dodge/Burn, Blur, Sharpen,
+// Sponge and the History Brush) brings its selection read over that rect
+// (`CanvasSelection.maskSamples16(in:)`), never a canvas-sized u16 plane.
 
 /// A typed (16-bit) stroke as ONE nonmodal `DocumentJobs` job: the
 /// canvas Brush, Eraser, Dodge/Burn, Clone Stamp, Healing Brush, Spot Healing
@@ -53,8 +54,9 @@ struct PrecisionStrokeWork {
     let selection: [UInt16]?
     let width: Int
     let height: Int
-    /// The canvas rect an `.edit`'s request names as its `coverage_rect` (13B-9c): the
-    /// footprint and the selection are that rect's samples; nil = canvas-sized planes.
+    /// The canvas rect an `.edit`'s request names as its `coverage_rect` (13B-9c), or the
+    /// History Brush's: the footprint and the selection are that rect's samples; nil =
+    /// canvas-sized planes.
     let coverageRect: CoverageRect?
     /// The footprint plan's scratch plus the edit plan's.
     let scratchEstimate: UInt64
@@ -95,10 +97,10 @@ struct PrecisionStrokeWork {
     }
 
     /// `kind` over `layer`. `command` is the planned request of an `.edit`
-    /// and only names the stroke for the other two kinds. `selection` covers `coverageRect`
+    /// and only names the stroke for the other kinds. `selection` covers `coverageRect`
     /// (`width × height` of its samples, row-major) when one is named (an `.edit` whose
-    /// request names it), so the caller reads it over the rect and makes no canvas-sized u16
-    /// plane, and the canvas otherwise; any other count throws.
+    /// request names it, or the History Brush), so the caller reads it over the rect and makes
+    /// no canvas-sized u16 plane, and the canvas otherwise; any other count throws.
     init(kind: Kind, layer: Int, source: RasterPrecisionDocument, stroke: NativeBrushStroke,
          command: PrecisionPixelCommand, selection: [UInt16]?, width: Int, height: Int,
          coverageRect: CoverageRect? = nil) throws {
@@ -106,7 +108,12 @@ struct PrecisionStrokeWork {
             throw DoctoredCoreError(message: BackgroundWork.preparingBusyMessage)
         }
         if let rect = coverageRect {
-            guard case .edit = kind, rect.x >= 0, rect.y >= 0, rect.width > 0, rect.height > 0,
+            let footprinted: Bool
+            switch kind {
+            case .edit, .historyBrush: footprinted = true
+            case .smudge, .artHistory, .backgroundEraser: footprinted = false
+            }
+            guard footprinted, rect.x >= 0, rect.y >= 0, rect.width > 0, rect.height > 0,
                   rect.x + rect.width <= width, rect.y + rect.height <= height,
                   stroke.inks == nil else {
                 throw DoctoredCoreError(message: "A stroke's coverage rect must be a nonempty rect inside the canvas.")
@@ -132,7 +139,7 @@ struct PrecisionStrokeWork {
             planned = selection == nil ? 0 : pixels
         case .historyBrush(let history, let historyLayer, _):
             plan = try source.historyBrushPlan(layer: layer, source: history,
-                sourceLayer: historyLayer, selection: selection != nil,
+                sourceLayer: historyLayer, selection: selection != nil, coverageRect: coverageRect,
                 workingLimit: context.limit, otherRetained: context.otherRetained)
             planned = pixels * (selection == nil ? 1 : 2)
         case .artHistory(let history, let historyLayer, let request):
@@ -235,8 +242,9 @@ struct PrecisionStrokeWork {
             if case .historyBrush(let history, let historyLayer, let opacity) = kind {
                 return try source.historyBrushing(layer: layer, source: history,
                     sourceLayer: historyLayer, opacity: opacity,
-                    samples: footprint + (selection ?? []), workingLimit: context.limit,
-                    otherRetained: context.otherRetained, control: child)
+                    samples: footprint + (selection ?? []), coverageRect: coverageRect,
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: child)
             }
             return try source.editingPixels(request: command.request, samples: footprint + (selection ?? []),
                 workingLimit: context.limit, otherRetained: context.otherRetained, control: child)

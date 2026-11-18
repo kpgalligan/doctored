@@ -25,8 +25,9 @@
 //! along the centre row 3000 px wide, size 100, its rect `[cx − 1552, cy − 52,
 //! 3104, 104]` clamped to the canvas, the source 400 px above; a heal (the
 //! same source) and a spot heal of one 100 px dab at the canvas centre, over
-//! the 104 px square there; Dodge/Burn; a 100 px smudge across the centre
-//! 3000 px wide; the History Brush from the document itself; and Equalize.
+//! the 104 px square there; Dodge/Burn along the clone's row, over its rect;
+//! a 100 px smudge across the centre 3000 px wide; the History Brush from the
+//! document itself along the same row, over the same rect; and Equalize.
 
 use std::sync::Arc;
 
@@ -281,9 +282,13 @@ impl PrecisionDocument {
         let scratch = |plan: Result<Value, String>| {
             number(plan.ok().and_then(|p| p["scratch_bytes"].as_u64()))
         };
+        // Dodge/Burn and the History Brush send the clone's stroke's rect,
+        // its `healBounds`, as their `coverage_rect`.
+        let row = [rx0, ry0, rx1 - rx0, ry1 - ry0].map(|v| v as u32);
         let dodge = NativePaintEdit::parse(
-            &json!({"op":"dodge_burn","layer":layer,"exposure":0.5,"range":1,"burn":false})
-                .to_string(),
+            &json!({"op":"dodge_burn","layer":layer,"exposure":0.5,"range":1,"burn":false,
+                "coverage_rect":row})
+            .to_string(),
         );
         out.insert(
             "cmyk_dodge_scratch_bytes".into(),
@@ -314,7 +319,13 @@ impl PrecisionDocument {
         );
         out.insert(
             "cmyk_history_brush_scratch_bytes".into(),
-            scratch(self.cmyk_history_brush_plan(layer, self, layer, false)),
+            scratch(self.cmyk_history_brush_plan(
+                layer,
+                self,
+                layer,
+                false,
+                Some((row[0], row[1], row[2], row[3])),
+            )),
         );
         let equalize = SelectedEdit {
             layer,

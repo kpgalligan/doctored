@@ -298,12 +298,14 @@ call, each the core plan of the very request the drive sends (the descriptor's
 - `spot-heal-16`: `spot_heal_stroke` one 100 px dab at the centre; plan =
   `cmyk_spot_heal_scratch_bytes` (the same 104 px square).
 - `dodge-16`: `dodge_burn` exposure 50 midtones along the centre row; plan =
-  `cmyk_dodge_scratch_bytes`.
+  `cmyk_dodge_scratch_bytes` (the rect form: its `coverage_rect` the clone's
+  `healBounds`, [1448, 1948, 3104, 104]).
 - `smudge-16`: `smudge_stroke` from (1500, 2000) to (4500, 2000), size 100,
   strength 50; plan = `cmyk_smudge_scratch_bytes`.
 - `history-brush-16`: a Gaussian Blur 8 as the setup, then
   `history_brush_stroke` from the state before it along the centre row, size
-  100; plan = `cmyk_history_brush_scratch_bytes`.
+  100; plan = `cmyk_history_brush_scratch_bytes` (the rect form, the same
+  `coverage_rect`).
 - `equalize-16`: `equalize` on the layer; plan = `cmyk_equalize_scratch_bytes`.
 - `blur-sal-rgb16`, `blur-sal-16`: the 16-bit RGB PNG at 16 bits, and the
   16-bit CMYK TIFF; `blur_stroke` with `sample_all_layers` along the diagonal

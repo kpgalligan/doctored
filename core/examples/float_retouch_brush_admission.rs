@@ -258,7 +258,17 @@ fn history(document: &'static PrecisionDocument) -> Case {
     let coverage = vec![u16::MAX; W as usize * H as usize];
     let mut error = ptr::null_mut();
     let plan = unsafe {
-        dr_precision_doc_history_brush_plan(document, 0, source, 0, false, UNLIMITED, 0, &mut error)
+        dr_precision_doc_history_brush_plan(
+            document,
+            0,
+            source,
+            0,
+            false,
+            ptr::null(),
+            UNLIMITED,
+            0,
+            &mut error,
+        )
     };
     Case {
         scratch: scratch_of(plan, error),
@@ -273,6 +283,7 @@ fn history(document: &'static PrecisionDocument) -> Case {
                     0.5,
                     coverage.as_ptr(),
                     coverage.len(),
+                    ptr::null(),
                     limit,
                     0,
                     ptr::null(),

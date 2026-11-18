@@ -315,6 +315,7 @@ fn history_case(
             opacity,
             input.as_ptr(),
             input.len(),
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -333,6 +334,7 @@ fn history_case(
             source_layer: 1,
             opacity,
             input,
+            rect: None,
         },
         LIMIT,
     );

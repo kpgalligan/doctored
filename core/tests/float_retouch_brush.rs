@@ -1062,7 +1062,17 @@ fn history_plan(
 ) -> Result<Value, String> {
     let mut e = ptr::null_mut();
     let p = unsafe {
-        dr_precision_doc_history_brush_plan(d, 0, source, 0, selection, LIMIT, 0, &mut e)
+        dr_precision_doc_history_brush_plan(
+            d,
+            0,
+            source,
+            0,
+            selection,
+            ptr::null(),
+            LIMIT,
+            0,
+            &mut e,
+        )
     };
     if p.is_null() {
         return Err(unsafe { error(e) });
@@ -1087,6 +1097,7 @@ fn history_under(
             opacity,
             input.as_ptr(),
             input.len(),
+            ptr::null(),
             LIMIT,
             0,
             control.map_or(ptr::null(), |c| c as *const DrJobControl),
@@ -1377,6 +1388,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             &earlier,
             0,
             false,
+            ptr::null(),
             LIMIT,
             0,
             &mut e
@@ -1390,6 +1402,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             ptr::null(),
             0,
             false,
+            ptr::null(),
             LIMIT,
             0,
             &mut e
@@ -1405,6 +1418,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -1421,6 +1435,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -1437,6 +1452,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             ptr::null(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),
@@ -1456,6 +1472,7 @@ fn the_history_brush_refuses_by_name_and_tolerates_null() {
             1.0,
             full.as_ptr(),
             48,
+            ptr::null(),
             LIMIT,
             0,
             ptr::null(),

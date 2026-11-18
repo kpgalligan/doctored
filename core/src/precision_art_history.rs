@@ -123,7 +123,7 @@ impl PrecisionDocument {
             return Err(ART_TARGET_REFUSAL.into());
         }
         let plan = self
-            .cmyk_history_brush_plan(layer, source, source_layer, selection)
+            .cmyk_history_brush_plan(layer, source, source_layer, selection, None)
             .map_err(|e| {
                 if e == HISTORY_SOURCE_REFUSAL {
                     ART_SOURCE_REFUSAL.to_string()

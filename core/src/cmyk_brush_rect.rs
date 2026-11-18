@@ -35,25 +35,41 @@
 //! its footprint: [`SMUDGE_RECT_BYTES_PER_PIXEL`] over the tiles `F` can
 //! touch, the kernel's stage and the layer-space dabs at the 5/4 margin
 //! (`precision_retouch_plan::margin`), plus bookkeeping and the canvas
-//! display term. The coverage brushes' requests carry no stroke rect, so
-//! their plans keep the by-layer bound (`cmyk_retouch_brush`'s module doc).
+//! display term.
+//!
+//! A coverage brush's request that names its `coverage_rect` plans by the
+//! rect ([`PrecisionDocument::cmyk_rect_plan`]); one without it keeps the
+//! by-layer bound (`cmyk_retouch_brush`'s module doc). The plan frame `G'`
+//! ([`PrecisionDocument::cmyk_plan_frame`]) is the rect on the record grown
+//! by the kind's reach and clipped to it, as `G` is the coverage's bbox
+//! grown the same way, so `G ⊆ G'`: the stroke's coverage lies inside its
+//! rect. The plan is one pass's RGB plan on a stand-in pass document over
+//! `G'` (`cmyk_pass_stand_in_rect`; its input the request's rect, its output
+//! terms `G'`'s) once per pass run, plus
+//! [`PrecisionDocument::cmyk_rect_pass_scratch`]'s per-tile term over the
+//! tiles `G'` can touch (the two passes' rect images, the join's read and the
+//! rewritten ink tiles; `cmyk_retouch_brush::PASS_BYTES_PER_PIXEL`), the
+//! canvas display term and bookkeeping; the History Brush adds the state's
+//! two pass images under `G'` (16 B a pixel). Sample All Layers still adds
+//! its canvas-sized picture once (`sampled_plate_plan`). Its margin over the
+//! counted peak is held by `core/tests/rect_read_memory.rs`.
 //!
 //! [`PrecisionDocument::cmyk_brush_whole_layer`] is the tests' seam: a
 //! stroke through layer-sized pass documents, the path before the rect
 //! (`core/tests/cmyk_brush_rect.rs` holds the rect path equal to it).
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::brush_coverage::{footprint, BrushRequest};
 use crate::cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL;
 use crate::cmyk_passes::{
     join_rect, pass_document, pass_rect_image, pass_result, InkPass, BLANK_PASS,
 };
-use crate::cmyk_retouch_brush::{plate_of, HISTORY_SOURCE_REFUSAL};
+use crate::cmyk_retouch_brush::{number, plate_of, HISTORY_SOURCE_REFUSAL, PASS_BYTES_PER_PIXEL};
 use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
-use crate::layer_rect::{canvas_rect_on_plane, coverage_rect16, plane_rect_offset};
+use crate::layer_rect::{canvas_rect_on_plane, plane_rect_offset};
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{pixel_count, PrecisionImage, BOOKKEEPING_BYTES};
 use crate::precision_paint_tools::NativePaintEdit;
@@ -63,13 +79,22 @@ use crate::precision_smudge::{
     check_smudge_strength, layer_dabs, smudge_rect_walk, SMUDGE_SELECTION_REFUSAL,
 };
 use crate::retouch_brush_sampling::clip_footprint;
-use crate::retouch_coverage::Rect;
+use crate::retouch_coverage::{brush_rect, BrushCoverage, Rect};
 use crate::retouch_smudge::smudge_stage_pixels;
 
 /// Footprint-tile bytes of Smudge's rect walk: pass A's result 8, the
 /// running pass's input 8, samples 8, field 16 and Sample All Layers'
 /// starting field 16, the rewritten ink 10.
 const SMUDGE_RECT_BYTES_PER_PIXEL: u64 = 66;
+
+/// `rect` on a `(w, h)` record grown by `reach` on every side and clipped to
+/// the record: the brush frame and the plan frame alike.
+fn grown((x, y, rw, rh): Rect, reach: u32, (w, h): (u32, u32)) -> Rect {
+    let (x0, y0) = (x.saturating_sub(reach), y.saturating_sub(reach));
+    let x1 = (x + rw).saturating_add(reach).min(w);
+    let y1 = (y + rh).saturating_add(reach).min(h);
+    (x0, y0, x1 - x0, y1 - y0)
+}
 
 /// A stroke for [`PrecisionDocument::cmyk_brush_whole_layer`] (tests only).
 #[doc(hidden)]
@@ -93,6 +118,7 @@ pub enum CmykBrushStroke<'a> {
         source_layer: usize,
         opacity: f64,
         input: &'a [u16],
+        rect: Option<(u32, u32, u32, u32)>,
     },
 }
 
@@ -153,6 +179,7 @@ impl PrecisionDocument {
                 source_layer,
                 opacity,
                 input,
+                rect,
             } => self.under_locks(layer, EditKind::Pixels, |doc| {
                 doc.cmyk_history_brush_in(
                     layer,
@@ -160,6 +187,7 @@ impl PrecisionDocument {
                     source_layer,
                     opacity,
                     input,
+                    rect,
                     limit,
                     0,
                     job,
@@ -170,27 +198,111 @@ impl PrecisionDocument {
     }
 
     /// The brush frame `G` of CMYK raster `layer` (module doc): the bounding
-    /// box of the canvas-sized `stroke` on the record, grown by `reach` on
+    /// box of the stroke's `coverage` on the record, grown by `reach` on
     /// every side and clipped to the record; `(0, 0, 1, 1)` when the stroke
     /// misses the record.
     pub(crate) fn cmyk_brush_frame(
         &self,
         layer: usize,
-        stroke: &[u16],
+        coverage: &BrushCoverage<'_>,
         reach: u32,
     ) -> Result<Rect, String> {
         let ((w, h), offset) = self.cmyk_brush_target(layer)?;
-        let canvas = self.dimensions();
-        if stroke.len() != pixel_count(canvas.0, canvas.1)? {
-            return Err("native paint input length differs from plan".into());
-        }
-        let Some((x, y, cw, ch)) = coverage_rect16(stroke, canvas, (w, h), offset) else {
-            return Ok((0, 0, 1, 1));
+        Ok(coverage
+            .layer_rect((w, h), offset)
+            .map_or((0, 0, 1, 1), |bbox| grown(bbox, reach, (w, h))))
+    }
+
+    /// The plan frame `G'` of CMYK raster `layer` (module doc): the canvas
+    /// `rect` on the record (and the canvas), grown by `reach` and clipped to
+    /// the record; `(0, 0, 1, 1)` when it misses the record.
+    pub(crate) fn cmyk_plan_frame(
+        &self,
+        layer: usize,
+        rect: Rect,
+        reach: u32,
+    ) -> Result<Rect, String> {
+        let ((w, h), offset) = self.cmyk_brush_target(layer)?;
+        let (x, y) = (i64::from(rect.0), i64::from(rect.1));
+        let ends = (x, y, x + i64::from(rect.2), y + i64::from(rect.3));
+        Ok(
+            canvas_rect_on_plane(self.dimensions(), (w, h), offset, ends)
+                .map_or((0, 0, 1, 1), |part| grown(part, reach, (w, h))),
+        )
+    }
+
+    /// A stand-in pass document of CMYK raster `layer` over its rect `frame`
+    /// for a plan: the frame's size at its canvas position, the record's
+    /// transparency lock, no samples.
+    pub(crate) fn cmyk_pass_stand_in_rect(
+        &self,
+        layer: usize,
+        frame: Rect,
+    ) -> Result<PrecisionDocument, String> {
+        let (_, offset) = self.cmyk_brush_target(layer)?;
+        let locks = if self.lock_owner(layer, LOCK_TRANSPARENCY).is_some() {
+            LOCK_TRANSPARENCY
+        } else {
+            0
         };
-        let (x0, y0) = (x.saturating_sub(reach), y.saturating_sub(reach));
-        let x1 = (x + cw).saturating_add(reach).min(w);
-        let y1 = (y + ch).saturating_add(reach).min(h);
-        Ok((x0, y0, x1 - x0, y1 - y0))
+        let image =
+            PrecisionImage::filled_rgba16(frame.2, frame.3, BLANK_PASS, IccProfile::srgb())?;
+        pass_document(
+            self.dimensions(),
+            image,
+            plane_rect_offset(offset, frame),
+            locks,
+        )
+    }
+
+    /// The rect plans' scratch (module doc): `rgb` (one pass's RGB plan)
+    /// run `passes` times, plus `t·PASS_BYTES_PER_PIXEL`,
+    /// canvas·`DISPLAY_BYTES_PER_PIXEL` and `2·BOOKKEEPING_BYTES`, with `t`
+    /// the pixels of the tiles `frame` can touch (`rect_tiles`).
+    pub(crate) fn cmyk_rect_pass_scratch(
+        &self,
+        frame: Rect,
+        rgb: u64,
+        passes: u64,
+    ) -> Result<u64, String> {
+        let (cw, ch) = self.dimensions();
+        let canvas = pixel_count(cw, ch)? as u64;
+        let tiles = rect_tiles(frame.2, frame.3) * TILE_PIXELS;
+        rgb.checked_mul(passes)
+            .and_then(|v| v.checked_add(tiles.checked_mul(PASS_BYTES_PER_PIXEL)?))
+            .and_then(|v| v.checked_add(canvas.checked_mul(DISPLAY_BYTES_PER_PIXEL)?))
+            .and_then(|v| v.checked_add(2 * BOOKKEEPING_BYTES))
+            .ok_or_else(|| "CMYK retouch scratch overflow".to_string())
+    }
+
+    /// A coverage brush's plan on CMYK raster `layer` over its request's
+    /// `coverage_rect` (module doc): `pass_plan` (one pass's RGB plan) on the
+    /// stand-in over the plan frame of `rect` grown by `reach`, run `passes`
+    /// times, restated by [`Self::cmyk_rect_pass_scratch`], plus `per_frame`
+    /// bytes a frame pixel; the document's retained bytes.
+    pub(crate) fn cmyk_rect_plan(
+        &self,
+        layer: usize,
+        rect: [u32; 4],
+        reach: u32,
+        passes: u64,
+        per_frame: u64,
+        pass_plan: impl FnOnce(&PrecisionDocument) -> Result<Value, String>,
+    ) -> Result<Value, String> {
+        let rect = brush_rect(Some(rect), self.dimensions())?;
+        let frame = self.cmyk_plan_frame(layer, rect, reach)?;
+        let mut plan = pass_plan(&self.cmyk_pass_stand_in_rect(layer, frame)?)?;
+        let rgb = number(&plan, "scratch_bytes")?;
+        let held = (u64::from(frame.2) * u64::from(frame.3))
+            .checked_mul(per_frame)
+            .ok_or("CMYK retouch scratch overflow")?;
+        let scratch = self
+            .cmyk_rect_pass_scratch(frame, rgb, passes)?
+            .checked_add(held)
+            .ok_or("CMYK retouch scratch overflow")?;
+        plan["retained_bytes"] = json!(self.retained_bytes());
+        plan["scratch_bytes"] = json!(scratch);
+        Ok(plan)
     }
 
     /// `run` on CMYK raster `layer`'s pass A and, when `k`, pass B over its

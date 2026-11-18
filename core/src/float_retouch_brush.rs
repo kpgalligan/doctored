@@ -55,7 +55,9 @@
 //!
 //! The plans are the masters' at f32 width (`float_paint::plan_in`'s walk
 //! figure, `8·BOOKKEEPING + n·48 + output·16`, in place of the u16 walk's
-//! `n·24 + output·8`), plus each brush's own per-pixel term:
+//! `n·24 + output·8`; `n` the input's area, its `coverage_rect`'s or the
+//! canvas's, and the table's cases canvas form), plus each brush's own
+//! per-pixel term:
 //! [`FLOAT_RETOUCH_BRUSH_BYTES_PER_PIXEL`] and
 //! [`FLOAT_HISTORY_BRUSH_BYTES_PER_PIXEL`] over the layer. Smudge's plan is
 //! not the walk's: it is [`FLOAT_SMUDGE_BYTES_PER_PIXEL`] over the stroke's
@@ -119,15 +121,15 @@ use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::float_document::FLOAT_RANGE_MAX;
 use crate::float_filter_apply::PLAN_RANGE;
 use crate::job_control::JobContext;
-use crate::layer_rect::coverage_rect16;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
 };
-use crate::precision_retouch_brush::{coverage_at, RetouchBrushEdit};
+use crate::precision_retouch_brush::{history_rect, history_selected, RetouchBrushEdit};
 use crate::precision_smudge::{check_smudge_strength, layer_dabs};
 use crate::retouch_brush::{halo_in, mix, refuse_options, targets_in, Vibrancy};
 use crate::retouch_brush_sampling::{clip_footprint, float_sampled_walk, sampled_field};
+use crate::retouch_coverage::{brush_rect, BrushCoverage, Rect};
 use crate::retouch_smudge::{smudge, smudge_stage_pixels, smudge_work};
 use crate::sampling::EXTENDED_ALPHA_FLOOR;
 
@@ -179,14 +181,16 @@ pub(crate) fn paintable_f32(
 
 /// `precision_retouch_brush::coverage_plan` at f32 width: the float paint
 /// walk's `8·BOOKKEEPING_BYTES + n·48 + output·16`, plus `kernel` bytes for
-/// each layer pixel, under the same keys.
+/// each layer pixel, under the same keys, `n` the area of the input's
+/// `rect`.
 pub(crate) fn coverage_plan(
     doc: &PrecisionDocument,
     image: &PrecisionImage,
     kernel: u64,
     selection: bool,
+    rect: Rect,
 ) -> Result<Value, String> {
-    let (width, height) = doc.dimensions();
+    let (_, _, width, height) = rect;
     let n = pixel_count(width, height)? as u64;
     let (w, h) = image.dimensions();
     let output = pixel_count(w, h)? as u64;
@@ -226,6 +230,7 @@ pub(crate) fn retouch_brush_plan(
         image,
         FLOAT_RETOUCH_BRUSH_BYTES_PER_PIXEL,
         edit.selection,
+        brush_rect(edit.coverage_rect, doc.dimensions())?,
     )
 }
 
@@ -256,16 +261,16 @@ pub(crate) fn retouch_brush_unlocked(
     let (image, (ox, oy)) = paintable_f32(doc, edit.layer)?;
     let (lw, lh) = image.dimensions();
     let canvas = doc.dimensions();
-    let n = pixel_count(canvas.0, canvas.1)?;
-    let Some((rx, ry, rw, rh)) = coverage_rect16(&input[..n], canvas, (lw, lh), (ox, oy)) else {
+    let rect = brush_rect(edit.coverage_rect, canvas)?;
+    let coverage = BrushCoverage::new(input, rect, canvas, edit.selection)?;
+    let Some((rx, ry, rw, rh)) = coverage.layer_rect((lw, lh), (ox, oy)) else {
         job.report(1., 5)?;
         return Ok(None);
     };
     let amount_at = |at: usize| -> f64 {
-        let cx = (i64::from(rx) + (at % rw as usize) as i64 + i64::from(ox)) as usize;
-        let cy = (i64::from(ry) + (at / rw as usize) as i64 + i64::from(oy)) as usize;
-        coverage_at(input, n, edit.selection, cy * canvas.0 as usize + cx)
-            * f64::from(edit.strength)
+        let cx = i64::from(rx) + (at % rw as usize) as i64 + i64::from(ox);
+        let cy = i64::from(ry) + (at / rw as usize) as i64 + i64::from(oy);
+        coverage.at(cx, cy) * f64::from(edit.strength)
     };
     if let Some(plate) = sampled {
         let mut px = image.read_rect_rgba32(rx, ry, rw, rh).ok_or(ALLOCATION)?;
@@ -574,10 +579,18 @@ impl PrecisionDocument {
         source: &PrecisionDocument,
         source_layer: usize,
         selection: bool,
+        rect: Option<Rect>,
     ) -> Result<Value, String> {
         let (image, _) = paintable_f32(self, layer)?;
         self.float_history_source(source, source_layer)?;
-        coverage_plan(self, image, FLOAT_HISTORY_BRUSH_BYTES_PER_PIXEL, selection)
+        let rect = history_rect(self, rect)?;
+        coverage_plan(
+            self,
+            image,
+            FLOAT_HISTORY_BRUSH_BYTES_PER_PIXEL,
+            selection,
+            rect,
+        )
     }
 
     /// The float arm of `history_brush_unlocked` (module doc).
@@ -589,6 +602,7 @@ impl PrecisionDocument {
         source_layer: usize,
         opacity: f64,
         input: &[u16],
+        rect: Option<Rect>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
@@ -597,13 +611,9 @@ impl PrecisionDocument {
             return Err("history brush opacity is invalid".into());
         }
         let canvas = self.dimensions();
-        let n = pixel_count(canvas.0, canvas.1)?;
-        let selected = match input.len() {
-            len if len == n => false,
-            len if len == 2 * n => true,
-            _ => return Err("native paint input length differs from plan".into()),
-        };
-        let plan = self.float_history_brush_plan(index, source, source_layer, selected)?;
+        let input_rect = history_rect(self, rect)?;
+        let selected = history_selected(input, input_rect)?;
+        let plan = self.float_history_brush_plan(index, source, source_layer, selected, rect)?;
         let scratch = plan["scratch_bytes"].as_u64().unwrap_or(u64::MAX);
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
@@ -614,8 +624,8 @@ impl PrecisionDocument {
         let (image, (ox, oy)) = paintable_f32(self, index)?;
         let (from, (sox, soy)) = self.float_history_source(source, source_layer)?;
         let (lw, lh) = image.dimensions();
-        let Some((rx, ry, rw, rh)) = coverage_rect16(&input[..n], canvas, (lw, lh), (ox, oy))
-        else {
+        let coverage = BrushCoverage::new(input, input_rect, canvas, selected)?;
+        let Some((rx, ry, rw, rh)) = coverage.layer_rect((lw, lh), (ox, oy)) else {
             job.report(1., 5)?;
             return Ok(None);
         };
@@ -652,9 +662,9 @@ impl PrecisionDocument {
                 job.report(0.8 * at as f64 / area as f64, 3)?;
             }
             let (column, row) = ((at % rw as usize) as i64, (at / rw as usize) as i64);
-            let cx = (i64::from(rx) + column + i64::from(ox)) as usize;
-            let cy = (i64::from(ry) + row + i64::from(oy)) as usize;
-            let coverage = coverage_at(input, n, selected, cy * canvas.0 as usize + cx);
+            let cx = i64::from(rx) + column + i64::from(ox);
+            let cy = i64::from(ry) + row + i64::from(oy);
+            let coverage = coverage.at(cx, cy);
             let old = *slot;
             let t = coverage * opacity;
             if t == 0. || (frozen && old[3] == 0.) {

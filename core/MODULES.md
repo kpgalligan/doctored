@@ -28,7 +28,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_retouch_rect.rs` — an in-place CMYK Clone/Heal's passes over the stroke's rect (rect pass documents, the taps' plate, join/composite over it); its and the synthesis's plans.
 - `cmyk_retouch_plate.rs` — the CMYK retouch sampling plate (Current; the composite cut at opacity 0), its P3 view and the descriptor's retouch plans.
 - `cmyk_retouch_brush.rs` — Dodge/Burn, Blur, Sharpen, Sponge (K held), Smudge and the History Brush on ink as RGB16 passes; their plans.
-- `cmyk_brush_rect.rs` — those brushes' passes over the stroke's rect (frame, rect two-pass, History sources, Smudge's footprint walk and plan); the whole-layer test seam.
+- `cmyk_brush_rect.rs` — those brushes' passes over the stroke's rect (frame, rect two-pass, History sources, Smudge's walk) and their rect-form plans; the whole-layer test seam.
 - `cmyk_art_history.rs` — the Art History Brush on an 8-bit CMYK record's ink: the kernel's strokes through `over_mode`, written as `CmykPaintEdit` writes.
 - `cmyk_fade.rs` — Edit ▸ Fade on a CMYK raster: `precision_fade`'s walk over CMYKA16 through `fade_ink`; its plan.
 - `cmyk_paint.rs` — `CmykPaintEdit`: Brush, Eraser, Fill, Gradient and Paint Bucket in ink on a CMYK layer; plan, walk, refusals.
@@ -249,7 +249,7 @@ Detail belongs in the source file's own header comment.
 - `precision_retouch.rs` / `precision_retouch_apply.rs` / `precision_retouch_source.rs` / `retouch_transform.rs` / `ffi_retouch.rs` — native retouch requests, typed compositor cuts, source mapping.
 - `precision_retouch_plan.rs` — `retouch_plan`'s in-place terms: the coverage area's domain, the Clone/Heal frame, taps and tiles, the synthesis window and estimate.
 - `precision_retouch_run.rs` — `retouch` / `retouch_from` and its refusal: the lock gate, the coverage prelude, the CMYK and float dispatch, the u16 arm (destination, in-place rect writer).
-- `retouch_coverage.rs` — kernel: `CoveragePlane`, a typed retouch's stroke or selection over one canvas rect (`coverage_rect`), 0 outside it; reads, bbox, crops.
+- `retouch_coverage.rs` — kernel: `CoveragePlane`, a typed retouch's or coverage brush's stroke or selection over one canvas rect (`coverage_rect`), 0 outside; `BrushCoverage`, `brush_rect`.
 - `precision_retouch_heal.rs` / `precision_retouch_output.rs` — native retouch windows over the shared membrane writeback; output admission and the new layer above (gated groups refuse).
 - `float_retouch.rs` — the f32 arm of the typed retouch: staging, the linear clone walk, encode → shared kernel → decode for heal, spot heal and fill.
 - `float_retouch_brush.rs` — the f32 arm of the Blur, Sharpen, Sponge, Smudge and History brushes: plans, walks over the shared kernels, admission record.

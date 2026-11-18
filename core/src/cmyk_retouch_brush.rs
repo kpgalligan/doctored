@@ -33,8 +33,9 @@
 //! footprint (13B-9, `cmyk_brush_rect`); each `_in` body's `whole_layer`
 //! keeps layer-sized pass documents for that module's test seam.
 //!
-//! The coverage brushes' requests (Dodge/Burn, Blur, Sharpen, Sponge, the
-//! History Brush) carry no stroke rect, so their plans keep the by-layer
+//! A coverage brush's request (Dodge/Burn, Blur, Sharpen, Sponge, the History
+//! Brush) that names its `coverage_rect` plans the passes over that rect
+//! (`cmyk_brush_rect`'s plan frame). One without it keeps the by-layer
 //! bound: the RGB plan of one pass (on a stand-in pass document with the
 //! record's size and offset, which the plan reads for its geometry only)
 //! once per pass run, plus layer px × 34 (pass A's input 8 and held output
@@ -46,18 +47,20 @@
 //! footprint (`cmyk_brush_rect`). Sample All Layers adds the picture once
 //! (`sampled_plate_plan`: `cmyk_plate_scratch` plus its two passes, canvas ×
 //! 16), and each coverage brush's pass is admitted against `other` plus the
-//! two passes' bytes. Measured on the canvas pass documents, before the rect, by
+//! two passes' bytes. Measured on the by-layer plans by
 //! `scripts/cmyk-admission/measure.py` (`dodge-16`, `smudge-16`,
-//! `history-brush-16`; `blur-sal-16`, plan 7,366,605,728 against max
-//! E 2,281,113,400, and `smudge-sal-16`, plan 5,310,313,888 against max E
-//! 1,464,435,960, the 24 MP 16-bit CMYK TIFF, both 1.25 E inside the plan).
+//! `history-brush-16`; `blur-sal-16`, plan 7,366,605,728 against max E
+//! 2,281,113,400, and `smudge-sal-16`, plan 5,310,313,888 against max E
+//! 1,464,435,960, the 24 MP 16-bit CMYK TIFF, both 1.25 E inside the plan);
+//! the rect plans of `dodge-16`, `history-brush-16` and `blur-sal-16` hold
+//! their margin by allocator count only (`core/tests/rect_read_memory.rs`).
 
 use serde_json::{json, Value};
 
 use crate::brush_coverage::BrushRequest;
 use crate::cmyk_adjust_layer::DISPLAY_BYTES_PER_PIXEL;
 use crate::cmyk_passes::{pass_document, InkPass, BLANK_PASS};
-use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
+use crate::doc_lock::EditKind;
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
 use crate::precision_document::PrecisionDocument;
@@ -65,28 +68,34 @@ use crate::precision_image::{admit, pixel_count, PrecisionImage, BOOKKEEPING_BYT
 use crate::precision_paint_tools::NativePaintEdit;
 use crate::precision_retouch_brush::RetouchBrushEdit;
 use crate::retouch_brush::{halo, RetouchBrushKind};
-use crate::retouch_coverage::Rect;
+use crate::retouch_coverage::{brush_rect, BrushCoverage, Rect};
 use crate::retouch_transform::StorageExtent;
 
 /// The History Brush's refusal of a state it cannot paint from on CMYK.
 pub(crate) const HISTORY_SOURCE_REFUSAL: &str =
     "The History Brush's source state is not a CMYK raster";
 
-/// The per-layer-pixel term of every two-pass plan (module doc).
-const PASS_BYTES_PER_PIXEL: u64 = 34;
+/// The per-layer-pixel term of every two-pass plan (module doc), and the
+/// per-tile-pixel term of the rect plans (`cmyk_brush_rect`).
+pub(crate) const PASS_BYTES_PER_PIXEL: u64 = 34;
 
-/// `edit` as a pass runs it: layer 0.
-fn dodge_pass(edit: &NativePaintEdit) -> Result<NativePaintEdit, String> {
+/// `edit` as a pass runs it, layer 0 (its `coverage_rect` kept: the pass
+/// documents stand at canvas positions), and that rect.
+fn dodge_pass(edit: &NativePaintEdit) -> Result<(NativePaintEdit, Option<[u32; 4]>), String> {
     let mut pass = edit.clone();
-    match &mut pass {
-        NativePaintEdit::DodgeBurn { layer, .. } => *layer = 0,
-        _ => {
-            return Err(crate::cmyk_document::refused_sentence(
-                "This native paint request",
-            ))
-        }
+    if let NativePaintEdit::DodgeBurn {
+        layer,
+        coverage_rect,
+        ..
+    } = &mut pass
+    {
+        *layer = 0;
+        let rect = *coverage_rect;
+        return Ok((pass, rect));
     }
-    Ok(pass)
+    Err(crate::cmyk_document::refused_sentence(
+        "This native paint request",
+    ))
 }
 
 /// Whether a retouch brush runs pass B (Sponge holds K; module doc).
@@ -123,16 +132,11 @@ impl PrecisionDocument {
     }
 
     /// A stand-in pass document of CMYK raster `layer` for a plan (module
-    /// doc): its size and offset, its transparency lock, no samples.
+    /// doc): its size and offset, its transparency lock, no samples
+    /// (`cmyk_pass_stand_in_rect` over the whole record).
     pub(crate) fn cmyk_pass_stand_in(&self, layer: usize) -> Result<PrecisionDocument, String> {
-        let ((w, h), offset) = self.cmyk_brush_target(layer)?;
-        let locks = if self.lock_owner(layer, LOCK_TRANSPARENCY).is_some() {
-            LOCK_TRANSPARENCY
-        } else {
-            0
-        };
-        let image = PrecisionImage::filled_rgba16(w, h, BLANK_PASS, IccProfile::srgb())?;
-        pass_document(self.dimensions(), image, offset, locks)
+        let ((w, h), _) = self.cmyk_brush_target(layer)?;
+        self.cmyk_pass_stand_in_rect(layer, (0, 0, w, h))
     }
 
     /// A two-pass plan's scratch (module doc): `rgb` is one pass's RGB
@@ -223,8 +227,11 @@ impl PrecisionDocument {
 
     /// Dodge/Burn's plan on CMYK (module doc).
     pub(crate) fn cmyk_dodge_burn_plan(&self, edit: &NativePaintEdit) -> Result<Value, String> {
-        let pass = dodge_pass(edit)?;
+        let (pass, rect) = dodge_pass(edit)?;
         let layer = edit.target().0;
+        if let Some(rect) = rect {
+            return self.cmyk_rect_plan(layer, rect, 0, 2, 0, |stand| pass.plan(stand));
+        }
         let plan = pass.plan(&self.cmyk_pass_stand_in(layer)?)?;
         self.cmyk_two_pass_plan(layer, plan, 2, 0)
     }
@@ -257,16 +264,17 @@ impl PrecisionDocument {
         if input.len() as u64 != number(&plan, "input_samples")? {
             return Err("native paint input length differs from plan".into());
         }
-        let pass = dodge_pass(edit)?;
-        let layer = edit.target().0;
+        let (pass, rect) = dodge_pass(edit)?;
+        let (layer, .., selected) = edit.target();
         let scratch = number(&plan, "scratch_bytes")?;
-        let n = pixel_count(self.dimensions().0, self.dimensions().1)?;
+        let canvas = self.dimensions();
+        let coverage = BrushCoverage::new(input, brush_rect(rect, canvas)?, canvas, selected)?;
         self.under_locks(layer, EditKind::Pixels, |doc| {
             admit(doc.retained_bytes(), scratch, other, limit)?;
             job.reserve(scratch)?;
             let job = job.with_reservation_floor(scratch);
             let frame = (!whole_layer)
-                .then(|| doc.cmyk_brush_frame(layer, &input[..n], 0))
+                .then(|| doc.cmyk_brush_frame(layer, &coverage, 0))
                 .transpose()?;
             doc.cmyk_two_pass(layer, true, frame, other, job, |_, doc, other, job| {
                 pass.apply(doc, input, limit, other, job)
@@ -282,8 +290,12 @@ impl PrecisionDocument {
         pass.layer = 0;
         pass.sample_all_layers = false;
         pass.ink_pass = true;
-        let plan = pass.plan(&self.cmyk_pass_stand_in(edit.layer)?)?;
         let passes = if runs_k(edit.kind) { 2 } else { 1 };
+        if let Some(rect) = edit.coverage_rect {
+            let reach = halo(edit.kind);
+            return self.cmyk_rect_plan(edit.layer, rect, reach, passes, 0, |s| pass.plan(s));
+        }
+        let plan = pass.plan(&self.cmyk_pass_stand_in(edit.layer)?)?;
         self.cmyk_two_pass_plan(edit.layer, plan, passes, 0)
     }
 
@@ -328,8 +340,10 @@ impl PrecisionDocument {
         let frame = if whole_layer {
             None
         } else {
-            let n = pixel_count(self.dimensions().0, self.dimensions().1)?;
-            Some(self.cmyk_brush_frame(edit.layer, &input[..n], halo(edit.kind))?)
+            let canvas = self.dimensions();
+            let rect = brush_rect(edit.coverage_rect, canvas)?;
+            let coverage = BrushCoverage::new(input, rect, canvas, edit.selection)?;
+            Some(self.cmyk_brush_frame(edit.layer, &coverage, halo(edit.kind))?)
         };
         let Some((plates, held)) = plates else {
             return self.cmyk_two_pass(
@@ -504,20 +518,27 @@ impl PrecisionDocument {
         Ok((image.dimensions(), record.offset()))
     }
 
-    /// The History Brush's plan on CMYK (module doc).
+    /// The History Brush's plan on CMYK (module doc); over `rect`, the state's
+    /// two pass images are the frame's (16 B a frame pixel).
     pub(crate) fn cmyk_history_brush_plan(
         &self,
         layer: usize,
         source: &PrecisionDocument,
         source_layer: usize,
         selection: bool,
+        rect: Option<Rect>,
     ) -> Result<Value, String> {
         let ((sw, sh), soffset) = self.cmyk_history_source(source, source_layer)?;
+        if let Some(rect) = rect {
+            // The stand-in is its own state (the plan reads only its size).
+            return self.cmyk_rect_plan(layer, rect.into(), 0, 2, 16, |stand| {
+                stand.history_brush_plan(0, stand, 0, selection, Some(rect))
+            });
+        }
         let image = PrecisionImage::filled_rgba16(sw, sh, BLANK_PASS, IccProfile::srgb())?;
         let stand_source = pass_document(self.dimensions(), image, soffset, 0)?;
-        let plan =
-            self.cmyk_pass_stand_in(layer)?
-                .history_brush_plan(0, &stand_source, 0, selection)?;
+        let stand = self.cmyk_pass_stand_in(layer)?;
+        let plan = stand.history_brush_plan(0, &stand_source, 0, selection, None)?;
         let source_pixels = pixel_count(sw, sh)? as u64;
         self.cmyk_two_pass_plan(layer, plan, 2, source_pixels * 16)
     }
@@ -532,6 +553,7 @@ impl PrecisionDocument {
         source_layer: usize,
         opacity: f64,
         input: &[u16],
+        rect: Option<Rect>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
@@ -542,6 +564,7 @@ impl PrecisionDocument {
             source_layer,
             opacity,
             input,
+            rect,
             limit,
             other,
             job,
@@ -551,7 +574,8 @@ impl PrecisionDocument {
 
     /// [`Self::cmyk_history_brush_unlocked`] over the stroke's rect and the
     /// state's part under it (`cmyk_brush_rect`), or over whole-layer pass
-    /// documents when `whole_layer` (its seam).
+    /// documents when `whole_layer` (its seam). `input` is laid out over
+    /// `rect` (the canvas when `None`), which every pass keeps.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn cmyk_history_brush_in(
         &self,
@@ -560,18 +584,15 @@ impl PrecisionDocument {
         source_layer: usize,
         opacity: f64,
         input: &[u16],
+        rect: Option<Rect>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
         whole_layer: bool,
     ) -> Result<Option<Self>, String> {
-        let n = pixel_count(self.dimensions().0, self.dimensions().1)?;
-        let selected = match input.len() {
-            len if len == n => false,
-            len if len == 2 * n => true,
-            _ => return Err("native paint input length differs from plan".into()),
-        };
-        let plan = self.cmyk_history_brush_plan(index, source, source_layer, selected)?;
+        let area = crate::precision_retouch_brush::history_rect(self, rect)?;
+        let selected = crate::precision_retouch_brush::history_selected(input, area)?;
+        let plan = self.cmyk_history_brush_plan(index, source, source_layer, selected, rect)?;
         let scratch = number(&plan, "scratch_bytes")?;
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
@@ -579,7 +600,8 @@ impl PrecisionDocument {
         let frame = if whole_layer {
             None
         } else {
-            Some(self.cmyk_brush_frame(index, &input[..n], 0)?)
+            let coverage = BrushCoverage::new(input, area, self.dimensions(), selected)?;
+            Some(self.cmyk_brush_frame(index, &coverage, 0)?)
         };
         let sources = self.cmyk_history_sources(index, source, source_layer, frame, job)?;
         self.cmyk_two_pass(index, true, frame, other, job, |pass, doc, other, job| {
@@ -587,7 +609,7 @@ impl PrecisionDocument {
                 InkPass::Cmy => &sources[0],
                 InkPass::K => &sources[1],
             };
-            doc.history_brush(0, from, 0, opacity, input, limit, other, job)
+            doc.history_brush(0, from, 0, opacity, input, rect, limit, other, job)
         })
     }
 }

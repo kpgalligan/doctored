@@ -1,13 +1,17 @@
 import AppKit
 
-// The canvas site of a selected 16-bit Clone Stamp, Healing Brush and Spot Healing stroke
-// (`EditorViewController.finishPrecisionStroke`), which reads the selection over the stroke's
-// `coverage_rect`. Each stroke runs through the canvas's own `beginStroke(at:)` /
-// `continueStroke(to:pressure:)` / `endStroke()` on the fixture's off-screen window, with no
-// mouse event, key window or activation. The constants are
-// `scripts/verify_retouch_coverage_rect.py`'s, the MCP drive of the same strokes; the gates are
-// fixed here before any run: one job that completes, every CUT and FAR probe as it was, at least
-// one INSIDE probe changed, one undo restoring every probe.
+// The canvas site of a selected 16-bit Clone Stamp, Healing Brush, Spot Healing, Dodge, Blur,
+// Sharpen, Sponge and History Brush stroke (`EditorViewController.finishPrecisionStroke`), which
+// sends the stroke's `coverage_rect` and reads the selection over it. Each stroke runs through
+// the canvas's own `beginStroke(at:)` / `continueStroke(to:pressure:)` / `endStroke()` on the
+// fixture's off-screen window, with no mouse event, key window or activation. The History Brush
+// paints the state before an Invert back, so its stroke starts from the inverted state. The
+// constants are `scripts/verify_retouch_coverage_rect.py`'s, the MCP drive of the same strokes;
+// the gates are fixed here before any run: one job that completes, every CUT and FAR probe as it
+// was, at least one INSIDE probe changed, one undo restoring every probe, and the job holding
+// less than one canvas-sized u16 plane. That last gate is the one a canvas-form request fails:
+// its worker holds the canvas-sized footprint and selection planes (`PrecisionStrokeWork.heldBytes`,
+// the job's `scratch`), and its pixels are the rect form's.
 
 private let rectStrokeSize = (width: 200, height: 140)
 private let rectStrokeDab = CGPoint(x: 100.5, y: 70.5)
@@ -61,7 +65,13 @@ func verifyCanvasRetouchRectSelection() throws {
     }
     let store = ToolOptionsStore.shared
     let saved = (store.clone, store.heal, store.spotHeal)
-    defer { (store.clone, store.heal, store.spotHeal) = saved }
+    let savedBrushes = (store.dodge, store.blurBrush, store.sharpenBrush, store.sponge,
+                        store.historyBrush)
+    defer {
+        (store.clone, store.heal, store.spotHeal) = saved
+        (store.dodge, store.blurBrush, store.sharpenBrush, store.sponge,
+         store.historyBrush) = savedBrushes
+    }
     var tip = PaintToolOptions()
     tip.smoothing = 0
     tip.pressureSize = false
@@ -72,14 +82,37 @@ func verifyCanvasRetouchRectSelection() throws {
     store.clone = tip
     store.heal = tip
     store.spotHeal = tip
+    store.dodge = tip
+    store.blurBrush = tip
+    store.sharpenBrush = tip
+    store.sponge = tip
+    store.historyBrush = tip
 
     let everything = rectStrokeInside + rectStrokeCut + rectStrokeFar
     let original = try rectStrokeProbes(document, everything)
     let inside = 0..<rectStrokeInside.count
     let cut = rectStrokeInside.count..<(rectStrokeInside.count + rectStrokeCut.count)
     let far = cut.upperBound..<everything.count
-    for tool in [EditorTool.clone, .heal, .spotHeal] {
+    // One canvas-sized u16 plane: a canvas-form stroke's footprint alone. The rect form here
+    // holds its footprint and selection planes over `healBounds`' rect, a few px past the tip.
+    let canvasPlane = UInt64(width * height) * 2
+    var held: [(EditorTool, UInt64)] = []
+    // The History Brush is last: its Invert stays in the history.
+    for tool in [EditorTool.clone, .heal, .spotHeal, .dodge, .blurBrush, .sharpenBrush, .sponge,
+                 .historyBrush] {
         let label = "[retouch rect selection] \(tool)"
+        var start = original
+        if tool == .historyBrush {
+            // The state before the Invert is the History Brush's source.
+            guard let state = document.history.currentID else {
+                throw ProbeFailure(description: "\(label) the history has no current state")
+            }
+            _ = try call(document, "apply_filter", ["layer": 0, "filter": "invert"])
+            start = try rectStrokeProbes(document, everything)
+            try require(inside.allSatisfy { start[$0] != original[$0] },
+                        "\(label) the Invert changed the tip")
+            document.history.brushSourceID = state
+        }
         _ = try call(document, "select_rect", rectStrokeSelect)
         controller.selectTool(tool)
         try require(controller.currentTool == tool, "\(label) is selected")
@@ -100,17 +133,27 @@ func verifyCanvasRetouchRectSelection() throws {
         }
         try pumpUntil({ job.state != "running" }, seconds: 30, message: "\(label) job")
         try require(job.state == "completed", "\(label) job completed: \(job.state) \(job.report)")
+        // Gathered and gated after the loop, so one run names every stroke that misses it.
+        held.append((tool, job.scratch))
         let after = try rectStrokeProbes(document, everything)
-        try require(far.allSatisfy { after[$0] == original[$0] }, "\(label) every FAR probe is as it was")
-        try require(cut.allSatisfy { after[$0] == original[$0] },
+        try require(far.allSatisfy { after[$0] == start[$0] }, "\(label) every FAR probe is as it was")
+        try require(cut.allSatisfy { after[$0] == start[$0] },
                     "\(label) every CUT probe (outside the selection) is as it was")
-        try require(inside.contains { after[$0] != original[$0] }, "\(label) the stroke changes its tip")
+        try require(inside.contains { after[$0] != start[$0] }, "\(label) the stroke changes its tip")
         document.undoManager?.undo()
         let undone = try rectStrokeProbes(document, everything)
-        try require(undone == original, "\(label) one undo restores")
+        try require(undone == start, "\(label) one undo restores")
         _ = try call(document, "deselect")
     }
-    print("PASS: canvas retouch rect selection — a selected 16-bit Clone Stamp, Healing Brush and "
-        + "Spot Healing canvas stroke each run as one completed job, change the tip inside the "
-        + "selection and nothing outside it or far from the stroke, and undo in one step")
+    print("[retouch rect selection] job bytes held, one canvas plane \(canvasPlane): "
+        + held.map { "\($0.0) \($0.1)" }.joined(separator: ", "))
+    let canvasForm = held.filter { $0.1 >= canvasPlane }.map { "\($0.0) holds \($0.1) bytes" }
+    try require(canvasForm.isEmpty, "[retouch rect selection] each job holds less than one "
+        + "canvas plane (\(canvasPlane) bytes), so each stroke sent its coverage_rect: "
+        + canvasForm.joined(separator: ", "))
+    print("PASS: canvas retouch rect selection — a selected 16-bit Clone Stamp, Healing Brush, "
+        + "Spot Healing, Dodge, Blur, Sharpen, Sponge and History Brush canvas stroke each run as "
+        + "one completed job holding less than one canvas plane (its coverage_rect), change the "
+        + "tip inside the selection and nothing outside it or far from the stroke, and undo in "
+        + "one step")
 }

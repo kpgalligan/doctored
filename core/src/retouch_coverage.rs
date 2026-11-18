@@ -10,6 +10,13 @@
 //! [`CoveragePlane::get`]) or crops it to a frame ([`CoveragePlane::crop`]),
 //! so a plane over a rect answers what the canvas plane holding the same
 //! samples (0 elsewhere) answers, to the sample.
+//!
+//! The coverage brushes take the same rect (13B-9's residue): a `dodge_burn`
+//! or `retouch_brush` request's `coverage_rect` and the History Brush
+//! export's ([`brush_rect`]). Dodge and Burn lay their input out over the
+//! rect as a `PaintFrame`; the Blur, Sharpen and Sponge brushes and the
+//! History Brush read theirs through [`BrushCoverage`], whose stroke and
+//! selection planes are two [`CoveragePlane`]s over the rect.
 
 use crate::job_control::JobContext;
 use crate::precision_image::reserved_vec;
@@ -42,6 +49,78 @@ pub(crate) fn selection_domain(
 
 /// A canvas rect `(x, y, w, h)`.
 pub(crate) type Rect = (u32, u32, u32, u32);
+
+/// A coverage brush's input rect: its `coverage_rect` `[x, y, w, h]`, or the
+/// whole `canvas` without one (every earlier request's meaning). Refuses an
+/// empty rect and one that leaves the canvas.
+pub(crate) fn brush_rect(rect: Option<[u32; 4]>, canvas: (u32, u32)) -> Result<Rect, String> {
+    let Some([x, y, w, h]) = rect else {
+        return Ok((0, 0, canvas.0, canvas.1));
+    };
+    if w == 0
+        || h == 0
+        || u64::from(x) + u64::from(w) > u64::from(canvas.0)
+        || u64::from(y) + u64::from(h) > u64::from(canvas.1)
+    {
+        return Err("brush coverage_rect must be a nonempty rectangle inside the canvas".into());
+    }
+    Ok((x, y, w, h))
+}
+
+/// A coverage brush's input (module doc): the stroke's coverage over the
+/// rect, times the selection's over the same rect when the input carries one.
+#[derive(Clone, Copy)]
+pub(crate) struct BrushCoverage<'a> {
+    stroke: CoveragePlane<'a>,
+    selection: Option<CoveragePlane<'a>>,
+}
+
+impl<'a> BrushCoverage<'a> {
+    /// `input` laid out over `rect`: the stroke plane, then the selection
+    /// plane when `selected`; any other length refuses in the walks' sentence.
+    pub(crate) fn new(
+        input: &'a [u16],
+        rect: Rect,
+        canvas: (u32, u32),
+        selected: bool,
+    ) -> Result<Self, String> {
+        let area = rect.2 as usize * rect.3 as usize;
+        if input.len() != area * if selected { 2 } else { 1 } {
+            return Err("native paint input length differs from plan".into());
+        }
+        let stroke = CoveragePlane::new(&input[..area], rect, canvas)?;
+        let selection = selected
+            .then(|| CoveragePlane::new(&input[area..], rect, canvas))
+            .transpose()?;
+        Ok(Self { stroke, selection })
+    }
+
+    /// `layer_rect::coverage_rect16`'s answer for the stroke plane on a
+    /// `dimensions` layer at canvas `offset`: the plane is its own canvas and
+    /// the offset moves by the rect's origin (the `PaintFrame` rule), so the
+    /// bbox is layer-local and equals the canvas plane's. `None` when the
+    /// stroke misses the layer.
+    pub(crate) fn layer_rect(&self, dimensions: (u32, u32), offset: (i32, i32)) -> Option<Rect> {
+        let (rx, ry, rw, rh) = self.stroke.rect();
+        // An offset this shift cannot hold stands too far from the canvas to
+        // meet it.
+        let moved = (
+            i32::try_from(i64::from(offset.0) - i64::from(rx)).ok()?,
+            i32::try_from(i64::from(offset.1) - i64::from(ry)).ok()?,
+        );
+        crate::layer_rect::coverage_rect16(self.stroke.samples(), (rw, rh), dimensions, moved)
+    }
+
+    /// The stroke's coverage at canvas `(x, y)` in [0, 1], times the
+    /// selection's when there is one; 0 outside the rect.
+    pub(crate) fn at(&self, x: i64, y: i64) -> f64 {
+        let stroke = f64::from(self.stroke.get(x, y)) / 65535.0;
+        match self.selection {
+            Some(selection) => stroke * f64::from(selection.get(x, y)) / 65535.0,
+            None => stroke,
+        }
+    }
+}
 
 /// Coverage samples row-major over `rect`, a rect of a `canvas`-sized
 /// canvas (module doc).

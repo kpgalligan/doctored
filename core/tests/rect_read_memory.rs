@@ -42,6 +42,16 @@
 //! its canvas display term (21 bytes a canvas pixel) is at least 1.25 × the
 //! stroke's counted peak, and the whole plan is below `30·N`.
 //!
+//! The coverage brushes' rect-form bounds, declared before measuring, on the
+//! same CMYK document: the 100 × 100 dab of Dodge, the Blur, Sharpen and
+//! Desaturate brushes and the History Brush sent over its rect
+//! (`coverage_rect` = `DAB_RECT`) peaks below `2·N`, its plan less the
+//! display term is at least 1.25 × the counted peak, and the whole plan is
+//! below `30·N` (the canvas form's by-layer plans, printed for the record,
+//! charge each layer pixel); a 1500 × 1200 stroke's plan keeps the same
+//! 1.25 × margin, which there holds the per-pixel terms rather than the
+//! fixed bookkeeping.
+//!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
 //! `serial()`.
@@ -69,7 +79,8 @@ use doctored_core::ffi_fill_align::{dr_doc_fill_align_box, dr_precision_doc_fill
 use doctored_core::ffi_group::dr_doc_group_layers;
 use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::ffi_retouch_brush::{
-    dr_precision_doc_history_brush, dr_precision_doc_smudge, dr_precision_doc_smudge_plan,
+    dr_precision_doc_history_brush, dr_precision_doc_history_brush_plan, dr_precision_doc_smudge,
+    dr_precision_doc_smudge_plan,
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::layer_raster::LayerRaster;
@@ -382,8 +393,15 @@ fn edited(doc: &PrecisionDocument, request: &Value, samples: &[u16]) -> Precisio
 }
 
 /// The History Brush painting `source`'s layer 0 back over `doc`'s under
-/// `samples`: its peak above the live bytes before it.
-fn history_peak(doc: &PrecisionDocument, source: &PrecisionDocument, samples: &[u16]) -> usize {
+/// `samples`, laid out over `rect` (the canvas when `None`): its peak above
+/// the live bytes before it.
+fn history_peak(
+    doc: &PrecisionDocument,
+    source: &PrecisionDocument,
+    samples: &[u16],
+    rect: Option<(u32, u32, u32, u32)>,
+) -> usize {
+    let rect = rect.map(|(x, y, w, h)| [x, y, w, h]);
     let mut error = ptr::null_mut();
     let base = begin();
     let out = unsafe {
@@ -395,6 +413,7 @@ fn history_peak(doc: &PrecisionDocument, source: &PrecisionDocument, samples: &[
             1.0,
             samples.as_ptr(),
             samples.len(),
+            rect.as_ref().map_or(ptr::null(), |r| r.as_ptr()),
             LIMIT,
             0,
             ptr::null(),
@@ -489,7 +508,7 @@ fn a_cmyk_brush_dab_peaks_below_two_bytes_a_canvas_pixel() {
         .map(|(label, request)| (*label, dab_peak(&doc, request, &samples)))
         .collect();
     let dodged = edited(&doc, &dodge, &samples);
-    peaks.push(("history brush", history_peak(&dodged, &doc, &samples)));
+    peaks.push(("history brush", history_peak(&dodged, &doc, &samples, None)));
     drop(dodged);
     peaks.push(("smudge", smudge_peak(&doc)));
     for (label, peak) in &peaks {
@@ -524,6 +543,122 @@ fn a_cmyk_smudge_plan_holds_its_peak_and_follows_its_footprint() {
         "the plan {plan} reaches {}",
         30 * N as u64
     );
+}
+
+/// The long stroke of the coverage-brush plan bound (module doc): full
+/// coverage over this 1496 × 1196 rect, sent over [`LONG_RECT`].
+const LONG_DAB: (u32, u32, u32, u32) = (750, 450, 1496, 1196);
+/// [`LONG_DAB`] grown by 2 px: a 1500 × 1200 `coverage_rect`.
+const LONG_RECT: (u32, u32, u32, u32) = (748, 448, 1500, 1200);
+
+/// Full coverage over `stroke`, as the samples of `rect` (row-major).
+fn rect_coverage(stroke: (u32, u32, u32, u32), (x, y, w, h): (u32, u32, u32, u32)) -> Vec<u16> {
+    let (sx, sy, sw, sh) = stroke;
+    (0..w * h)
+        .map(|i| {
+            let (px, py) = (x + i % w, y + i / w);
+            if px >= sx && px < sx + sw && py >= sy && py < sy + sh {
+                u16::MAX
+            } else {
+                0
+            }
+        })
+        .collect()
+}
+
+/// The History Brush's plan painting `source`'s layer 0 over `doc`'s, its
+/// input over `rect` (the canvas when `None`), no selection.
+fn history_scratch(
+    doc: &PrecisionDocument,
+    source: &PrecisionDocument,
+    rect: Option<(u32, u32, u32, u32)>,
+) -> u64 {
+    let rect = rect.map(|(x, y, w, h)| [x, y, w, h]);
+    let mut error = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_history_brush_plan(
+            doc,
+            0,
+            source,
+            0,
+            false,
+            rect.as_ref().map_or(ptr::null(), |r| r.as_ptr()),
+            LIMIT,
+            0,
+            &mut error,
+        )
+    };
+    assert!(!out.is_null(), "history brush plan: {}", take(error));
+    let plan: Value =
+        serde_json::from_str(unsafe { CStr::from_ptr(out) }.to_str().unwrap()).unwrap();
+    unsafe { dr_string_free(out) };
+    plan["scratch_bytes"].as_u64().unwrap()
+}
+
+/// 13B-9's CMYK coverage-brush plan bounds (module doc), declared before
+/// measuring: each brush's rect-form dab peaks below `2·N`, its plan less the
+/// canvas display term holds 1.25 × the counted peak, and the whole plan
+/// stays below `30·N`; the long stroke holds the same 1.25 × margin. The
+/// canvas form's plans (the by-layer bound) are printed for the record.
+#[test]
+fn a_cmyk_coverage_brush_plan_holds_its_peak_and_follows_its_rect() {
+    let _serial = serial();
+    let doc = cmyk_dab_document();
+    let display = DISPLAY_BYTES_PER_PIXEL * N as u64;
+    let dodge = json!({"op":"dodge_burn","layer":0,"exposure":0.5,"range":1,"burn":false});
+    let brush = |kind: &str| json!({"op":"retouch_brush","layer":0,"kind":kind,"strength":0.7});
+    let requests = [
+        ("dodge", dodge.clone()),
+        ("blur", brush("blur")),
+        ("sharpen", brush("sharpen")),
+        ("desaturate", brush("desaturate")),
+    ];
+    let dodged = edited(&doc, &dodge, &coverage(DAB));
+    for (label, request) in &requests {
+        let plan = scratch_bytes(&doc, request);
+        println!("cmyk {label} canvas form at {W}x{H}: plan {plan}");
+    }
+    let plan = history_scratch(&dodged, &doc, None);
+    println!("cmyk history brush canvas form at {W}x{H}: plan {plan}");
+    let mut failures = Vec::new();
+    for (stroke, rect, dab) in [(DAB, DAB_RECT, true), (LONG_DAB, LONG_RECT, false)] {
+        let samples = rect_coverage(stroke, rect);
+        let (x, y, w, h) = rect;
+        let mut rows: Vec<(&str, usize, u64)> = requests
+            .iter()
+            .map(|(label, request)| {
+                let mut request = request.clone();
+                request["coverage_rect"] = json!([x, y, w, h]);
+                let peak = dab_peak(&doc, &request, &samples);
+                (*label, peak, scratch_bytes(&doc, &request))
+            })
+            .collect();
+        rows.push((
+            "history brush",
+            history_peak(&dodged, &doc, &samples, Some(rect)),
+            history_scratch(&dodged, &doc, Some(rect)),
+        ));
+        for (label, peak, plan) in rows {
+            println!("cmyk {label} rect form {w}x{h} at {W}x{H}: peak {peak}, plan {plan}");
+            let label = format!("cmyk {label} rect form {w}x{h}");
+            if dab && peak >= 2 * N {
+                failures.push(format!("{label}: the peak {peak} reaches {}", 2 * N));
+            }
+            if (plan.saturating_sub(display) as f64) < 1.25 * peak as f64 {
+                failures.push(format!(
+                    "{label}: the plan {plan} less the display term {display} is below 1.25 × \
+                     the peak {peak}"
+                ));
+            }
+            if dab && plan >= 30 * N as u64 {
+                failures.push(format!(
+                    "{label}: the plan {plan} reaches {}",
+                    30 * N as u64
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 // ------------------------------------------------- selected rect dabs --

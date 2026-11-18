@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""The MCP drive for 13B-9c: the 16-bit Clone Stamp, Healing Brush and Spot
-Healing strokes send their stroke's rect (`coverage_rect`), on a 16-bit RGB
-document and a 16-bit CMYK document, on an owned Debug instance
+"""The MCP drive for 13B-9c and its coverage-brush residue: the 16-bit Clone
+Stamp, Healing Brush and Spot Healing strokes, and the Dodge/Burn, Blur,
+Sharpen, Sponge and History Brush strokes (`dodge_burn`, `blur_stroke`,
+`sharpen_stroke`, `sponge_stroke`, `history_brush_stroke`, the last from the
+state before an Invert), send their stroke's rect (`coverage_rect`), on a
+16-bit RGB document and a 16-bit CMYK document, on an owned Debug instance
 (`phase5_support.App`: its own scratch socket, a dummy API key, a private
 directory for every preference library), terminated by its own context
 manager; no Doctored process this file did not start is signalled.
@@ -13,19 +16,21 @@ pure Python: an 8-bit PNG of hashed noise, opened and converted to 16 bits
 Generic CMYK Profile. Each stroke is one point at DAB; the selection, when
 there is one, is the rectangle SELECT, whose left edge cuts the tip.
 
-- **C1 the reply names the rect.** `clone_stamp`, `heal_stroke` and
-  `spot_heal_stroke`, with and without the selection, answer a job whose
-  details carry `coverage_rect`: four integers, inside the canvas, holding
-  the stroke's tip (DAB ± half the size).
+- **C1 the reply names the rect.** Every tool, with and without the
+  selection, answers a job whose details carry `coverage_rect`: four
+  integers, inside the canvas, holding the stroke's tip (DAB ± half the
+  size).
 - **C2 confined.** Every FAR probe (outside that rect) is exactly as it
   was; with the selection, every CUT probe (inside the tip, left of the
   selection) is exactly as it was; at least one probe inside the tip (and,
-  with the selection, inside it) changes.
+  with the selection, inside it) changes. The History Brush's "as it was" is
+  the inverted state its stroke starts from.
 - **C3 the hard clone copies.** A hard (100), opacity 1 `clone_stamp` whose
   source is 60 px to the left (an integer move) leaves at every INSIDE probe
   (inside the selection and the tip's interior) the sample the source held
   there before, exactly.
-- **C4 one undo.** One `undo` restores every probe exactly.
+- **C4 one undo.** One `undo` restores every probe exactly (for the History
+  Brush, the inverted state; a second Invert then gives the original back).
 """
 import argparse
 import json
@@ -53,7 +58,8 @@ INSIDE = [(100, 70), (104, 70), (100, 74), (98, 66), (105, 75)]
 CUT = [(92, 70), (93, 72), (94, 68)]
 FAR = [(5, 5), (195, 5), (5, 135), (195, 135), (150, 120), (60, 20), (40, 70)]
 DEPTHS = ['rgba16', 'cmyk16']
-TOOLS = ['clone_stamp', 'heal_stroke', 'spot_heal_stroke']
+TOOLS = ['clone_stamp', 'heal_stroke', 'spot_heal_stroke', 'dodge_burn', 'blur_stroke',
+         'sharpen_stroke', 'sponge_stroke', 'history_brush_stroke']
 
 
 def hashed(x, y, salt):
@@ -140,15 +146,23 @@ def main():
             call('convert_precision', document_id=doc, mode=depth, structure='preserve')
             return doc
 
-        def stroke(doc, tool):
+        def stroke(doc, tool, state=None):
             arguments = {'document_id': doc, 'layer': 0, 'points': [list(DAB)], 'size': SIZE}
             if tool == 'clone_stamp':
                 arguments.update(source_x=DAB[0] - SHIFT, source_y=DAB[1], opacity=1,
                                  hardness=100)
             elif tool == 'heal_stroke':
                 arguments.update(source_x=DAB[0] - SHIFT, source_y=DAB[1], opacity=100)
-            else:
+            elif tool == 'spot_heal_stroke':
                 arguments.update(opacity=100, seed=7)
+            elif tool == 'dodge_burn':
+                arguments.update(exposure=80, hardness=100)
+            elif tool == 'sponge_stroke':
+                arguments.update(mode='desaturate', strength=100, hardness=100)
+            elif tool == 'history_brush_stroke':
+                arguments.update(opacity=100, hardness=100, state_id=state)
+            else:
+                arguments.update(strength=100, hardness=100)
             return call(tool, **arguments)
 
         everything = INSIDE + CUT + FAR
@@ -161,30 +175,44 @@ def main():
             for tool in TOOLS:
                 for selected in (False, True):
                     label = f'{depth} {tool}' + (' selected' if selected else '')
+                    # The History Brush paints the state before an Invert back:
+                    # its stroke starts from the inverted state.
+                    state, start = None, original
+                    if tool == 'history_brush_stroke':
+                        state = call('list_history', document_id=doc)['current_state_id']
+                        call('apply_filter', document_id=doc, layer=0, filter='invert')
+                        start = probe(doc, everything)
                     if selected:
                         call('select_rect', document_id=doc, **SELECT)
-                    reply = stroke(doc, tool)
+                    reply = stroke(doc, tool, state)
                     rect = coverage_rect(reply)
                     row[label] = {'coverage_rect': rect}
                     gate(holds_tip(rect), f'{label} C1 the reply names the rect {rect}')
                     after = probe(doc, everything)
                     if isinstance(rect, list) and len(rect) == 4:
                         far = [p for p in FAR if outside(p, rect)]
-                        gate(len(far) == len(FAR) and all(after[p] == original[p] for p in far),
+                        gate(len(far) == len(FAR) and all(after[p] == start[p] for p in far),
                              f'{label} C2 nothing outside the rect changes')
                     if selected:
-                        gate(all(after[p] == original[p] for p in CUT),
+                        gate(all(after[p] == start[p] for p in CUT),
                              f'{label} C2 nothing outside the selection changes')
                     changed = INSIDE if selected else INSIDE + CUT
-                    gate(any(after[p] != original[p] for p in changed),
+                    gate(any(after[p] != start[p] for p in changed),
                          f'{label} C2 the stroke changes its tip')
                     if tool == 'clone_stamp':
                         copied = [after[p] == source[(p[0] - SHIFT, p[1])] for p in INSIDE]
                         gate(all(copied), f'{label} C3 the hard clone copies its source exactly')
                     call('undo', document_id=doc)
-                    gate(probe(doc, everything) == original, f'{label} C4 one undo restores')
+                    gate(probe(doc, everything) == start, f'{label} C4 one undo restores')
                     if selected:
                         call('deselect', document_id=doc)
+                    if tool == 'history_brush_stroke':
+                        # A second Invert (exact at 16 bits and on ink) gives the
+                        # next case the original back, whatever the selection's
+                        # own undo steps are.
+                        call('apply_filter', document_id=doc, layer=0, filter='invert')
+                        gate(probe(doc, everything) == original,
+                             f'{label} a second Invert restores the original')
             call('close_document', document_id=doc, discard_changes=True)
 
     receipts['failures'] = failures

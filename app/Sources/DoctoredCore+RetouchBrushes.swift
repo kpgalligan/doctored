@@ -167,35 +167,62 @@ extension RasterPrecisionDocument {
 
     /// `dr_precision_doc_history_brush_plan`, as `pixelEditPlan` answers.
     /// `source` is a state at this document's own depth (16-bit or float).
+    /// `coverageRect` is the canvas rect the stroke's samples cover (nil = the canvas).
     func historyBrushPlan(layer: Int, source: RasterPrecisionDocument, sourceLayer: Int,
-                          selection: Bool, workingLimit: UInt64, otherRetained: UInt64)
+                          selection: Bool, coverageRect: CoverageRect? = nil,
+                          workingLimit: UInt64, otherRetained: UInt64)
         throws -> [String: Any] {
         guard layer >= 0, sourceLayer >= 0 else {
             throw DoctoredCoreError(message: "Invalid high-depth layer index.")
         }
+        let words = try Self.coverageRectWords(coverageRect)
         var error: UnsafeMutablePointer<CChar>?
-        let result = dr_precision_doc_history_brush_plan(
-            ptr, layer, source.ptr, sourceLayer, selection, workingLimit, otherRetained, &error)
+        let result = Self.withCoverageRect(words) { rect in
+            dr_precision_doc_history_brush_plan(
+                ptr, layer, source.ptr, sourceLayer, selection, rect, workingLimit,
+                otherRetained, &error)
+        }
         return try precisionJSON(result, error)
     }
 
-    /// `dr_precision_doc_history_brush`: `samples` is the canvas-sized stroke
-    /// coverage, then the selection plane when planned with one. nil for an
-    /// exact no-op, as `editingPixels`.
+    /// `dr_precision_doc_history_brush`: `samples` is the stroke coverage over `coverageRect`
+    /// (nil = the canvas), then the selection plane over the same rect when planned with one.
+    /// nil for an exact no-op, as `editingPixels`.
     func historyBrushing(layer: Int, source: RasterPrecisionDocument, sourceLayer: Int,
-                         opacity: Double, samples: [UInt16], workingLimit: UInt64,
-                         otherRetained: UInt64, control: RasterJobControl? = nil)
+                         opacity: Double, samples: [UInt16], coverageRect: CoverageRect? = nil,
+                         workingLimit: UInt64, otherRetained: UInt64,
+                         control: RasterJobControl? = nil)
         throws -> RasterPrecisionDocument? {
         guard layer >= 0, sourceLayer >= 0 else {
             throw DoctoredCoreError(message: "Invalid high-depth layer index.")
         }
+        let words = try Self.coverageRectWords(coverageRect)
         var error: UnsafeMutablePointer<CChar>?
         let result = samples.withUnsafeBufferPointer { input in
-            dr_precision_doc_history_brush(
-                ptr, layer, source.ptr, sourceLayer, opacity, input.baseAddress, input.count,
-                workingLimit, otherRetained, control?.ptr, &error)
+            Self.withCoverageRect(words) { rect in
+                dr_precision_doc_history_brush(
+                    ptr, layer, source.ptr, sourceLayer, opacity, input.baseAddress, input.count,
+                    rect, workingLimit, otherRetained, control?.ptr, &error)
+            }
         }
         return try editResult(result, error)
+    }
+
+    /// The History Brush exports' `coverage_rect` words, `x, y, w, h`; nil = the canvas.
+    private static func coverageRectWords(_ rect: CoverageRect?) throws -> [UInt32]? {
+        guard let rect else { return nil }
+        let words = [rect.x, rect.y, rect.width, rect.height].compactMap { UInt32(exactly: $0) }
+        guard words.count == 4 else {
+            throw DoctoredCoreError(message: "A stroke's coverage rect must be a nonempty rect inside the canvas.")
+        }
+        return words
+    }
+
+    /// `body` with a pointer to `words` (NULL when nil), for the call's duration.
+    private static func withCoverageRect<T>(_ words: [UInt32]?,
+                                            _ body: (UnsafePointer<UInt32>?) -> T) -> T {
+        guard let words else { return body(nil) }
+        return words.withUnsafeBufferPointer { body($0.baseAddress) }
     }
 
     /// `dr_precision_doc_art_history_brush_plan`, as `pixelEditPlan` answers:

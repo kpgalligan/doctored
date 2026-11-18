@@ -151,7 +151,7 @@ impl PrecisionDocument {
         {
             return Err(refusal);
         }
-        let mut plan = self.history_brush_plan(layer, source, source_layer, selection)?;
+        let mut plan = self.history_brush_plan(layer, source, source_layer, selection, None)?;
         let (sw, sh) = source
             .layer(source_layer)
             .and_then(|record| record.source())

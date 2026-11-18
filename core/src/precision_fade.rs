@@ -133,10 +133,18 @@ impl PrecisionDocument {
         }
         let (image, _) = self.fade_target(layer)?;
         self.fade_source(before, layer)?;
+        // Fade's coverage is the canvas plane (no `coverage_rect`).
+        let canvas = (0, 0, self.width, self.height);
         let mut plan = if self.is_float() {
-            float_coverage_plan(self, image, FLOAT_HISTORY_BRUSH_BYTES_PER_PIXEL, false)?
+            float_coverage_plan(
+                self,
+                image,
+                FLOAT_HISTORY_BRUSH_BYTES_PER_PIXEL,
+                false,
+                canvas,
+            )?
         } else {
-            coverage_plan(self, image, HISTORY_BRUSH_BYTES_PER_PIXEL, false)?
+            coverage_plan(self, image, HISTORY_BRUSH_BYTES_PER_PIXEL, false, canvas)?
         };
         if !coverage {
             plan["input_samples"] = 0.into();
